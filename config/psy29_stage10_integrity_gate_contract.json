@@ -1,0 +1,47 @@
+{
+  "contract": "PSY29_LIVE_CANDIDATE_INTEGRITY_PROVENANCE_GATE",
+  "version": "1.0",
+  "status": "LOCKED_DESIGN",
+  "purpose": "Validate the integrity, freshness, cross-stage consistency, and provenance of the verified Stage 5-9 candidate pipeline without producing a trading decision.",
+  "inputs": {
+    "universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "config/psy29_edge_profiles_v1.json",
+    "stage6_regimes": "Stage 6 PSY29 Live Regime Engine V2 output",
+    "stage7_activation": "Stage 7 PSY29 Research-Conditioned Edge Activation output",
+    "stage8_ranking": "Stage 8 PSY29 Portfolio Edge Ranking output",
+    "stage9_quality": "Stage 9 PSY29 Candidate Quality Confidence output"
+  },
+  "coverage": 29,
+  "states": ["INTEGRITY_PASS", "INTEGRITY_FAIL", "DATA_STALE", "DATA_INVALID"],
+  "gates": {
+    "research_profile_integrity": ["Exactly one Stage 5 profile per canonical symbol.", "Research provenance equals config/psy29_edge_profiles_v1.json."],
+    "live_data_integrity": ["Stage 6 covers all 29 symbols.", "data_status is valid.", "FRESH is accepted as live-valid; DATA_STALE remains DATA_STALE."],
+    "edge_state_integrity": ["Stage 7 covers all 29 symbols.", "Activation state is one of EDGE_ACTIVE, EDGE_INACTIVE, DATA_STALE, DATA_INVALID."],
+    "ranking_integrity": ["Stage 8 covers all 29 symbols.", "Only EDGE_ACTIVE rows have ranking values.", "Ranking score is finite and within 0-1.", "Stage 8 research provenance is verified."],
+    "quality_integrity": ["Stage 9 covers all 29 symbols.", "Only EDGE_ACTIVE rows have candidate quality values.", "Candidate quality is finite and within 0-100.", "Quality score is not a probability."],
+    "cross_stage_consistency": ["Symbol sets and row coverage agree across Stages 5-9.", "Stage 6 regime/data status agrees with Stages 8-9.", "Stage 7/8/9 activation states agree.", "Trade flags remain false."],
+    "provenance_integrity": ["Stage 5 source is the locked profile file.", "Stages 6-9 source labels are present and internally consistent."]
+  },
+  "decision_rule": "INTEGRITY_PASS means the row's prerequisite data and provenance are internally consistent. INTEGRITY_FAIL means live data is valid/fresh but a non-fatal integrity prerequisite fails. DATA_STALE preserves stale live data. DATA_INVALID is fail-closed for missing, malformed, contradictory, or unverifiable data.",
+  "safety": {
+    "trade_ready_output": false,
+    "trade_authorization": false,
+    "trade_signal_generation": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "execution": false
+  },
+  "fail_closed_rules": [
+    "Exactly 29 canonical symbols are mandatory.",
+    "Any missing or duplicate canonical symbol invalidates the run.",
+    "Cross-stage contradictions are DATA_INVALID.",
+    "DATA_STALE and DATA_INVALID can never become INTEGRITY_PASS.",
+    "No trading decision or execution instruction is emitted.",
+    "Historical research evidence remains behavioural evidence only."
+  ],
+  "outputs": ["integrity_state", "gate_results", "gate_reasons", "research_provenance", "stage6_provenance", "stage7_provenance", "stage8_provenance", "stage9_provenance"],
+  "trade_authorization": false,
+  "trade_signal_generation": false
+}
