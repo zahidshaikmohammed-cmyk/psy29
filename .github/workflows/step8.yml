@@ -37,9 +37,7 @@ jobs:
 
       - name: Prepare input directories
         run: |
-          mkdir -p input/step6
-          mkdir -p input/step7
-          mkdir -p output/step8
+          mkdir -p input/step6 input/step7 output/step8
 
       - name: Download Step 6 V3 artifact
         uses: actions/download-artifact@v4
@@ -47,9 +45,8 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.step6_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          pattern: psy29-step6-v3-walk-forward
+          name: psy29-step6-v3-walk-forward
           path: input/step6
-          merge-multiple: true
 
       - name: Download Step 7 liquidity artifact
         uses: actions/download-artifact@v4
@@ -57,79 +54,20 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.step7_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          pattern: psy29-step7-liquidity-gate
+          name: psy29-step7-liquidity-gate
           path: input/step7
-          merge-multiple: true
 
-      - name: Locate Step 6 ranking automatically
-        shell: bash
-        run: |
-          echo "Step 6 artifact files:"
-          find input/step6 -type f -print
-
-          STEP6_FILE=$(find input/step6 -type f -name "*.csv" -print0 | \
-            xargs -0 -r -n1 sh -c '
-              python - "$0" <<"PY"
-import sys
-import pandas as pd
-p=sys.argv[1]
-try:
-    c=set(pd.read_csv(p,nrows=0).columns)
-    required={"symbol","oos_edge_score_v3","oos_sessions","oos_trend_event_count"}
-    if required.issubset(c):
-        print(p)
-except Exception:
-    pass
-PY
-            ' | head -n 1)
-
-          if [ -z "$STEP6_FILE" ]; then
-            echo "ERROR: Could not auto-detect Step 6 ranking CSV."
-            exit 1
-          fi
-
-          cp "$STEP6_FILE" input/step6/edge_ranking.csv
-          echo "Detected Step 6 ranking: $STEP6_FILE"
-
-      - name: Locate Step 7 liquidity audit automatically
-        shell: bash
-        run: |
-          echo "Step 7 artifact files:"
-          find input/step7 -type f -print
-
-          LIQ_FILE=$(find input/step7 -type f -name "*.csv" -print0 | \
-            xargs -0 -r -n1 sh -c '
-              python - "$0" <<"PY"
-import sys
-import pandas as pd
-p=sys.argv[1]
-try:
-    c=set(pd.read_csv(p,nrows=0).columns)
-    required={"symbol","liquidity_pass","liquidity_score","edge_liquidity_score"}
-    if required.issubset(c):
-        print(p)
-except Exception:
-    pass
-PY
-            ' | head -n 1)
-
-          if [ -z "$LIQ_FILE" ]; then
-            echo "ERROR: Could not auto-detect Step 7 liquidity audit CSV."
-            exit 1
-          fi
-
-          cp "$LIQ_FILE" input/step7/liquidity_audit.csv
-          echo "Detected Step 7 liquidity audit: $LIQ_FILE"
-
-      - name: Validate input schemas
+      - name: Detect and validate Step 6 ranking
         run: |
           python - <<'PY'
+          from pathlib import Path
           import pandas as pd
 
-          edge = pd.read_csv("input/step6/edge_ranking.csv")
-          liq = pd.read_csv("input/step7/liquidity_audit.csv")
+          root = Path("input/step6")
+          files = list(root.rglob("*.csv"))
+          print("Step 6 CSV files:", [str(x) for x in files])
 
-          edge_required = {
+          required = {
               "symbol",
               "oos_edge_score_v3",
               "oos_sessions",
@@ -139,24 +77,60 @@ PY
               "oos_or_continuation_rate",
           }
 
-          liq_required = {
+          matches = []
+          for path in files:
+              try:
+                  columns = set(pd.read_csv(path, nrows=0).columns)
+                  if required.issubset(columns):
+                      matches.append(path)
+              except Exception:
+                  pass
+
+          if not matches:
+              raise SystemExit("No valid Step 6 ranking CSV found.")
+
+          source = matches[0]
+          df = pd.read_csv(source)
+          df.to_csv("input/step6/edge_ranking.csv", index=False)
+          print(f"Detected Step 6 ranking: {source}")
+          print(f"Rows: {len(df)}")
+          PY
+
+      - name: Detect and validate Step 7 liquidity audit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+
+          root = Path("input/step7")
+          files = list(root.rglob("*.csv"))
+          print("Step 7 CSV files:", [str(x) for x in files])
+
+          required = {
               "symbol",
               "liquidity_pass",
               "liquidity_score",
               "edge_liquidity_score",
           }
 
-          missing_edge = edge_required - set(edge.columns)
-          missing_liq = liq_required - set(liq.columns)
+          matches = []
+          for path in files:
+              try:
+                  columns = set(pd.read_csv(path, nrows=0).columns)
+                  if required.issubset(columns):
+                      matches.append(path)
+              except Exception:
+                  pass
 
-          if missing_edge:
-              raise SystemExit(f"Missing Step 6 columns: {sorted(missing_edge)}")
-          if missing_liq:
-              raise SystemExit(f"Missing Step 7 columns: {sorted(missing_liq)}")
+          if not matches:
+              raise SystemExit("No valid Step 7 liquidity audit CSV found.")
 
-          print(f"Step 6 rows: {len(edge)}")
-          print(f"Step 7 rows: {len(liq)}")
-          print("Input schemas validated.")
+          source = matches[0]
+          df = pd.read_csv(source)
+          df.to_csv("input/step7/liquidity_audit.csv", index=False)
+          print(f"Detected Step 7 liquidity audit: {source}")
+          print(f"Rows: {len(df)}")
+          print(f"Liquidity pass count: {int(df['liquidity_pass'].sum())}")
           PY
 
       - name: Run PSY29 Step 8
@@ -191,7 +165,7 @@ PY
       - name: Display FINAL PSY29
         run: |
           echo "====================================="
-          echo "       FINAL PSY29 — 29 STOCKS"
+          echo "       FINAL PSY29 - 29 STOCKS"
           echo "====================================="
           cat output/step8/PSY29_FINAL_29.csv
           echo "====================================="
