@@ -1,0 +1,49 @@
+{
+  "contract": "PSY29_RESEARCH_CONDITIONED_EDGE_ACTIVATION",
+  "version": "1.0",
+  "status": "LOCKED_DESIGN",
+  "purpose": "Determine whether current Stage 6 live regime is consistent with the stock's verified historical behavioural profile. This is an eligibility gate only; it is not a trade signal or authorization.",
+  "inputs": {
+    "universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "config/psy29_edge_profiles_v1.json",
+    "security_ids": "Stage 4 verified DHAN security-ID map",
+    "live_regimes": "Stage 6 PSY29 Live Regime Engine V2 output"
+  },
+  "research_basis": {
+    "step6": "Verified walk-forward OOS trend-event, strong-trend, and event-return evidence.",
+    "step7": "Historical OHLCV liquidity proxy only; not live order-book depth.",
+    "step8": "Verified automatic final-29 selection.",
+    "cross_stock_reference": {
+      "median_trend_rate": 0.2875,
+      "median_or_continuation_rate": 0.375,
+      "method": "Median of the 29 locked Stage 5 research profiles"
+    }
+  },
+  "activation_rules": {
+    "BULLISH_BREAKOUT_REGIME": "EDGE_ACTIVE when stock OR-continuation rate >= 0.375; otherwise EDGE_INACTIVE.",
+    "BEARISH_BREAKDOWN_REGIME": "EDGE_ACTIVE when stock OR-continuation rate >= 0.375; otherwise EDGE_INACTIVE.",
+    "BULLISH_ALIGNMENT_REGIME": "EDGE_ACTIVE when stock trend rate >= 0.2875; otherwise EDGE_INACTIVE.",
+    "BEARISH_ALIGNMENT_REGIME": "EDGE_ACTIVE when stock trend rate >= 0.2875; otherwise EDGE_INACTIVE.",
+    "BULLISH_WEAK_ALIGNMENT_REGIME": "EDGE_ACTIVE when stock trend rate >= 0.2875; otherwise EDGE_INACTIVE.",
+    "BEARISH_WEAK_ALIGNMENT_REGIME": "EDGE_ACTIVE when stock trend rate >= 0.2875; otherwise EDGE_INACTIVE.",
+    "NEUTRAL_MIXED_REGIME": "EDGE_INACTIVE because no directional live regime is present.",
+    "DATA_STALE": "DATA_STALE; never active.",
+    "DATA_INVALID": "DATA_INVALID; never active."
+  },
+  "provenance_rules": [
+    "Every result must identify the Stage 5 profile source and profile version.",
+    "Historical rates are priors/eligibility evidence, not current-session probabilities.",
+    "No direction is inferred from historical data alone; direction comes only from Stage 6 live regime classification.",
+    "No live result may add, remove, or reorder the canonical 29.",
+    "Missing profile, missing regime, stale data, invalid data, or universe mismatch must fail closed.",
+    "Stage 2–8 research logic is immutable under Stage 7."
+  ],
+  "outputs": [
+    "EDGE_ACTIVE",
+    "EDGE_INACTIVE",
+    "DATA_STALE",
+    "DATA_INVALID"
+  ],
+  "trade_authorization": false,
+  "trade_signal_generation": false
+}
