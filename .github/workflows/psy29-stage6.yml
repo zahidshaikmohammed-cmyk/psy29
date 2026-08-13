@@ -1,0 +1,287 @@
+name: PSY29 Stage 6 - Live Regime Engine V2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage6:
+    name: Validate PSY29 Live Regime Engine V2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Verify required PSY29 contracts
+        run: |
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_live_dhan_data_contract.json
+          test -f config/psy29_edge_profiles_v1.json
+          test -f scripts/step9_live_regime_v2.py
+
+      - name: Verify canonical 29 count
+        run: |
+          python - <<'PY'
+          import json
+
+          with open("config/psy29_live_universe_contract.json") as f:
+              data = json.load(f)
+
+          symbols = [
+              x["symbol"]
+              for x in data["universe"]
+          ]
+
+          assert len(symbols) == 29
+          assert len(set(symbols)) == 29
+          assert symbols == [
+              "NESTLEIND",
+              "VEDL",
+              "ICICIPRULI",
+              "KALYANKJIL",
+              "KOTAKBANK",
+              "BANDHANBNK",
+              "BANKBARODA",
+              "TITAN",
+              "INFY",
+              "DLF",
+              "TCS",
+              "MAXHEALTH",
+              "KFINTECH",
+              "PRESTIGE",
+              "BHEL",
+              "RBLBANK",
+              "HCLTECH",
+              "ICICIGI",
+              "HDFCLIFE",
+              "MARICO",
+              "LUPIN",
+              "COFORGE",
+              "TECHM",
+              "SWIGGY",
+              "PERSISTENT",
+              "OBEROIRLTY",
+              "SUPREMEIND",
+              "LAURUSLABS",
+              "AMBUJACEM",
+          ]
+
+          print("CANONICAL 29: PASS")
+          PY
+
+      - name: Create deterministic Stage 6 test fixtures
+        run: |
+          mkdir -p /tmp/psy29_stage6
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          universe = json.loads(
+              Path("config/psy29_live_universe_contract.json").read_text()
+          )
+
+          symbols = [
+              x["symbol"]
+              for x in universe["universe"]
+          ]
+
+          security_map = {
+              "status": "PASS",
+              "canonical_count": 29,
+              "resolved_count": 29,
+              "unique_security_id_count": 29,
+              "mappings": [
+                  {
+                      "symbol": symbol,
+                      "security_id": f"TEST_{i:03d}",
+                      "exchange": "NSE",
+                      "segment": "E"
+                  }
+                  for i, symbol in enumerate(symbols, start=1)
+              ]
+          }
+
+          Path(
+              "/tmp/psy29_stage6/security_map.json"
+          ).write_text(
+              json.dumps(security_map, indent=2)
+          )
+
+          rows = []
+
+          for i, symbol in enumerate(symbols):
+
+              if i == 0:
+                  # Bullish breakout
+                  row = {
+                      "symbol": symbol,
+                      "timestamp": "2026-08-14T10:00:00+05:30",
+                      "last_price": 105,
+                      "vwap": 100,
+                      "ema9": 104,
+                      "ema20": 101,
+                      "first15_high": 103,
+                      "first15_low": 98
+                  }
+
+              elif i == 1:
+                  # Bearish breakdown
+                  row = {
+                      "symbol": symbol,
+                      "timestamp": "2026-08-14T10:00:00+05:30",
+                      "last_price": 95,
+                      "vwap": 100,
+                      "ema9": 96,
+                      "ema20": 99,
+                      "first15_high": 102,
+                      "first15_low": 97
+                  }
+
+              else:
+                  # Valid neutral/mixed state
+                  row = {
+                      "symbol": symbol,
+                      "timestamp": "2026-08-14T10:00:00+05:30",
+                      "last_price": 100,
+                      "vwap": 100,
+                      "ema9": 100,
+                      "ema20": 100,
+                      "first15_high": 102,
+                      "first15_low": 98
+                  }
+
+              rows.append(row)
+
+          import csv
+
+          with open(
+              "/tmp/psy29_stage6/snapshot.csv",
+              "w",
+              newline=""
+          ) as f:
+
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=[
+                      "symbol",
+                      "timestamp",
+                      "last_price",
+                      "vwap",
+                      "ema9",
+                      "ema20",
+                      "first15_high",
+                      "first15_low"
+                  ]
+              )
+
+              writer.writeheader()
+              writer.writerows(rows)
+
+          print("TEST FIXTURES CREATED")
+          PY
+
+      - name: Compile Stage 6 V2
+        run: |
+          python -m py_compile scripts/step9_live_regime_v2.py
+
+      - name: Run Stage 6 V2 deterministic validation
+        run: |
+          mkdir -p output/stage6
+
+          python scripts/step9_live_regime_v2.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --security-map /tmp/psy29_stage6/security_map.json \
+            --snapshot /tmp/psy29_stage6/snapshot.csv \
+            --output output/stage6
+
+      - name: HARD VERIFY Stage 6
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open("output/stage6/stage6_summary.json")
+          )
+
+          result = pd.read_csv(
+              "output/stage6/PSY29_STAGE6_LIVE_REGIMES.csv"
+          )
+
+          assert summary["status"] == "PASS"
+          assert summary["universe_size"] == 29
+          assert summary["profiles_verified"] == 29
+          assert summary["security_ids_verified"] == 29
+
+          assert len(result) == 29
+          assert result["symbol"].nunique() == 29
+
+          assert (
+              result["trade_authorized"] == False
+          ).all()
+
+          assert (
+              result["trade_signal_generated"] == False
+          ).all()
+
+          assert (
+              result.iloc[0]["regime"]
+              == "BULLISH_BREAKOUT_REGIME"
+          )
+
+          assert (
+              result.iloc[1]["regime"]
+              == "BEARISH_BREAKDOWN_REGIME"
+          )
+
+          assert (
+              result.iloc[2]["regime"]
+              == "NEUTRAL_MIXED_REGIME"
+          )
+
+          allowed = {
+              "BULLISH_BREAKOUT_REGIME",
+              "BEARISH_BREAKDOWN_REGIME",
+              "BULLISH_ALIGNMENT_REGIME",
+              "BEARISH_ALIGNMENT_REGIME",
+              "BULLISH_WEAK_ALIGNMENT_REGIME",
+              "BEARISH_WEAK_ALIGNMENT_REGIME",
+              "NEUTRAL_MIXED_REGIME",
+              "DATA_STALE",
+              "DATA_INVALID"
+          }
+
+          assert set(result["regime"]).issubset(allowed)
+
+          print("========================================")
+          print("PSY29 STAGE 6 V2 HARD VERIFY: PASS")
+          print("29/29 symbols processed")
+          print("29/29 research profiles verified")
+          print("29/29 security IDs verified")
+          print("Trade authorization: FALSE")
+          print("Trade signal generation: FALSE")
+          print("========================================")
+          PY
+
+      - name: Upload Stage 6 validation output
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage6-regime-v2-validation
+          path: output/stage6/
+          if-no-files-found: error
