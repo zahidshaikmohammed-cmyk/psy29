@@ -1,0 +1,101 @@
+{
+  "contract": "PSY29_MACHINE_READABLE_EDGE_PROFILES",
+  "version": "1.0",
+  "status": "LOCKED_RESEARCH_PROFILE",
+  "scope": {
+    "live_universe_contract": "config/psy29_live_universe_contract.json",
+    "profile_count": 29,
+    "research_basis": "verified Step 6 V3 OOS evidence + Step 7 historical liquidity gate + Step 8 automatic final-29 selection",
+    "live_signal_generation": false
+  },
+  "research_sources": {
+    "step6": {
+      "workflow": "PSY29 Step 6 V3 - Walk-Forward OOS Edge Engine",
+      "run_id": 31711962980,
+      "commit_sha": "8d53b4bc105cbc9e17aabf8c60f6a843e2710900",
+      "artifact_name": "psy29-step6-v3-walk-forward",
+      "artifact_id": 9185687646,
+      "method": "walk-forward out-of-sample validation",
+      "training_sessions": 60,
+      "test_sessions": 20,
+      "stocks_input": 208,
+      "stocks_with_oos_events": 208,
+      "oos_sessions_analyzed": 16640,
+      "thresholds_learned_only_from_past": true,
+      "same_sample_threshold_leakage": false,
+      "status": "PASS"
+    },
+    "step7": {
+      "workflow": "PSY29 Step 7 - Intraday Liquidity Gate",
+      "run_id": 31712419256,
+      "commit_sha": "17e9f7b1d5f9bfd79cd787bb15da92d8d2eb3b84",
+      "artifact_name": "psy29-step7-liquidity-gate",
+      "artifact_id": 9185829057,
+      "input_stocks": 208,
+      "liquidity_pass_count": 206,
+      "liquidity_fail_count": 2,
+      "gate_type": "historical intraday OHLCV liquidity proxy",
+      "live_order_book_depth_measured": false,
+      "status": "PASS"
+    },
+    "step8": {
+      "workflow": "PSY29 Step 8 — Final 29 Selection Engine",
+      "run_id": 31715155482,
+      "commit_sha": "bdba01704625b93081b933013c1a356faf08ef68",
+      "artifact_name": "psy29-final-29",
+      "artifact_id": 9186920995,
+      "input_universe_count": 206,
+      "final_selection_count": 29,
+      "selection_method": "automatic",
+      "manual_selection": false,
+      "exactly_29": true,
+      "status": "PASS"
+    }
+  },
+  "metric_definition": {
+    "trend_events_80": "Number of qualifying directional trend events in the 80 OOS sessions.",
+    "trend_rate": "trend_events_80 / 80.",
+    "strong_trend_rate": "Share of the 80 OOS sessions classified as strong trend.",
+    "or_continuation_rate": "Share of the 80 OOS sessions classified as opening-range continuation.",
+    "median_event_return_pct": "Median observed event return percentage for the stock's qualifying research events."
+  },
+  "profiles": [
+    {"rank":1,"symbol":"NESTLEIND","trend_events_80":26,"trend_rate":0.325,"strong_trend_rate":0.2125,"or_continuation_rate":0.3625,"median_event_return_pct":1.84},
+    {"rank":2,"symbol":"VEDL","trend_events_80":25,"trend_rate":0.3125,"strong_trend_rate":0.175,"or_continuation_rate":0.3125,"median_event_return_pct":3.58},
+    {"rank":3,"symbol":"ICICIPRULI","trend_events_80":28,"trend_rate":0.35,"strong_trend_rate":0.20,"or_continuation_rate":0.3875,"median_event_return_pct":2.18},
+    {"rank":4,"symbol":"KALYANKJIL","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.2125,"or_continuation_rate":0.375,"median_event_return_pct":4.17},
+    {"rank":5,"symbol":"KOTAKBANK","trend_events_80":26,"trend_rate":0.325,"strong_trend_rate":0.1625,"or_continuation_rate":0.3625,"median_event_return_pct":1.66},
+    {"rank":6,"symbol":"BANDHANBNK","trend_events_80":25,"trend_rate":0.3125,"strong_trend_rate":0.1875,"or_continuation_rate":0.3625,"median_event_return_pct":3.06},
+    {"rank":7,"symbol":"BANKBARODA","trend_events_80":22,"trend_rate":0.275,"strong_trend_rate":0.1375,"or_continuation_rate":0.4125,"median_event_return_pct":2.17},
+    {"rank":8,"symbol":"TITAN","trend_events_80":26,"trend_rate":0.325,"strong_trend_rate":0.1625,"or_continuation_rate":0.375,"median_event_return_pct":1.91},
+    {"rank":9,"symbol":"INFY","trend_events_80":22,"trend_rate":0.275,"strong_trend_rate":0.20,"or_continuation_rate":0.3625,"median_event_return_pct":2.33},
+    {"rank":10,"symbol":"DLF","trend_events_80":24,"trend_rate":0.30,"strong_trend_rate":0.1375,"or_continuation_rate":0.40,"median_event_return_pct":2.70},
+    {"rank":11,"symbol":"TCS","trend_events_80":26,"trend_rate":0.325,"strong_trend_rate":0.225,"or_continuation_rate":0.2625,"median_event_return_pct":2.46},
+    {"rank":12,"symbol":"MAXHEALTH","trend_events_80":22,"trend_rate":0.275,"strong_trend_rate":0.1875,"or_continuation_rate":0.375,"median_event_return_pct":2.70},
+    {"rank":13,"symbol":"KFINTECH","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.15,"or_continuation_rate":0.425,"median_event_return_pct":2.96},
+    {"rank":14,"symbol":"PRESTIGE","trend_events_80":20,"trend_rate":0.25,"strong_trend_rate":0.1625,"or_continuation_rate":0.4375,"median_event_return_pct":2.80},
+    {"rank":15,"symbol":"BHEL","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.2125,"or_continuation_rate":0.3375,"median_event_return_pct":3.67},
+    {"rank":16,"symbol":"RBLBANK","trend_events_80":25,"trend_rate":0.3125,"strong_trend_rate":0.1875,"or_continuation_rate":0.3125,"median_event_return_pct":2.64},
+    {"rank":17,"symbol":"HCLTECH","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.1875,"or_continuation_rate":0.35,"median_event_return_pct":2.88},
+    {"rank":18,"symbol":"ICICIGI","trend_events_80":22,"trend_rate":0.275,"strong_trend_rate":0.1875,"or_continuation_rate":0.375,"median_event_return_pct":2.40},
+    {"rank":19,"symbol":"HDFCLIFE","trend_events_80":21,"trend_rate":0.2625,"strong_trend_rate":0.1875,"or_continuation_rate":0.35,"median_event_return_pct":2.39},
+    {"rank":20,"symbol":"MARICO","trend_events_80":20,"trend_rate":0.25,"strong_trend_rate":0.1875,"or_continuation_rate":0.3625,"median_event_return_pct":1.84},
+    {"rank":21,"symbol":"LUPIN","trend_events_80":24,"trend_rate":0.30,"strong_trend_rate":0.175,"or_continuation_rate":0.3125,"median_event_return_pct":1.75},
+    {"rank":22,"symbol":"COFORGE","trend_events_80":20,"trend_rate":0.25,"strong_trend_rate":0.175,"or_continuation_rate":0.4125,"median_event_return_pct":4.26},
+    {"rank":23,"symbol":"TECHM","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.2125,"or_continuation_rate":0.30,"median_event_return_pct":2.97},
+    {"rank":24,"symbol":"SWIGGY","trend_events_80":23,"trend_rate":0.2875,"strong_trend_rate":0.1625,"or_continuation_rate":0.3375,"median_event_return_pct":3.80},
+    {"rank":25,"symbol":"PERSISTENT","trend_events_80":21,"trend_rate":0.2625,"strong_trend_rate":0.15,"or_continuation_rate":0.40,"median_event_return_pct":3.39},
+    {"rank":26,"symbol":"OBEROIRLTY","trend_events_80":26,"trend_rate":0.325,"strong_trend_rate":0.1625,"or_continuation_rate":0.375,"median_event_return_pct":2.18},
+    {"rank":27,"symbol":"SUPREMEIND","trend_events_80":24,"trend_rate":0.30,"strong_trend_rate":0.15,"or_continuation_rate":0.40,"median_event_return_pct":2.51},
+    {"rank":28,"symbol":"LAURUSLABS","trend_events_80":20,"trend_rate":0.25,"strong_trend_rate":0.1625,"or_continuation_rate":0.3875,"median_event_return_pct":2.69},
+    {"rank":29,"symbol":"AMBUJACEM","trend_events_80":19,"trend_rate":0.2375,"strong_trend_rate":0.1375,"or_continuation_rate":0.40,"median_event_return_pct":2.61}
+  ],
+  "profile_usage_rules": [
+    "These metrics are research priors, not live signals.",
+    "The orchestrator must not treat trend_rate, strong_trend_rate, or OR continuation rate as unconditional probabilities for the current session.",
+    "Live activation must require current-market evidence from the live data contract and later Stage 6+ engines.",
+    "Historical Step 7 liquidity is a research proxy and must not be interpreted as live order-book depth.",
+    "No profile may be used for a symbol outside the canonical 29 universe.",
+    "Research profile values are immutable until a new verified research run explicitly supersedes this profile version."
+  ]
+}
