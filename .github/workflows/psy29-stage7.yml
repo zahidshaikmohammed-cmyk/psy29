@@ -59,7 +59,8 @@ jobs:
 
           u = json.loads(Path("config/psy29_live_universe_contract.json").read_text())
           symbols = [x["symbol"] for x in u["universe"]]
-          ts = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(timespec="seconds").replace("+00:00", "Z")
+          # Stage 6 defines <=90 seconds as fresh. Keep fixture comfortably inside that window.
+          ts = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat(timespec="seconds").replace("+00:00", "Z")
 
           security_map = {
               "status": "PASS",
@@ -74,21 +75,16 @@ jobs:
           Path("/tmp/psy29_stage7/security_map.json").write_text(json.dumps(security_map, indent=2))
 
           rows = []
-          for i, symbol in enumerate(symbols):
+          for symbol in symbols:
               if symbol == "NESTLEIND":
-                  # Bullish breakout, but OR continuation rate is below the 29-stock median.
                   vals = (105, 100, 104, 101, 103, 98)
               elif symbol == "ICICIPRULI":
-                  # Bearish breakdown, with OR continuation above the median -> active.
                   vals = (95, 100, 96, 99, 102, 97)
               elif symbol == "TCS":
-                  # Bullish alignment, trend rate above the median -> active.
                   vals = (101, 100, 101, 100, 102, 98)
               elif symbol == "AMBUJACEM":
-                  # Bearish alignment, trend rate below the median -> inactive.
                   vals = (99, 100, 99, 100, 102, 98)
               else:
-                  # Neutral mixed regime.
                   vals = (100, 100, 100, 100, 102, 98)
 
               rows.append({
@@ -154,7 +150,6 @@ jobs:
           assert (df["trade_signal_generated"] == False).all()
           assert (df["research_profile_source"] == "config/psy29_edge_profiles_v1.json").all()
 
-          # Deterministic semantic checks.
           r = df.set_index("symbol")
           assert r.loc["NESTLEIND", "activation"] == "EDGE_INACTIVE"
           assert r.loc["NESTLEIND", "reason_code"] == "OR_CONTINUATION_BELOW_REFERENCE"
