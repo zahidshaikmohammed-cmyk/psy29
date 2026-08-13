@@ -1,4 +1,4 @@
-name: PSY29 Stage 16 - Live Decision Consolidation & Candidate Board
+name: PSY29 Stage 16 - Live Decision Consolidation and Candidate Board
 
 on:
   workflow_dispatch:
