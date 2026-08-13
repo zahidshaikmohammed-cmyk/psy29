@@ -488,12 +488,9 @@ def main() -> int:
         )
 
     write_json(
-        args.output
-        / "stage5.json",
-        {
-            "profiles": profiles
-        },
-    )
+    args.output / "stage5.json",
+    profiles,
+)
 
     write_json(
         args.output
