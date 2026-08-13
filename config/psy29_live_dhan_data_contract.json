@@ -1,0 +1,96 @@
+{
+  "contract": "PSY29_LIVE_DHAN_DATA_CONTRACT",
+  "version": "1.0",
+  "status": "LOCKED",
+  "scope": {
+    "live_universe_contract": "config/psy29_live_universe_contract.json",
+    "symbols": 29,
+    "exchange": "NSE",
+    "segment": "E",
+    "timezone": "Asia/Kolkata",
+    "market_session": "09:15-15:30",
+    "collection_grace_end": "15:40"
+  },
+  "source": {
+    "provider": "DHAN",
+    "existing_client": "dhan/client.py",
+    "instrument_master": "dhan/instruments.py",
+    "transport": "Dhan HTTP API for acquisition; live runtime may use an approved persistent market-data transport without changing this data contract",
+    "credentials": "DHAN_ACCESS_TOKEN required; DHAN_CLIENT_ID supported"
+  },
+  "required_live_snapshot_fields": [
+    "symbol",
+    "timestamp",
+    "last_price",
+    "vwap",
+    "ema9",
+    "ema20",
+    "first15_high",
+    "first15_low"
+  ],
+  "required_timeframes": ["1m", "5m"],
+  "bar_schema": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "data_requirements": {
+    "one_row_per_symbol_per_snapshot": true,
+    "symbol_must_be_in_canonical_29": true,
+    "security_id_must_resolve_to_nse_equity": true,
+    "timestamps_must_be_timezone_aware": true,
+    "timestamps_normalized_to": "Asia/Kolkata",
+    "ohlc_integrity_required": true,
+    "volume_must_be_non_negative": true,
+    "duplicate_symbol_rows": "reject_or_keep_latest_only_before_evaluation",
+    "missing_required_field": "NO_TRADE_FOR_SYMBOL"
+  },
+  "freshness_policy": {
+    "fresh_max_age_seconds": 90,
+    "stale_max_age_seconds": 180,
+    "invalid_after_seconds": 180,
+    "fresh_status": "ELIGIBLE_FOR_EVALUATION",
+    "stale_status": "NO_TRADE",
+    "invalid_status": "NO_TRADE"
+  },
+  "step9_compatibility": {
+    "current_live_regime_consumer": "scripts/step9_live_regime.py",
+    "current_snapshot_inputs": [
+      "symbol",
+      "last_price",
+      "vwap",
+      "ema9",
+      "ema20",
+      "first15_high",
+      "first15_low"
+    ],
+    "step9_requires_exactly_29": true,
+    "step9_current_outputs_are_not_modified_by_this_contract": true
+  },
+  "failure_policy": {
+    "fail_closed": true,
+    "unknown_symbol": "REJECT",
+    "missing_security_id": "REJECT",
+    "stale_data": "NO_TRADE",
+    "invalid_ohlc": "REJECT",
+    "missing_required_indicator": "NO_TRADE_FOR_SYMBOL",
+    "provider_failure": "NO_NEW_SIGNAL",
+    "partial_universe_failure": "ISOLATE_FAILED_SYMBOLS; DO_NOT_INFER_MISSING_DATA"
+  },
+  "provenance": {
+    "provider": "DHAN",
+    "source_records_must_retain_provenance": true,
+    "raw_provider_data_committed_to_git": false,
+    "canonical_data_flow": "provider -> raw -> validation -> processed bars -> feature tables"
+  },
+  "immutability_rules": [
+    "This contract defines the minimum live market-data interface for the PSY29 orchestrator.",
+    "The canonical 29 live universe remains controlled only by config/psy29_live_universe_contract.json.",
+    "This contract must not modify Step 2 through Step 8 research logic.",
+    "This contract must not silently convert stale or missing data into a tradeable state.",
+    "Changes to required fields, freshness thresholds, or failure semantics require an explicit contract version update."
+  ]
+}
