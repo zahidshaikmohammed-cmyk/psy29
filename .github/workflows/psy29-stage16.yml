@@ -2,6 +2,9 @@ name: PSY29 Stage 16 - Live Decision Consolidation and Candidate Board
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
