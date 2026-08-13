@@ -1,0 +1,111 @@
+name: PSY29 Stage 16 - Live Decision Consolidation and Candidate Board
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  stage16:
+    name: PSY29 Stage 16
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Verify Stage 16 files
+        run: |
+          set -e
+          test -f scripts/stage16_live_decision_consolidation.py
+          test -f scripts/stage16_test_fixture.py
+          test -f scripts/stage16_check.py
+          test -f config/psy29_stage16_live_decision_consolidation_contract.json
+          test -f config/psy29_live_universe_contract.json
+
+      - name: Compile Stage 16 Python
+        run: |
+          python -m py_compile \
+            scripts/stage16_live_decision_consolidation.py \
+            scripts/stage16_test_fixture.py \
+            scripts/stage16_check.py
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+
+          path = "config/psy29_live_universe_contract.json"
+
+          with open(path, encoding="utf-8") as f:
+              data = json.load(f)
+
+          symbols = [x["symbol"] for x in data["universe"]]
+
+          assert len(symbols) == 29, f"Expected 29 symbols, got {len(symbols)}"
+          assert len(set(symbols)) == 29, "Duplicate canonical symbols detected"
+
+          print("CANONICAL_29: PASS")
+          PY
+
+      - name: Create deterministic Stage 16 fixture
+        run: |
+          rm -rf /tmp/p16 output/stage16
+
+          python scripts/stage16_test_fixture.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/p16
+
+      - name: Run Stage 16
+        run: |
+          mkdir -p output/stage16
+
+          python scripts/stage16_live_decision_consolidation.py \
+            --universe config/psy29_live_universe_contract.json \
+            --stage5 /tmp/p16/stage5.json \
+            --stage6 /tmp/p16/stage6.csv \
+            --stage7 /tmp/p16/stage7.csv \
+            --stage8 /tmp/p16/stage8.csv \
+            --stage9 /tmp/p16/stage9.csv \
+            --stage10 /tmp/p16/stage10.csv \
+            --stage11 /tmp/p16/stage11.csv \
+            --stage12 /tmp/p16/stage12.csv \
+            --stage13 /tmp/p16/stage13.csv \
+            --stage14 /tmp/p16/stage14.csv \
+            --stage15 /tmp/p16/stage15.csv \
+            --output output/stage16
+
+      - name: Verify Stage 16 outputs
+        run: |
+          set -e
+
+          test -f output/stage16/PSY29_STAGE16_CURRENT_BOARD.json
+          test -f output/stage16/PSY29_STAGE16_CURRENT_BOARD.csv
+          test -f output/stage16/PSY29_STAGE16_VALIDATION.json
+
+          echo "STAGE16_OUTPUTS: PASS"
+
+      - name: HARD VERIFY Stage 16
+        run: |
+          python scripts/stage16_check.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output output/stage16
+
+      - name: Upload Stage 16 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage16-validation
+          path: output/stage16/
+
+      - name: Final status
+        run: |
+          echo "PSY29 STAGE 16 HARD VERIFY: PASS"
