@@ -1,0 +1,20 @@
+name: PSY29 Stage 14 Verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile scripts/stage14_live_dashboard.py scripts/stage14_test_fixture.py scripts/stage14_check.py
+      - run: python scripts/stage14_test_fixture.py config/psy29_live_universe_contract.json /tmp/p14
+      - run: mkdir -p output/stage14 && python scripts/stage14_live_dashboard.py --universe config/psy29_live_universe_contract.json --profiles /tmp/p14/profiles.json --stage6 /tmp/p14/stage6.csv --stage7 /tmp/p14/stage7.csv --stage8 /tmp/p14/stage8.csv --stage9 /tmp/p14/stage9.csv --stage10 /tmp/p14/stage10.csv --stage11 /tmp/p14/stage11.csv --stage12 /tmp/p14/stage12.csv --stage13 /tmp/p14/stage13.csv --contract config/psy29_stage14_live_dashboard_contract.json --output output/stage14
+      - run: python scripts/stage14_check.py output/stage14
