@@ -1,0 +1,48 @@
+name: PSY29 Step 6 - Intraday Edge Event Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Successful PSY29 Step 2 acquisition run ID'
+        required: true
+        default: '31702235542'
+
+jobs:
+  edge-events:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow
+      - name: Download Step 2 dataset
+        uses: actions/download-artifact@v4
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: psy29-step2-historical-dataset
+          path: input/data
+          merge-multiple: true
+      - name: Locate parquet dataset
+        shell: bash
+        run: |
+          mkdir -p input/data/raw/intraday
+          find input/data -type f -name '*.parquet' -print0 | xargs -0 -r -I{} cp "{}" input/data/raw/intraday/
+          count=$(find input/data/raw/intraday -type f -name '*.parquet' | wc -l)
+          echo "Parquet files found: $count"
+          test "$count" -gt 0
+      - name: Run PSY29 Step 6
+        run: python scripts/step6_edge_events.py --input input/data/raw/intraday --output output/step6
+      - name: Upload Step 6 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-step6-edge-events
+          path: output/step6
+          retention-days: 30
