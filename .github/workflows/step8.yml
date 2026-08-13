@@ -61,53 +61,65 @@ jobs:
           path: input/step7
           merge-multiple: true
 
-      - name: Locate Step 6 ranking
+      - name: Locate Step 6 ranking automatically
         shell: bash
         run: |
-          echo "Searching Step 6 artifact..."
+          echo "Step 6 artifact files:"
           find input/step6 -type f -print
 
-          STEP6_FILE=$(find input/step6 \
-            -type f \
-            -name "edge_event_oos_research_ranking.csv" \
-            | head -n 1)
+          STEP6_FILE=$(find input/step6 -type f -name "*.csv" -print0 | \
+            xargs -0 -r -n1 sh -c '
+              python - "$0" <<"PY"
+import sys
+import pandas as pd
+p=sys.argv[1]
+try:
+    c=set(pd.read_csv(p,nrows=0).columns)
+    required={"symbol","oos_edge_score_v3","oos_sessions","oos_trend_event_count"}
+    if required.issubset(c):
+        print(p)
+except Exception:
+    pass
+PY
+            ' | head -n 1)
 
           if [ -z "$STEP6_FILE" ]; then
-            echo "ERROR: Step 6 V3 ranking file not found."
+            echo "ERROR: Could not auto-detect Step 6 ranking CSV."
             exit 1
           fi
 
           cp "$STEP6_FILE" input/step6/edge_ranking.csv
+          echo "Detected Step 6 ranking: $STEP6_FILE"
 
-          echo "Step 6 ranking:"
-          wc -l input/step6/edge_ranking.csv
-
-      - name: Locate Step 7 liquidity audit
+      - name: Locate Step 7 liquidity audit automatically
         shell: bash
         run: |
-          echo "Searching Step 7 artifact..."
+          echo "Step 7 artifact files:"
           find input/step7 -type f -print
 
-          LIQ_FILE=$(find input/step7 \
-            -type f \
-            \( \
-              -name "liquidity_audit.csv" \
-              -o \
-              -name "step7_liquidity_audit.csv" \
-              -o \
-              -name "liquidity_gate.csv" \
-            \) \
-            | head -n 1)
+          LIQ_FILE=$(find input/step7 -type f -name "*.csv" -print0 | \
+            xargs -0 -r -n1 sh -c '
+              python - "$0" <<"PY"
+import sys
+import pandas as pd
+p=sys.argv[1]
+try:
+    c=set(pd.read_csv(p,nrows=0).columns)
+    required={"symbol","liquidity_pass","liquidity_score","edge_liquidity_score"}
+    if required.issubset(c):
+        print(p)
+except Exception:
+    pass
+PY
+            ' | head -n 1)
 
           if [ -z "$LIQ_FILE" ]; then
-            echo "ERROR: Step 7 liquidity audit file not found."
+            echo "ERROR: Could not auto-detect Step 7 liquidity audit CSV."
             exit 1
           fi
 
           cp "$LIQ_FILE" input/step7/liquidity_audit.csv
-
-          echo "Step 7 liquidity audit:"
-          wc -l input/step7/liquidity_audit.csv
+          echo "Detected Step 7 liquidity audit: $LIQ_FILE"
 
       - name: Validate input schemas
         run: |
@@ -138,14 +150,9 @@ jobs:
           missing_liq = liq_required - set(liq.columns)
 
           if missing_edge:
-              raise SystemExit(
-                  f"Missing Step 6 columns: {sorted(missing_edge)}"
-              )
-
+              raise SystemExit(f"Missing Step 6 columns: {sorted(missing_edge)}")
           if missing_liq:
-              raise SystemExit(
-                  f"Missing Step 7 columns: {sorted(missing_liq)}"
-              )
+              raise SystemExit(f"Missing Step 7 columns: {sorted(missing_liq)}")
 
           print(f"Step 6 rows: {len(edge)}")
           print(f"Step 7 rows: {len(liq)}")
@@ -165,32 +172,18 @@ jobs:
           import json
           import pandas as pd
 
-          summary = json.load(
-              open("output/step8/step8_summary.json")
-          )
-
-          final = pd.read_csv(
-              "output/step8/PSY29_FINAL_29.csv"
-          )
+          summary = json.load(open("output/step8/step8_summary.json"))
+          final = pd.read_csv("output/step8/PSY29_FINAL_29.csv")
 
           print(json.dumps(summary, indent=2))
-          print()
           print(f"FINAL STOCK COUNT: {len(final)}")
 
           if len(final) != 29:
-              raise SystemExit(
-                  f"FAIL: Expected exactly 29, got {len(final)}"
-              )
-
+              raise SystemExit(f"FAIL: Expected exactly 29, got {len(final)}")
           if final["symbol"].duplicated().any():
-              raise SystemExit(
-                  "FAIL: Duplicate stock symbols detected."
-              )
-
+              raise SystemExit("FAIL: Duplicate stock symbols detected.")
           if not final["final_psy29"].all():
-              raise SystemExit(
-                  "FAIL: final_psy29 flag invalid."
-              )
+              raise SystemExit("FAIL: final_psy29 flag invalid.")
 
           print("EXACTLY 29 STOCKS VERIFIED.")
           PY
