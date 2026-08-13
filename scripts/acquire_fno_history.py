@@ -1,6 +1,7 @@
 """PSY29 Step 2: acquire 1-minute NSE cash-equity history for stock-F&O underlyings."""
 
 import argparse
+import re
 from datetime import date
 from io import StringIO
 from pathlib import Path
@@ -13,6 +14,23 @@ from dhan.historical import fetch_intraday
 
 MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv"
 OUT = Path("data/raw/intraday")
+
+
+def normalize_security_id(value: object) -> str:
+    """Normalize Dhan security IDs to the exact integer-string form required by v2."""
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "<na>"}:
+        raise ValueError(f"Invalid empty security ID: {value!r}")
+
+    # pandas can turn integer IDs from the downloaded CSV into values such as 1333.0.
+    # Dhan expects the securityId as a string like "1333", never "1333.0".
+    if re.fullmatch(r"\d+\.0+", text):
+        text = text.split(".", 1)[0]
+
+    if not text.isdigit():
+        raise ValueError(f"Invalid non-numeric Dhan security ID: {value!r}")
+
+    return text
 
 
 def load_fno_underlyings() -> pd.DataFrame:
@@ -42,8 +60,19 @@ def load_fno_underlyings() -> pd.DataFrame:
     ][["UNDERLYING_SECURITY_ID", "UNDERLYING_SYMBOL"]].copy()
 
     fno = fno.dropna().drop_duplicates()
-    fno["UNDERLYING_SECURITY_ID"] = fno["UNDERLYING_SECURITY_ID"].astype(str).str.strip()
     fno["UNDERLYING_SYMBOL"] = fno["UNDERLYING_SYMBOL"].astype(str).str.strip()
+
+    # Exclude synthetic/test instruments present in the Dhan master.
+    fno = fno[
+        ~fno["UNDERLYING_SYMBOL"].str.upper().str.contains("NSETEST", na=False)
+    ].copy()
+
+    # Normalize IDs immediately after reading the master so no request can receive
+    # a pandas-generated value such as "1333.0".
+    fno["UNDERLYING_SECURITY_ID"] = fno["UNDERLYING_SECURITY_ID"].map(
+        normalize_security_id
+    )
+
     fno = fno[
         (fno["UNDERLYING_SECURITY_ID"] != "")
         & (fno["UNDERLYING_SYMBOL"] != "")
@@ -77,7 +106,7 @@ def main() -> None:
 
     for i, row in universe.iterrows():
         symbol = row["UNDERLYING_SYMBOL"]
-        security_id = row["UNDERLYING_SECURITY_ID"]
+        security_id = normalize_security_id(row["UNDERLYING_SECURITY_ID"])
         print(f"[{i + 1}/{len(universe)}] {symbol} ({security_id})", flush=True)
 
         try:
