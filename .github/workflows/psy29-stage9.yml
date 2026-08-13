@@ -1,0 +1,123 @@
+name: PSY29 Stage 9 - Candidate Quality Confidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage9:
+    name: Validate PSY29 Candidate Quality Confidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+      - name: Verify Stage 5-9 inputs
+        run: |
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_edge_profiles_v1.json
+          test -f config/psy29_stage7_edge_activation_contract.json
+          test -f config/psy29_stage8_edge_ranking_contract.json
+          test -f config/psy29_stage9_candidate_quality_contract.json
+          test -f scripts/step9_live_regime_v2.py
+          test -f scripts/stage7_edge_activation.py
+          test -f scripts/stage8_edge_ranking.py
+          test -f scripts/stage9_candidate_quality.py
+      - name: Verify canonical 29 and Stage 5 profiles
+        run: |
+          python - <<'PY'
+          import json
+          u=json.load(open("config/psy29_live_universe_contract.json"))
+          p=json.load(open("config/psy29_edge_profiles_v1.json"))
+          s=[x["symbol"] for x in u["universe"]]
+          ps=[x["symbol"] for x in p["profiles"]]
+          assert len(s)==29 and len(set(s))==29 and len(ps)==29 and set(ps)==set(s)
+          print("CANONICAL 29 + STAGE 5 PROFILES: PASS")
+          PY
+      - name: Create deterministic Stage 6 input fixtures
+        run: |
+          mkdir -p /tmp/psy29_stage9
+          python - <<'PY'
+          import csv,json
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          u=json.loads(Path("config/psy29_live_universe_contract.json").read_text())
+          symbols=[x["symbol"] for x in u["universe"]]
+          ts=(datetime.now(timezone.utc)-timedelta(seconds=30)).isoformat(timespec="seconds").replace("+00:00","Z")
+          sm={"status":"PASS","canonical_count":29,"resolved_count":29,"unique_security_id_count":29,"mappings":[{"symbol":s,"security_id":f"TEST_{i:03d}","exchange":"NSE","segment":"E"} for i,s in enumerate(symbols,1)]}
+          Path("/tmp/psy29_stage9/security_map.json").write_text(json.dumps(sm,indent=2))
+          rows=[]
+          for s in symbols:
+            if s=="NESTLEIND": v=(105,100,104,101,103,98)
+            elif s=="ICICIPRULI": v=(95,100,96,99,102,97)
+            elif s=="TCS": v=(101,100,101,100,102,98)
+            elif s=="AMBUJACEM": v=(99,100,99,100,102,98)
+            else: v=(100,100,100,100,102,98)
+            rows.append({"symbol":s,"timestamp":ts,"last_price":v[0],"vwap":v[1],"ema9":v[2],"ema20":v[3],"first15_high":v[4],"first15_low":v[5]})
+          with open("/tmp/psy29_stage9/snapshot.csv","w",newline="") as f:
+            w=csv.DictWriter(f,fieldnames=["symbol","timestamp","last_price","vwap","ema9","ema20","first15_high","first15_low"]); w.writeheader(); w.writerows(rows)
+          print(f"STAGE 6 FIXTURE: 29 rows; timestamp={ts}")
+          PY
+      - name: Run Stage 6 V2
+        run: |
+          mkdir -p /tmp/psy29_stage9/stage6
+          python scripts/step9_live_regime_v2.py --universe config/psy29_live_universe_contract.json --profiles config/psy29_edge_profiles_v1.json --security-map /tmp/psy29_stage9/security_map.json --snapshot /tmp/psy29_stage9/snapshot.csv --output /tmp/psy29_stage9/stage6
+      - name: Compile Stage 7-9
+        run: |
+          python -m py_compile scripts/stage7_edge_activation.py scripts/stage8_edge_ranking.py scripts/stage9_candidate_quality.py
+      - name: Run Stage 7
+        run: |
+          mkdir -p /tmp/psy29_stage9/stage7
+          python scripts/stage7_edge_activation.py --universe config/psy29_live_universe_contract.json --profiles config/psy29_edge_profiles_v1.json --contract config/psy29_stage7_edge_activation_contract.json --regimes /tmp/psy29_stage9/stage6/PSY29_STAGE6_LIVE_REGIMES.csv --output /tmp/psy29_stage9/stage7
+      - name: Run Stage 8
+        run: |
+          mkdir -p /tmp/psy29_stage9/stage8
+          python scripts/stage8_edge_ranking.py --universe config/psy29_live_universe_contract.json --profiles config/psy29_edge_profiles_v1.json --contract config/psy29_stage8_edge_ranking_contract.json --edge-activation /tmp/psy29_stage9/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv --regimes /tmp/psy29_stage9/stage6/PSY29_STAGE6_LIVE_REGIMES.csv --output /tmp/psy29_stage9/stage8
+      - name: Run Stage 9
+        run: |
+          mkdir -p output/stage9
+          python scripts/stage9_candidate_quality.py --universe config/psy29_live_universe_contract.json --profiles config/psy29_edge_profiles_v1.json --contract config/psy29_stage9_candidate_quality_contract.json --stage6 /tmp/psy29_stage9/stage6/PSY29_STAGE6_LIVE_REGIMES.csv --stage7 /tmp/psy29_stage9/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv --stage8 /tmp/psy29_stage9/stage8/PSY29_STAGE8_EDGE_RANKING.csv --output output/stage9
+      - name: HARD VERIFY Stage 9
+        run: |
+          python - <<'PY'
+          import json,pandas as pd
+          s=json.load(open("output/stage9/stage9_summary.json")); d=pd.read_csv("output/stage9/PSY29_STAGE9_CANDIDATE_QUALITY.csv")
+          assert s["engine_execution_status"]=="PASS" and s["validation_status"]=="PASS" and s["status"]=="PASS"
+          assert s["coverage"]==29 and s["edge_active_count"]==2 and s["edge_inactive_count"]==27 and s["data_stale_count"]==0 and s["data_invalid_count"]==0 and s["scored_count"]==2
+          assert len(d)==29 and d.symbol.nunique()==29
+          assert set(d.activation).issubset({"EDGE_ACTIVE","EDGE_INACTIVE","DATA_STALE","DATA_INVALID"})
+          assert d.loc[d.activation!="EDGE_ACTIVE","candidate_quality_score"].isna().all()
+          assert d.loc[d.activation=="EDGE_ACTIVE","candidate_quality_score"].notna().all()
+          assert d.trade_authorized.eq(False).all() and d.trade_signal_generated.eq(False).all()
+          assert s["quality_score_is_probability"] is False
+          active=d[d.activation=="EDGE_ACTIVE"].sort_values("candidate_quality_score",ascending=False)
+          assert active.symbol.tolist()==["ICICIPRULI","TCS"]
+          assert ((active.candidate_quality_score>=0)&(active.candidate_quality_score<=100)).all()
+          print("========================================")
+          print("PSY29 STAGE 9 HARD VERIFY: PASS")
+          print("29/29 coverage")
+          print("2 EDGE_ACTIVE scored")
+          print("27 EDGE_INACTIVE preserved")
+          print("0 DATA_STALE")
+          print("0 DATA_INVALID")
+          print("Trade authorization: FALSE")
+          print("Trade signal generation: FALSE")
+          print("Quality score is NOT a probability")
+          print("========================================")
+          PY
+      - name: Upload Stage 9 validation output
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage9-candidate-quality-validation
+          path: output/stage9/
+          if-no-files-found: error
