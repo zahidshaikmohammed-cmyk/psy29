@@ -1,0 +1,376 @@
+{
+  "contract": "PSY29_LIVE_EXECUTION_ANALYSIS_ENGINE",
+  "version": "1.0",
+  "status": "LOCKED",
+  "purpose": "Convert integrity-verified PSY29 candidates into structured research-conditioned live market execution analysis without generating or authorizing trades.",
+  "coverage": 29,
+
+  "modules": {
+    "11A_market_structure": true,
+    "11B_price_volume_quality": true,
+    "11C_structural_levels": true,
+    "11D_event_state": true,
+    "11E_research_live_alignment": true,
+    "11F_execution_analysis_synthesis": true,
+    "11G_integrity_provenance_validation": true
+  },
+
+  "upstream_dependencies": {
+    "stage5": "config/psy29_edge_profiles_v1.json",
+    "stage6": "PSY29 Live Regime Engine V2",
+    "stage7": "PSY29 Research-Conditioned Edge Activation",
+    "stage8": "PSY29 Portfolio Edge Ranking",
+    "stage9": "PSY29 Candidate Quality Confidence",
+    "stage10": "PSY29 Candidate Integrity Provenance"
+  },
+
+  "live_data_source": {
+    "provider": "DHAN",
+    "contract": "config/psy29_live_dhan_data_contract.json",
+    "timezone": "Asia/Kolkata",
+    "required_timeframes": [
+      "1m",
+      "5m"
+    ]
+  },
+
+  "live_execution_snapshot_required_fields": [
+    "symbol",
+    "timestamp",
+
+    "open_1m",
+    "high_1m",
+    "low_1m",
+    "close_1m",
+    "volume_1m",
+    "avg_volume_20_1m",
+
+    "open_5m",
+    "high_5m",
+    "low_5m",
+    "close_5m",
+    "volume_5m",
+    "avg_volume_20_5m",
+
+    "vwap_5m",
+    "ema9_5m",
+    "ema20_5m",
+
+    "first15_high",
+    "first15_low",
+
+    "swing_high",
+    "swing_low"
+  ],
+
+  "freshness_policy": {
+    "fresh_max_age_seconds": 90,
+    "stale_max_age_seconds": 180,
+    "invalid_after_seconds": 180,
+    "timezone": "Asia/Kolkata",
+    "fail_closed": true
+  },
+
+  "analysis_states": [
+    "EXECUTION_ANALYSIS_VALID",
+    "EXECUTION_ANALYSIS_INCOMPLETE",
+    "DATA_STALE",
+    "DATA_INVALID",
+    "BLOCKED_UPSTREAM"
+  ],
+
+  "market_structure_states": [
+    "TRENDING_UP",
+    "TRENDING_DOWN",
+    "RANGE",
+    "BREAKOUT_STRUCTURE",
+    "BREAKDOWN_STRUCTURE",
+    "TRANSITION",
+    "UNCLEAR"
+  ],
+
+  "quality_states": [
+    "STRONG",
+    "MODERATE",
+    "WEAK",
+    "UNCONFIRMED"
+  ],
+
+  "event_states": [
+    "NO_EVENT",
+    "APPROACHING_LEVEL",
+    "BREAKOUT_OBSERVED",
+    "BREAKDOWN_OBSERVED",
+    "RETEST",
+    "CONTINUATION",
+    "FAILED_BREAK",
+    "UNCONFIRMED"
+  ],
+
+  "research_live_alignment_states": [
+    "HIGH",
+    "PARTIAL",
+    "LOW",
+    "NOT_APPLICABLE",
+    "UNCONFIRMED"
+  ],
+
+  "module_contracts": {
+    "11A_market_structure": {
+      "purpose": "Describe current live market structure.",
+      "outputs": [
+        "structure_state",
+        "structure_reason"
+      ],
+      "trade_decision": false
+    },
+
+    "11B_price_volume_quality": {
+      "purpose": "Evaluate live price and volume participation quality.",
+      "inputs": [
+        "1m OHLC",
+        "1m volume",
+        "20-bar average 1m volume"
+      ],
+      "outputs": [
+        "price_volume_quality",
+        "price_volume_reason"
+      ],
+      "trade_decision": false
+    },
+
+    "11C_structural_levels": {
+      "purpose": "Identify objective current-session structural reference levels.",
+      "outputs": [
+        "session_high",
+        "session_low",
+        "opening_range_high",
+        "opening_range_low",
+        "swing_high",
+        "swing_low"
+      ],
+      "trade_decision": false
+    },
+
+    "11D_event_state": {
+      "purpose": "Classify the current observable structural event.",
+      "outputs": [
+        "event_state",
+        "event_reason"
+      ],
+      "trade_decision": false
+    },
+
+    "11E_research_live_alignment": {
+      "purpose": "Compare verified historical behavioural conditions with current live conditions.",
+      "outputs": [
+        "research_live_alignment",
+        "alignment_reason",
+        "matched_conditions",
+        "missing_conditions",
+        "conflicting_conditions"
+      ],
+      "historical_probability_as_live_probability": false,
+      "trade_decision": false
+    },
+
+    "11F_execution_analysis_synthesis": {
+      "purpose": "Combine descriptive execution-analysis components into a structured analytical record.",
+      "outputs": [
+        "analysis_state",
+        "structure_state",
+        "price_volume_quality",
+        "event_state",
+        "research_live_alignment"
+      ],
+      "trade_decision": false
+    },
+
+    "11G_integrity_provenance_validation": {
+      "purpose": "Validate complete upstream provenance, live-data integrity, coverage, and safety boundaries.",
+      "requirements": [
+        "29/29 canonical coverage",
+        "unique symbols",
+        "valid timestamps",
+        "fresh live data",
+        "valid OHLC relationships",
+        "valid volume",
+        "complete Stage 5 provenance",
+        "complete Stage 6 provenance",
+        "complete Stage 7 provenance",
+        "complete Stage 8 provenance",
+        "complete Stage 9 provenance",
+        "complete Stage 10 provenance",
+        "fail-closed behaviour"
+      ],
+      "trade_decision": false
+    }
+  },
+
+  "upstream_eligibility": {
+    "required_stage10_state": "INTEGRITY_PASS",
+    "blocked_states": [
+      "INTEGRITY_FAIL",
+      "DATA_STALE",
+      "DATA_INVALID"
+    ],
+    "missing_provenance": "BLOCKED_UPSTREAM",
+    "missing_live_data": "DATA_INVALID",
+    "stale_live_data": "DATA_STALE"
+  },
+
+  "data_integrity_rules": {
+    "canonical_symbol_required": true,
+    "exactly_29_symbols_required": true,
+    "duplicate_symbols": "REJECT",
+    "unexpected_symbols": "REJECT",
+    "missing_symbols": "REJECT",
+    "timezone_aware_timestamp_required": true,
+    "negative_volume": "REJECT",
+    "non_finite_numeric_value": "REJECT",
+    "high_below_low": "REJECT",
+    "opening_range_high_below_low": "REJECT",
+    "swing_high_below_swing_low": "REJECT",
+    "missing_required_field": "DATA_INVALID",
+    "provider_failure": "DATA_INVALID"
+  },
+
+  "provenance": {
+    "required": true,
+    "research_profile_source": "config/psy29_edge_profiles_v1.json",
+    "stage6_source": "Stage 6 PSY29 Live Regime Engine V2",
+    "stage7_source": "Stage 7 PSY29 Research-Conditioned Edge Activation",
+    "stage8_source": "Stage 8 PSY29 Portfolio Edge Ranking",
+    "stage9_source": "Stage 9 PSY29 Candidate Quality Confidence",
+    "stage10_source": "Stage 10 PSY29 Candidate Integrity Provenance",
+    "live_source": "DHAN live market-data contract",
+    "source_records_must_retain_provenance": true
+  },
+
+  "output_schema": {
+    "required_fields": [
+      "canonical_rank",
+      "symbol",
+      "analysis_state",
+
+      "structure_state",
+      "structure_reason",
+
+      "price_volume_quality",
+      "price_volume_reason",
+
+      "session_high",
+      "session_low",
+      "opening_range_high",
+      "opening_range_low",
+      "swing_high",
+      "swing_low",
+
+      "event_state",
+      "event_reason",
+
+      "research_live_alignment",
+      "alignment_reason",
+
+      "matched_conditions",
+      "missing_conditions",
+      "conflicting_conditions",
+
+      "research_provenance",
+      "stage6_provenance",
+      "stage7_provenance",
+      "stage8_provenance",
+      "stage9_provenance",
+      "stage10_provenance",
+
+      "live_data_timestamp",
+
+      "trade_ready_output",
+      "trade_authorized",
+      "trade_signal_generated"
+    ]
+  },
+
+  "safety": {
+    "trade_ready_output": false,
+    "trade_signal_generated": false,
+    "trade_authorized": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_sizing": false,
+    "execution": false,
+    "capital_allocation": false,
+    "order_generation": false
+  },
+
+  "forbidden_outputs": [
+    "BUY",
+    "SELL",
+    "LONG",
+    "SHORT",
+    "CE",
+    "PE",
+    "TRADE_READY",
+    "ENTRY",
+    "STOP_LOSS",
+    "TAKE_PROFIT",
+    "TARGET",
+    "POSITION_SIZE",
+    "ORDER",
+    "EXECUTE"
+  ],
+
+  "fail_closed_rules": [
+    "Exactly 29 canonical symbols are mandatory.",
+    "Missing symbols fail validation.",
+    "Duplicate symbols fail validation.",
+    "Unexpected symbols fail validation.",
+    "Missing live data fails validation.",
+    "Stale live data cannot become EXECUTION_ANALYSIS_VALID.",
+    "Invalid live data cannot become EXECUTION_ANALYSIS_VALID.",
+    "Stage 10 DATA_STALE cannot become EXECUTION_ANALYSIS_VALID.",
+    "Stage 10 DATA_INVALID cannot become EXECUTION_ANALYSIS_VALID.",
+    "Stage 10 INTEGRITY_FAIL cannot become EXECUTION_ANALYSIS_VALID.",
+    "Missing upstream provenance blocks analysis.",
+    "Historical research evidence must not be interpreted as a live probability.",
+    "No trade decision may be emitted.",
+    "No order instruction may be emitted.",
+    "No execution instruction may be emitted."
+  ],
+
+  "validation_contract": {
+    "canonical_coverage": 29,
+    "required_unique_symbols": 29,
+    "missing_symbols_allowed": false,
+    "duplicate_symbols_allowed": false,
+    "unexpected_symbols_allowed": false,
+    "complete_provenance_required": true,
+    "fresh_live_data_required": true,
+    "fail_closed_required": true,
+
+    "safety_assertions": {
+      "trade_ready_output": false,
+      "trade_authorized": false,
+      "trade_signal_generated": false,
+      "ce_pe_selection": false,
+      "entry_calculation": false,
+      "stop_loss_calculation": false,
+      "target_calculation": false,
+      "position_sizing": false,
+      "execution": false
+    }
+  },
+
+  "immutability_rules": [
+    "This contract implements the locked PSY29 Stage 11 architecture.",
+    "Stage 11 must not modify Stage 2 through Stage 10 logic.",
+    "Stage 11 must not modify the canonical 29 universe.",
+    "Stage 11 must not modify historical research evidence.",
+    "Changes to required live fields require an explicit contract version update.",
+    "Changes to freshness thresholds require an explicit contract version update.",
+    "Changes to safety boundaries require an explicit architecture review and contract version update.",
+    "Stage 11 cannot silently convert stale, invalid, incomplete, or blocked data into a valid execution-analysis state."
+  ]
+}
