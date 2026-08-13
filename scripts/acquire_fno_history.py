@@ -1,8 +1,9 @@
 """PSY29 Step 2: acquire 1-minute NSE cash-equity history for stock-F&O underlyings."""
 
 import argparse
+import json
 import re
-from datetime import date
+from datetime import date, datetime, timezone
 from io import StringIO
 from pathlib import Path
 
@@ -14,27 +15,22 @@ from dhan.historical import fetch_intraday
 
 MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv"
 OUT = Path("data/raw/intraday")
+CHECKPOINT = Path("output/step2_checkpoint.json")
+FAILURES = Path("output/step2_failures.jsonl")
 
 
 def normalize_security_id(value: object) -> str:
-    """Normalize Dhan security IDs to the exact integer-string form required by v2."""
     text = str(value).strip()
     if not text or text.lower() in {"nan", "none", "<na>"}:
         raise ValueError(f"Invalid empty security ID: {value!r}")
-
-    # pandas can turn integer IDs from the downloaded CSV into values such as 1333.0.
-    # Dhan expects the securityId as a string like "1333", never "1333.0".
     if re.fullmatch(r"\d+\.0+", text):
         text = text.split(".", 1)[0]
-
     if not text.isdigit():
         raise ValueError(f"Invalid non-numeric Dhan security ID: {value!r}")
-
     return text
 
 
 def load_fno_underlyings() -> pd.DataFrame:
-    """Build the NSE stock-F&O underlying universe from Dhan's current master."""
     response = requests.get(MASTER_URL, timeout=60)
     response.raise_for_status()
     df = pd.read_csv(StringIO(response.text), low_memory=False)
@@ -61,18 +57,12 @@ def load_fno_underlyings() -> pd.DataFrame:
 
     fno = fno.dropna().drop_duplicates()
     fno["UNDERLYING_SYMBOL"] = fno["UNDERLYING_SYMBOL"].astype(str).str.strip()
-
-    # Exclude synthetic/test instruments present in the Dhan master.
     fno = fno[
         ~fno["UNDERLYING_SYMBOL"].str.upper().str.contains("NSETEST", na=False)
     ].copy()
-
-    # Normalize IDs immediately after reading the master so no request can receive
-    # a pandas-generated value such as "1333.0".
     fno["UNDERLYING_SECURITY_ID"] = fno["UNDERLYING_SECURITY_ID"].map(
         normalize_security_id
     )
-
     fno = fno[
         (fno["UNDERLYING_SECURITY_ID"] != "")
         & (fno["UNDERLYING_SYMBOL"] != "")
@@ -82,6 +72,53 @@ def load_fno_underlyings() -> pd.DataFrame:
         raise RuntimeError("No NSE FUTSTK underlyings found in Dhan instrument master")
 
     return fno.sort_values("UNDERLYING_SYMBOL").reset_index(drop=True)
+
+
+def load_checkpoint() -> dict:
+    if not CHECKPOINT.exists():
+        return {"completed": [], "failed": [], "updated_at_utc": None}
+    try:
+        return json.loads(CHECKPOINT.read_text(encoding="utf-8"))
+    except Exception:
+        return {"completed": [], "failed": [], "updated_at_utc": None}
+
+
+def save_checkpoint(
+    universe_size: int,
+    from_date: date,
+    to_date: date,
+    completed: list[str],
+    failed: list[dict],
+) -> None:
+    CHECKPOINT.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "project": "PSY29",
+        "step": 2,
+        "from_date": str(from_date),
+        "to_date": str(to_date),
+        "universe_size": universe_size,
+        "completed_count": len(completed),
+        "failed_count": len(failed),
+        "completed": sorted(set(completed)),
+        "failed": failed,
+        "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    temp = CHECKPOINT.with_suffix(".tmp")
+    temp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temp.replace(CHECKPOINT)
+
+
+def record_failure(symbol: str, security_id: str, error: Exception) -> dict:
+    failure = {
+        "symbol": symbol,
+        "security_id": security_id,
+        "error": str(error),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    FAILURES.parent.mkdir(parents=True, exist_ok=True)
+    with FAILURES.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(failure) + "\n")
+    return failure
 
 
 def main() -> None:
@@ -100,14 +137,32 @@ def main() -> None:
 
     client = DhanClient()
     OUT.mkdir(parents=True, exist_ok=True)
+    CHECKPOINT.parent.mkdir(parents=True, exist_ok=True)
 
-    completed = 0
-    failed = 0
+    checkpoint = load_checkpoint()
+    completed = set(checkpoint.get("completed", []))
+    failed_records = list(checkpoint.get("failed", []))
+
+    # Existing complete parquet files are treated as resumable work.
+    for parquet in OUT.glob("*.parquet"):
+        if parquet.stat().st_size > 0:
+            completed.add(parquet.stem)
+
+    save_checkpoint(
+        len(universe), from_date, to_date, list(completed), failed_records
+    )
+
+    total = len(universe)
 
     for i, row in universe.iterrows():
-        symbol = row["UNDERLYING_SYMBOL"]
+        symbol = str(row["UNDERLYING_SYMBOL"])
         security_id = normalize_security_id(row["UNDERLYING_SECURITY_ID"])
-        print(f"[{i + 1}/{len(universe)}] {symbol} ({security_id})", flush=True)
+
+        if symbol in completed and (OUT / f"{symbol}.parquet").exists():
+            print(f"[{i + 1}/{total}] {symbol} — RESUME SKIP (already acquired)", flush=True)
+            continue
+
+        print(f"[{i + 1}/{total}] {symbol} ({security_id})", flush=True)
 
         try:
             rows = fetch_intraday(
@@ -121,36 +176,52 @@ def main() -> None:
             )
 
             if not rows:
-                print(f"WARNING: {symbol}: 0 candles", flush=True)
-                failed += 1
-                continue
+                raise RuntimeError("Dhan returned zero candles")
 
             data = pd.DataFrame(rows)
             if data.empty:
-                failed += 1
-                continue
+                raise RuntimeError("Dhan returned an empty dataframe")
 
             data = data.drop_duplicates(
                 subset=["security_id", "timestamp"]
             ).sort_values("timestamp").reset_index(drop=True)
 
+            if data.empty:
+                raise RuntimeError("No usable candles after normalization")
+
             data.to_parquet(OUT / f"{symbol}.parquet", index=False)
-            completed += 1
+            completed.add(symbol)
             print(f"SUCCESS: {symbol} rows={len(data):,}", flush=True)
 
         except Exception as exc:
-            failed += 1
+            failure = record_failure(symbol, security_id, exc)
+            failed_records.append(failure)
             print(f"FAILED: {symbol}: {exc}", flush=True)
-            continue
 
+        finally:
+            save_checkpoint(
+                total,
+                from_date,
+                to_date,
+                list(completed),
+                failed_records,
+            )
+
+    failed_symbols = {item["symbol"] for item in failed_records}
     print(
-        f"Acquisition summary: universe={len(universe)} "
-        f"completed={completed} failed={failed}",
+        f"Acquisition summary: universe={total} completed={len(completed)} "
+        f"failed={len(failed_symbols)}",
         flush=True,
     )
 
-    if completed == 0:
+    if len(completed) == 0:
         raise RuntimeError("PSY29 acquired zero datasets")
+
+    if failed_symbols:
+        raise RuntimeError(
+            f"PSY29 Step 2 incomplete: {len(failed_symbols)} stocks failed. "
+            "Rerun with the partial-run artifact to resume."
+        )
 
 
 if __name__ == "__main__":
