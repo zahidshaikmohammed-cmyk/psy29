@@ -1,0 +1,67 @@
+{
+  "contract": "PSY29_STAGE16_LIVE_DECISION_CONSOLIDATION_CANDIDATE_BOARD",
+  "version": "1.0",
+  "status": "LOCKED",
+  "purpose": "Consolidate verified Stage 5-15 state into one current 29-stock system view and candidate board without creating trade decisions.",
+  "modules": [
+    "16A_CANONICAL_UNIVERSE_RECONCILIATION",
+    "16B_CROSS_STAGE_STATE_CONSOLIDATION",
+    "16C_CONSISTENCY_RECONCILIATION",
+    "16D_CANDIDATE_BOARD_CLASSIFICATION",
+    "16E_PORTFOLIO_VIEW",
+    "16F_PROVENANCE_AUDIT_SNAPSHOT"
+  ],
+  "inputs": {
+    "canonical_universe": "config/psy29_live_universe_contract.json",
+    "required_upstream_stages": [5,6,7,8,9,10,11,12,13,14,15]
+  },
+  "output_states": [
+    "PRIMARY_CANDIDATE",
+    "SECONDARY_CANDIDATE",
+    "WATCHLIST",
+    "INACTIVE",
+    "DATA_STALE",
+    "DATA_INVALID",
+    "INTEGRITY_FAIL",
+    "CONSISTENCY_FAIL"
+  ],
+  "safety_boundaries": {
+    "trade_signal_generation": false,
+    "trade_authorization": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size_calculation": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "order_generation": false,
+    "order_execution": false,
+    "upstream_logic_modification": false
+  },
+  "fail_closed_rules": [
+    "Any missing, malformed, stale, invalid, contradictory, or untraceable mandatory upstream state cannot be promoted to a candidate state.",
+    "Canonical coverage must be exactly 29 unique expected symbols with zero missing and zero unexpected symbols.",
+    "Stage 16 must never overwrite or reinterpret an upstream state to make it eligible.",
+    "Any hard validation failure makes overall validation FAIL.",
+    "Partial universe coverage is never PASS."
+  ],
+  "coverage_contract": {
+    "expected": 29,
+    "actual_required": 29,
+    "unique_required": 29,
+    "missing_allowed": 0,
+    "unexpected_allowed": 0
+  },
+  "provenance_contract": {
+    "required_stage_provenance": [5,6,7,8,9,10,11,12,13,14,15],
+    "complete_for_every_symbol": true
+  },
+  "validation_contract": {
+    "hard_verify_required": true,
+    "deterministic_fixture_required": true,
+    "output_schema_required": true,
+    "forbidden_execution_fields_absent": true,
+    "cross_stage_consistency_required": true
+  }
+}
