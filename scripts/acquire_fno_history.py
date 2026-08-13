@@ -143,14 +143,17 @@ def main() -> None:
     completed = set(checkpoint.get("completed", []))
     failed_records = list(checkpoint.get("failed", []))
 
-    # Existing complete parquet files are treated as resumable work.
     for parquet in OUT.glob("*.parquet"):
         if parquet.stat().st_size > 0:
             completed.add(parquet.stem)
 
-    save_checkpoint(
-        len(universe), from_date, to_date, list(completed), failed_records
-    )
+    # A resumed run may contain failures from an earlier attempt. They remain
+    # retryable until the corresponding stock succeeds.
+    failed_by_symbol = {
+        item["symbol"]: item for item in failed_records if item.get("symbol")
+    }
+
+    save_checkpoint(len(universe), from_date, to_date, list(completed), list(failed_by_symbol.values()))
 
     total = len(universe)
 
@@ -159,6 +162,7 @@ def main() -> None:
         security_id = normalize_security_id(row["UNDERLYING_SECURITY_ID"])
 
         if symbol in completed and (OUT / f"{symbol}.parquet").exists():
+            failed_by_symbol.pop(symbol, None)
             print(f"[{i + 1}/{total}] {symbol} — RESUME SKIP (already acquired)", flush=True)
             continue
 
@@ -191,11 +195,11 @@ def main() -> None:
 
             data.to_parquet(OUT / f"{symbol}.parquet", index=False)
             completed.add(symbol)
+            failed_by_symbol.pop(symbol, None)
             print(f"SUCCESS: {symbol} rows={len(data):,}", flush=True)
 
         except Exception as exc:
-            failure = record_failure(symbol, security_id, exc)
-            failed_records.append(failure)
+            failed_by_symbol[symbol] = record_failure(symbol, security_id, exc)
             print(f"FAILED: {symbol}: {exc}", flush=True)
 
         finally:
@@ -204,10 +208,10 @@ def main() -> None:
                 from_date,
                 to_date,
                 list(completed),
-                failed_records,
+                list(failed_by_symbol.values()),
             )
 
-    failed_symbols = {item["symbol"] for item in failed_records}
+    failed_symbols = set(failed_by_symbol)
     print(
         f"Acquisition summary: universe={total} completed={len(completed)} "
         f"failed={len(failed_symbols)}",
