@@ -1,0 +1,23 @@
+name: PSY29 Step 9 - Live Regime & Edge Activation Engine
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-regime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy
+      - name: Validate Step 9 implementation
+        run: python -m py_compile scripts/step9_live_regime.py
