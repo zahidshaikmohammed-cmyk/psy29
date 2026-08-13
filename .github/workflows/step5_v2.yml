@@ -1,0 +1,60 @@
+name: PSY29 Step 5 V2 - Archetype Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Successful Step 4 V2 workflow run ID'
+        required: true
+        default: '31706659838'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archetype-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy scikit-learn pyarrow
+
+      - name: Download Step 4 V2 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: psy29-step4-behaviour-features-v2
+          path: input/step4
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.source_run_id }}
+          repository: ${{ github.repository }}
+
+      - name: Run Step 5 V2
+        run: python scripts/step5_archetypes_v2.py --input input/step4/stock_behaviour_features_v2.csv --output output/step5_v2
+
+      - name: Verify Step 5 V2 output
+        run: |
+          test -s output/step5_v2/step5_v2_summary.json
+          python - <<'PY'
+          import json
+          p='output/step5_v2/step5_v2_summary.json'
+          d=json.load(open(p))
+          print(json.dumps(d,indent=2))
+          assert d['stocks_input']==208
+          assert d['final_selection_performed'] is False
+          PY
+
+      - name: Upload Step 5 V2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-step5-archetypes-v2
+          path: output/step5_v2/
+          retention-days: 30
