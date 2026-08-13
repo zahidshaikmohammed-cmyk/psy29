@@ -3,6 +3,12 @@ name: PSY29 Step 2 - Historical Data Acquisition
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Operation: acquire or audit"
+        required: true
+        default: "acquire"
+        type: choice
+        options: [acquire, audit]
       from_date:
         description: "Start date (YYYY-MM-DD)"
         required: true
@@ -12,9 +18,13 @@ on:
         required: true
         default: "2026-08-13"
       resume_run_id:
-        description: "Optional previous GitHub Actions run ID containing a PSY29 partial artifact"
+        description: "Optional previous Step 2 run ID containing a partial artifact"
         required: false
         default: ""
+      audit_source_run_id:
+        description: "Step 2 run ID whose complete artifact will be audited"
+        required: false
+        default: "31702235542"
 
 permissions:
   contents: read
@@ -22,6 +32,7 @@ permissions:
 
 jobs:
   acquire-history:
+    if: ${{ inputs.mode == 'acquire' }}
     name: acquire-history
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -31,84 +42,44 @@ jobs:
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: ${{ github.workspace }}
       GH_TOKEN: ${{ github.token }}
-
     steps:
       - name: Checkout PSY29
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Verify repository structure
         run: |
           test -f dhan/__init__.py || { echo "ERROR: dhan/__init__.py missing"; exit 1; }
           test -f dhan/client.py || { echo "ERROR: dhan/client.py missing"; exit 1; }
           test -f dhan/historical.py || { echo "ERROR: dhan/historical.py missing"; exit 1; }
           test -f scripts/acquire_fno_history.py || { echo "ERROR: acquisition script missing"; exit 1; }
-          echo "PSY29 repository structure OK."
-
       - name: Verify Python imports
-        run: |
-          python -c "from dhan.client import DhanClient; from dhan.historical import fetch_intraday; print('PSY29 Dhan modules import successfully.')"
-
+        run: python -c "from dhan.client import DhanClient; from dhan.historical import fetch_intraday; print('PSY29 Dhan modules import successfully.')"
       - name: Verify secrets are configured
         shell: bash
         run: |
-          if [ -z "$DHAN_ACCESS_TOKEN" ]; then
-            echo "ERROR: DHAN_ACCESS_TOKEN GitHub Secret is missing."
-            exit 1
-          fi
-          if [ -z "$DHAN_CLIENT_ID" ]; then
-            echo "WARNING: DHAN_CLIENT_ID is not configured."
-          else
-            echo "Dhan credentials detected."
-          fi
-
+          if [ -z "$DHAN_ACCESS_TOKEN" ]; then echo "ERROR: DHAN_ACCESS_TOKEN GitHub Secret is missing."; exit 1; fi
+          if [ -z "$DHAN_CLIENT_ID" ]; then echo "WARNING: DHAN_CLIENT_ID is not configured."; else echo "Dhan credentials detected."; fi
       - name: Restore partial PSY29 run
         if: ${{ inputs.resume_run_id != '' }}
         shell: bash
         run: |
-          echo "Restoring partial data from run ${{ inputs.resume_run_id }}..."
-          rm -rf resume_download
-          mkdir -p resume_download
-          gh run download "${{ inputs.resume_run_id }}" \
-            -n psy29-step2-partial \
-            -D resume_download
-
-          if [ ! -d resume_download/data/raw/intraday ]; then
-            echo "ERROR: Partial artifact does not contain data/raw/intraday"
-            exit 1
-          fi
-
+          rm -rf resume_download && mkdir -p resume_download
+          gh run download "${{ inputs.resume_run_id }}" -n psy29-step2-partial -D resume_download
+          test -d resume_download/data/raw/intraday || { echo "ERROR: Partial artifact has no intraday data"; exit 1; }
           mkdir -p data/raw/intraday output
           cp -a resume_download/data/raw/intraday/. data/raw/intraday/
-          if [ -f resume_download/output/step2_checkpoint.json ]; then
-            cp resume_download/output/step2_checkpoint.json output/step2_checkpoint.json
-          fi
-          if [ -f resume_download/output/step2_failures.jsonl ]; then
-            cp resume_download/output/step2_failures.jsonl output/step2_failures.jsonl
-          fi
-
-          echo "Restored $(find data/raw/intraday -type f -name '*.parquet' | wc -l) parquet files."
-
+          for f in step2_checkpoint.json step2_failures.jsonl; do [ -f "resume_download/output/$f" ] && cp "resume_download/output/$f" "output/$f"; done
       - name: Run PSY29 historical acquisition
         id: acquire
-        run: |
-          echo "Starting PSY29 Step 2..."
-          echo "From: ${{ inputs.from_date }}"
-          echo "To:   ${{ inputs.to_date }}"
-          python -m scripts.acquire_fno_history \
-            --from-date "${{ inputs.from_date }}" \
-            --to-date "${{ inputs.to_date }}"
-
+        run: python -m scripts.acquire_fno_history --from-date "${{ inputs.from_date }}" --to-date "${{ inputs.to_date }}"
       - name: Generate acquisition manifest
         if: ${{ always() }}
         run: |
@@ -116,38 +87,11 @@ jobs:
           from pathlib import Path
           import json
           from datetime import datetime, timezone
-
-          root = Path("data/raw/intraday")
-          files = sorted(root.glob("*.parquet"))
-          checkpoint_path = Path("output/step2_checkpoint.json")
-          checkpoint = {}
-          if checkpoint_path.exists():
-              checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-
-          manifest = {
-              "project": "PSY29",
-              "step": 2,
-              "status": "complete" if not checkpoint.get("failed") else "partial",
-              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-              "from_date": "${{ inputs.from_date }}",
-              "to_date": "${{ inputs.to_date }}",
-              "file_count": len(files),
-              "completed_count": checkpoint.get("completed_count", len(files)),
-              "failed_count": checkpoint.get("failed_count", 0),
-              "failed": checkpoint.get("failed", []),
-              "files": [
-                  {"symbol": f.stem, "filename": f.name, "bytes": f.stat().st_size}
-                  for f in files
-              ],
-          }
-
-          Path("output").mkdir(parents=True, exist_ok=True)
-          Path("output/acquisition_manifest.json").write_text(
-              json.dumps(manifest, indent=2), encoding="utf-8"
-          )
-          print(json.dumps(manifest, indent=2))
+          root=Path('data/raw/intraday'); files=sorted(root.glob('*.parquet')); cp=Path('output/step2_checkpoint.json')
+          checkpoint=json.loads(cp.read_text()) if cp.exists() else {}
+          manifest={'project':'PSY29','step':2,'status':'complete' if not checkpoint.get('failed') else 'partial','generated_at_utc':datetime.now(timezone.utc).isoformat(),'from_date':'${{ inputs.from_date }}','to_date':'${{ inputs.to_date }}','file_count':len(files),'completed_count':checkpoint.get('completed_count',len(files)),'failed_count':checkpoint.get('failed_count',0),'failed':checkpoint.get('failed',[]),'files':[{'symbol':f.stem,'filename':f.name,'bytes':f.stat().st_size} for f in files]}
+          Path('output').mkdir(exist_ok=True); Path('output/acquisition_manifest.json').write_text(json.dumps(manifest,indent=2)); print(json.dumps(manifest,indent=2))
           PY
-
       - name: Upload partial checkpoint
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -161,18 +105,12 @@ jobs:
           retention-days: 7
           overwrite: true
           if-no-files-found: warn
-
       - name: Verify acquired dataset
         if: ${{ steps.acquire.outcome == 'success' }}
         run: |
-          FILE_COUNT=$(find data/raw/intraday -type f -name "*.parquet" 2>/dev/null | wc -l)
+          FILE_COUNT=$(find data/raw/intraday -type f -name '*.parquet' | wc -l)
           echo "Parquet files acquired: $FILE_COUNT"
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "ERROR: No historical data files were created."
-            exit 1
-          fi
-          find data/raw/intraday -type f -name "*.parquet" | sort
-
+          test "$FILE_COUNT" -gt 0
       - name: Upload complete historical dataset
         if: ${{ steps.acquire.outcome == 'success' }}
         uses: actions/upload-artifact@v4
@@ -183,10 +121,47 @@ jobs:
             output/acquisition_manifest.json
           retention-days: 7
           if-no-files-found: error
-
       - name: PSY29 Step 2 completion
         if: ${{ steps.acquire.outcome == 'success' }}
+        run: echo "PSY29 STEP 2 DATA ACQUISITION COMPLETE"
+
+  audit-step3:
+    if: ${{ inputs.mode == 'audit' }}
+    name: audit-step3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install audit dependencies
         run: |
-          echo "=============================================="
-          echo "PSY29 STEP 2 DATA ACQUISITION COMPLETE"
-          echo "=============================================="
+          python -m pip install --upgrade pip
+          pip install 'pandas>=2.2,<3' 'numpy>=2.0,<3' 'pyarrow>=17,<20'
+      - name: Download Step 2 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: psy29-step2-intraday-2026-01-01-2026-08-13
+          path: input
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.audit_source_run_id }}
+      - name: Run PSY29 Step 3 audit
+        run: python scripts/audit_step3.py --input input/data/raw/intraday --output output/step3
+      - name: Write Step 3 provenance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('output/step3/step3_summary.json'); d=json.loads(p.read_text()); d['source_run_id']=int('${{ inputs.audit_source_run_id }}'); d['source_artifact']='psy29-step2-intraday-2026-01-01-2026-08-13'; p.write_text(json.dumps(d,indent=2))
+          PY
+      - name: Upload Step 3 audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-step3-quality-audit
+          path: output/step3/
+          retention-days: 30
+          if-no-files-found: error
