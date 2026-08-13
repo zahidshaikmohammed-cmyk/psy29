@@ -1,0 +1,451 @@
+name: PSY29 Stage 15 Verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage15-hard-verify:
+    name: PSY29 Stage 15 Hard Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+
+      # =====================================================
+      # CHECKOUT
+      # =====================================================
+
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      # =====================================================
+      # PYTHON
+      # =====================================================
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # =====================================================
+      # VERIFY REQUIRED FILES
+      # =====================================================
+
+      - name: Verify Stage 15 files
+        run: |
+          set -e
+
+          test -f \
+            config/psy29_stage15_trade_event_journal_contract.json
+
+          test -f \
+            scripts/stage15_trade_event_journal.py
+
+          test -f \
+            scripts/stage15_test_fixture.py
+
+          test -f \
+            scripts/stage15_check.py
+
+          echo "STAGE 15 FILES: PASS"
+
+      # =====================================================
+      # JSON CONTRACT VALIDATION
+      # =====================================================
+
+      - name: Validate Stage 15 contract
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_stage15_trade_event_journal_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              contract = json.load(handle)
+
+          assert contract["stage"] == 15
+          assert contract["version"] == "1.0"
+          assert contract["status"] == "LOCKED"
+          assert contract["locked"] is True
+          assert contract["coverage"] == 29
+
+          expected_modules = [
+              "15A_EVENT_CAPTURE",
+              "15B_29_STOCK_SNAPSHOT",
+              "15C_STATE_TRANSITION_DETECTION",
+              "15D_EVENT_CLASSIFICATION",
+              "15E_PROVENANCE_CHAIN",
+              "15F_IMMUTABLE_RECORDING",
+              "15G_JOURNAL_INTEGRITY",
+          ]
+
+          assert contract["modules"] == expected_modules
+
+          safety = contract["safety_boundaries"]
+
+          for key, value in safety.items():
+              assert value is False, (
+                  f"Safety boundary violated: {key}"
+              )
+
+          print(
+              "STAGE 15 CONTRACT: PASS"
+          )
+          PY
+
+      # =====================================================
+      # PYTHON SYNTAX
+      # =====================================================
+
+      - name: Compile Stage 15 Python
+        run: |
+          python -m py_compile \
+            scripts/stage15_trade_event_journal.py
+
+          python -m py_compile \
+            scripts/stage15_test_fixture.py
+
+          python -m py_compile \
+            scripts/stage15_check.py
+
+          echo "STAGE 15 PYTHON SYNTAX: PASS"
+
+      # =====================================================
+      # CANONICAL 29 VALIDATION
+      # =====================================================
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_live_universe_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              data = json.load(handle)
+
+          candidates = [
+              data.get("symbols"),
+              data.get("universe"),
+              data.get("stocks"),
+              data.get("canonical_symbols"),
+              data.get("exact_symbol_list"),
+          ]
+
+          symbols = None
+
+          for candidate in candidates:
+              if isinstance(candidate, list):
+                  symbols = candidate
+                  break
+
+          if symbols is None:
+              nested = data.get(
+                  "canonical_universe"
+              )
+
+              if isinstance(
+                  nested,
+                  dict,
+              ):
+                  for key in (
+                      "symbols",
+                      "stocks",
+                      "canonical_symbols",
+                  ):
+                      if isinstance(
+                          nested.get(key),
+                          list,
+                      ):
+                          symbols = nested[key]
+                          break
+
+          assert symbols is not None
+          assert len(symbols) == 29
+
+          normalized = [
+              str(symbol).strip().upper()
+              for symbol in symbols
+          ]
+
+          assert len(set(normalized)) == 29
+
+          print(
+              "CANONICAL 29: PASS"
+          )
+          PY
+
+      # =====================================================
+      # DETERMINISTIC FIXTURE
+      # =====================================================
+
+      - name: Create deterministic Stage 15 fixture
+        run: |
+          set -e
+
+          rm -rf /tmp/psy29_stage15_fixture
+
+          python scripts/stage15_test_fixture.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --output \
+            /tmp/psy29_stage15_fixture
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage5.json
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage6.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage7.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage8.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage9.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage10.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage11.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage12.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage13.csv
+
+          test -f \
+            /tmp/psy29_stage15_fixture/stage14.csv
+
+          echo "DETERMINISTIC FIXTURE: PASS"
+
+      # =====================================================
+      # PREPARE OUTPUT
+      # =====================================================
+
+      - name: Prepare Stage 15 output
+        run: |
+          rm -rf output/stage15
+          mkdir -p output/stage15
+
+      # =====================================================
+      # RUN STAGE 15
+      # =====================================================
+
+      - name: Run Stage 15
+        run: |
+          set -e
+
+          python scripts/stage15_trade_event_journal.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --stage5 \
+            /tmp/psy29_stage15_fixture/stage5.json \
+            --stage6 \
+            /tmp/psy29_stage15_fixture/stage6.csv \
+            --stage7 \
+            /tmp/psy29_stage15_fixture/stage7.csv \
+            --stage8 \
+            /tmp/psy29_stage15_fixture/stage8.csv \
+            --stage9 \
+            /tmp/psy29_stage15_fixture/stage9.csv \
+            --stage10 \
+            /tmp/psy29_stage15_fixture/stage10.csv \
+            --stage11 \
+            /tmp/psy29_stage15_fixture/stage11.csv \
+            --stage12 \
+            /tmp/psy29_stage15_fixture/stage12.csv \
+            --stage13 \
+            /tmp/psy29_stage15_fixture/stage13.csv \
+            --stage14 \
+            /tmp/psy29_stage15_fixture/stage14.csv \
+            --output \
+            output/stage15
+
+      # =====================================================
+      # VERIFY OUTPUT FILES
+      # =====================================================
+
+      - name: Verify Stage 15 outputs
+        run: |
+          set -e
+
+          test -f \
+            output/stage15/PSY29_STAGE15_EVENT_JOURNAL.jsonl
+
+          test -f \
+            output/stage15/PSY29_STAGE15_SNAPSHOT.json
+
+          test -f \
+            output/stage15/PSY29_STAGE15_EVENTS.csv
+
+          test -f \
+            output/stage15/PSY29_STAGE15_SUMMARY.json
+
+          test -f \
+            output/stage15/PSY29_STAGE15_VALIDATION.json
+
+          echo "STAGE 15 OUTPUTS: PASS"
+
+      # =====================================================
+      # HARD VERIFY
+      # =====================================================
+
+      - name: HARD VERIFY Stage 15
+        run: |
+          set -e
+
+          python scripts/stage15_check.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --output \
+            output/stage15
+
+      # =====================================================
+      # EXPLICIT SUMMARY VALIDATION
+      # =====================================================
+
+      - name: Verify final Stage 15 status
+        run: |
+          python - <<'PY'
+          import json
+
+          summary_path = (
+              "output/stage15/"
+              "PSY29_STAGE15_SUMMARY.json"
+          )
+
+          validation_path = (
+              "output/stage15/"
+              "PSY29_STAGE15_VALIDATION.json"
+          )
+
+          with open(
+              summary_path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              summary = json.load(handle)
+
+          with open(
+              validation_path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              validation = json.load(handle)
+
+          assert summary[
+              "engine_execution_status"
+          ] in {
+              "EXECUTED",
+              "PASS",
+          }
+
+          assert summary[
+              "validation_status"
+          ] == "PASS"
+
+          assert validation[
+              "validation_status"
+          ] == "PASS"
+
+          coverage = summary[
+              "coverage"
+          ]
+
+          assert coverage[
+              "expected"
+          ] == 29
+
+          assert coverage[
+              "actual"
+          ] == 29
+
+          assert coverage[
+              "unique"
+          ] == 29
+
+          assert coverage[
+              "missing"
+          ] == []
+
+          assert coverage[
+              "unexpected"
+          ] == []
+
+          print(
+              "========================================"
+          )
+
+          print(
+              "PSY29 STAGE 15 FINAL VALIDATION: PASS"
+          )
+
+          print(
+              "29/29 coverage: PASS"
+          )
+
+          print(
+              "Engine execution: PASS"
+          )
+
+          print(
+              "Validation status: PASS"
+          )
+
+          print(
+              "Append-only model: PASS"
+          )
+
+          print(
+              "Hash chain: PASS"
+          )
+
+          print(
+              "Provenance: PASS"
+          )
+
+          print(
+              "Safety boundaries: PASS"
+          )
+
+          print(
+              "Fail-closed validation: PASS"
+          )
+
+          print(
+              "========================================"
+          )
+          PY
+
+      # =====================================================
+      # UPLOAD ARTIFACT
+      # =====================================================
+
+      - name: Upload Stage 15 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage15-trade-event-journal-validation
+          path: output/stage15/
+          if-no-files-found: error
