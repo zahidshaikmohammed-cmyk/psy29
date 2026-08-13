@@ -1,0 +1,70 @@
+{
+  "contract": "PSY29_PORTFOLIO_EDGE_RANKING",
+  "version": "1.0",
+  "status": "LOCKED_DESIGN",
+  "purpose": "Rank only currently EDGE_ACTIVE stocks using research-conditioned evidence and live Stage 6 regime quality. This is prioritization only; it is not a trade signal or authorization.",
+  "inputs": {
+    "universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "config/psy29_edge_profiles_v1.json",
+    "live_regimes": "Stage 6 PSY29 Live Regime Engine V2 output",
+    "edge_activation": "Stage 7 PSY29 Research-Conditioned Edge Activation output"
+  },
+  "ranking_scope": {
+    "rank_only": "EDGE_ACTIVE",
+    "preserve_states": ["EDGE_ACTIVE", "EDGE_INACTIVE", "DATA_STALE", "DATA_INVALID"],
+    "canonical_coverage": 29,
+    "inactive_rank": null
+  },
+  "research_basis": {
+    "trend_rate_reference": 0.2875,
+    "or_continuation_rate_reference": 0.375,
+    "strong_trend_rate_reference": 0.175,
+    "median_event_return_reference_pct": 2.69,
+    "references": "29-stock Stage 5 locked research profiles"
+  },
+  "score": {
+    "method": "Weighted research-strength score multiplied by live-regime quality",
+    "research_weights": {
+      "trend_rate": 0.35,
+      "or_continuation_rate": 0.25,
+      "strong_trend_rate": 0.20,
+      "median_event_return_pct": 0.20
+    },
+    "normalization": "Each research feature is divided by its locked 29-stock reference, capped at 1.50x reference, then divided by 1.50 to keep each component in [0,1].",
+    "live_regime_quality": {
+      "BULLISH_BREAKOUT_REGIME": 1.00,
+      "BEARISH_BREAKDOWN_REGIME": 1.00,
+      "BULLISH_ALIGNMENT_REGIME": 0.85,
+      "BEARISH_ALIGNMENT_REGIME": 0.85,
+      "BULLISH_WEAK_ALIGNMENT_REGIME": 0.65,
+      "BEARISH_WEAK_ALIGNMENT_REGIME": 0.65
+    },
+    "final_score": "research_strength_score * live_regime_quality"
+  },
+  "tie_breakers": [
+    "Higher research_strength_score first",
+    "Higher trend_rate first",
+    "Higher median_event_return_pct first",
+    "Lower canonical rank first"
+  ],
+  "provenance_rules": [
+    "Historical research values remain priors/behavioural evidence, not current-session probabilities.",
+    "Live directional state comes only from Stage 6.",
+    "Eligibility comes only from Stage 7.",
+    "No inactive, stale, or invalid stock may receive a ranking position.",
+    "No stock may be added to or removed from the canonical 29 by Stage 8.",
+    "Stage 2–7 research and engine logic is immutable under Stage 8."
+  ],
+  "outputs": [
+    "portfolio_rank",
+    "ranking_score",
+    "research_strength_score",
+    "live_regime_quality",
+    "EDGE_ACTIVE",
+    "EDGE_INACTIVE",
+    "DATA_STALE",
+    "DATA_INVALID"
+  ],
+  "trade_authorization": false,
+  "trade_signal_generation": false
+}
