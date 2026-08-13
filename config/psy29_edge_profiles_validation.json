@@ -1,0 +1,51 @@
+{
+  "project": "PSY29",
+  "stage": 5,
+  "validation": "MACHINE_READABLE_RESEARCH_PROFILES",
+  "status": "PASS",
+  "profile_contract": "config/psy29_edge_profiles_v1.json",
+  "universe_contract": "config/psy29_live_universe_contract.json",
+  "checks": {
+    "canonical_universe_count": 29,
+    "profile_count": 29,
+    "exact_profile_count": true,
+    "duplicate_symbols": 0,
+    "missing_symbols": 0,
+    "unexpected_symbols": 0,
+    "rank_sequence_valid": true,
+    "rank_set_matches_canonical_29": true,
+    "all_trend_events_within_0_to_80": true,
+    "all_rates_within_0_to_1": true,
+    "all_median_returns_positive": true,
+    "step6_source_run_verified": 31711962980,
+    "step6_source_status": "PASS",
+    "step7_source_run_verified": 31712419256,
+    "step7_source_status": "PASS",
+    "step8_source_run_verified": 31715155482,
+    "step8_source_status": "PASS",
+    "research_logic_modified": false,
+    "live_signal_generation_performed": false
+  },
+  "traceability": {
+    "step6_artifact": "psy29-step6-v3-walk-forward",
+    "step6_artifact_id": 9185687646,
+    "step6_primary_files": ["edge_event_oos_research_ranking.csv", "edge_events_oos_by_session.csv", "step6_v3_summary.json"],
+    "step7_artifact": "psy29-step7-liquidity-gate",
+    "step7_artifact_id": 9185829057,
+    "step7_primary_files": ["step7_liquidity_audit.csv", "step7_liquidity_passed.csv", "step7_summary.json"],
+    "step8_artifact": "psy29-final-29",
+    "step8_artifact_id": 9186920995,
+    "step8_primary_files": ["PSY29_FINAL_29.csv", "PSY29_FINAL_29.json", "step8_summary.json"]
+  },
+  "transformations": [
+    "trend_rate, strong_trend_rate, and or_continuation_rate are stored as decimal fractions rather than display percentages.",
+    "median_event_return_pct remains in percentage points.",
+    "No research threshold, event definition, liquidity threshold, ranking rule, or Step 8 selection rule was changed."
+  ],
+  "interpretation_guardrails": [
+    "Profiles are historical OOS research priors, not guarantees.",
+    "Historical Step 7 liquidity is not live order-book depth.",
+    "A profile alone never authorizes a trade.",
+    "Live activation requires current DHAN data and subsequent orchestrator stages."
+  ]
+}
