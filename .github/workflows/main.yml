@@ -6,7 +6,8 @@ on:
       from_date:
         description: "Start date (YYYY-MM-DD)"
         required: true
-        default: "2021-01-01"
+        default: "2026-01-01"
+
       to_date:
         description: "End date (YYYY-MM-DD)"
         required: true
@@ -17,6 +18,7 @@ permissions:
 
 jobs:
   acquire-history:
+    name: acquire-history
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
@@ -24,29 +26,93 @@ jobs:
       DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
       DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
       PYTHONUNBUFFERED: "1"
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
+
+      # ---------------------------------------------------------
+      # 1. Checkout repository
+      # ---------------------------------------------------------
       - name: Checkout PSY29
         uses: actions/checkout@v4
 
+      # ---------------------------------------------------------
+      # 2. Setup Python
+      # ---------------------------------------------------------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
+      # ---------------------------------------------------------
+      # 3. Install dependencies
+      # ---------------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ---------------------------------------------------------
+      # 4. Verify repository structure
+      # ---------------------------------------------------------
+      - name: Verify PSY29 structure
+        run: |
+          echo "Repository:"
+          pwd
+
+          echo ""
+          echo "Top-level files:"
+          find . -maxdepth 2 -type f | sort
+
+          echo ""
+          echo "Checking Dhan package..."
+
+          test -f dhan/__init__.py || {
+            echo "ERROR: dhan/__init__.py is missing."
+            exit 1
+          }
+
+          test -f dhan/client.py || {
+            echo "ERROR: dhan/client.py is missing."
+            exit 1
+          }
+
+          test -f dhan/historical.py || {
+            echo "ERROR: dhan/historical.py is missing."
+            exit 1
+          }
+
+          test -f dhan/instruments.py || {
+            echo "ERROR: dhan/instruments.py is missing."
+            exit 1
+          }
+
+          test -f scripts/acquire_fno_history.py || {
+            echo "ERROR: acquisition script is missing."
+            exit 1
+          }
+
+          echo ""
+          echo "PSY29 repository structure OK."
+
+      # ---------------------------------------------------------
+      # 5. Verify Python can import PSY29 modules
+      # ---------------------------------------------------------
+      - name: Verify Python imports
+        run: |
+          python -c "from dhan.client import DhanClient; from dhan.historical import fetch_intraday; from dhan.instruments import download_master; print('PSY29 Dhan modules import successfully.')"
+
+      # ---------------------------------------------------------
+      # 6. Verify secrets
+      # ---------------------------------------------------------
       - name: Verify secrets are configured
         shell: bash
         run: |
-          test -n "$DHAN_ACCESS_TOKEN" || {
+          if [ -z "$DHAN_ACCESS_TOKEN" ]; then
             echo "ERROR: DHAN_ACCESS_TOKEN GitHub Secret is missing."
             exit 1
-          }
+          fi
 
           if [ -z "$DHAN_CLIENT_ID" ]; then
             echo "WARNING: DHAN_CLIENT_ID is not configured."
@@ -54,12 +120,45 @@ jobs:
             echo "Dhan credentials detected."
           fi
 
+      # ---------------------------------------------------------
+      # 7. Run PSY29 historical acquisition
+      # ---------------------------------------------------------
       - name: Run PSY29 historical acquisition
         run: |
-          python scripts/acquire_fno_history.py \
+          echo "Starting PSY29 Step 2..."
+          echo "From: ${{ inputs.from_date }}"
+          echo "To:   ${{ inputs.to_date }}"
+          echo ""
+
+          python -m scripts.acquire_fno_history \
             --from-date "${{ inputs.from_date }}" \
             --to-date "${{ inputs.to_date }}"
 
+      # ---------------------------------------------------------
+      # 8. Verify downloaded data
+      # ---------------------------------------------------------
+      - name: Verify acquired dataset
+        run: |
+          echo "Checking acquired data..."
+
+          mkdir -p output
+
+          FILE_COUNT=$(find data/raw/intraday -type f -name "*.parquet" 2>/dev/null | wc -l)
+
+          echo "Parquet files acquired: $FILE_COUNT"
+
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "ERROR: No historical data files were created."
+            exit 1
+          fi
+
+          echo ""
+          echo "Acquired files:"
+          find data/raw/intraday -type f -name "*.parquet" | sort
+
+      # ---------------------------------------------------------
+      # 9. Generate acquisition manifest
+      # ---------------------------------------------------------
       - name: Generate acquisition manifest
         run: |
           python - <<'PY'
@@ -88,7 +187,6 @@ jobs:
               ]
           }
 
-          Path("output").mkdir(parents=True, exist_ok=True)
           Path("output/acquisition_manifest.json").write_text(
               json.dumps(manifest, indent=2),
               encoding="utf-8"
@@ -97,6 +195,9 @@ jobs:
           print(json.dumps(manifest, indent=2))
           PY
 
+      # ---------------------------------------------------------
+      # 10. Upload dataset as GitHub Actions artifact
+      # ---------------------------------------------------------
       - name: Upload historical dataset artifact
         uses: actions/upload-artifact@v4
         with:
@@ -106,3 +207,16 @@ jobs:
             output/acquisition_manifest.json
           retention-days: 7
           if-no-files-found: error
+
+      # ---------------------------------------------------------
+      # 11. Final status
+      # ---------------------------------------------------------
+      - name: PSY29 Step 2 completion
+        run: |
+          echo ""
+          echo "=============================================="
+          echo "PSY29 STEP 2 DATA ACQUISITION COMPLETE"
+          echo "=============================================="
+          echo ""
+          echo "Historical dataset successfully acquired."
+          echo "The artifact has been uploaded to GitHub Actions."
