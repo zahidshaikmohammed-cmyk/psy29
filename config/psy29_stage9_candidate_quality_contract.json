@@ -1,0 +1,83 @@
+{
+  "contract": "PSY29_LIVE_CANDIDATE_QUALITY_CONFIDENCE",
+  "version": "1.0",
+  "status": "LOCKED_DESIGN",
+  "purpose": "Score the quality of currently EDGE_ACTIVE candidates using only verified Stage 5 research evidence, Stage 6 live regime quality, Stage 7 activation-match quality, and Stage 8 portfolio ranking. This score is a prioritization-quality measure, not a current-session probability, trade signal, or trade authorization.",
+  "inputs": {
+    "universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "config/psy29_edge_profiles_v1.json",
+    "stage6_regimes": "Stage 6 PSY29 Live Regime Engine V2 output",
+    "stage7_activation": "Stage 7 PSY29 Research-Conditioned Edge Activation output",
+    "stage8_ranking": "Stage 8 PSY29 Portfolio Edge Ranking output"
+  },
+  "scope": {
+    "score_only": "EDGE_ACTIVE",
+    "preserve_states": ["EDGE_ACTIVE", "EDGE_INACTIVE", "DATA_STALE", "DATA_INVALID"],
+    "canonical_coverage": 29,
+    "non_active_score": null,
+    "non_active_rank": null
+  },
+  "components": {
+    "research_strength_score": {
+      "source": "Stage 8 verified ranking output",
+      "weight": 0.40,
+      "meaning": "Verified historical behavioural evidence strength; not a current-session probability."
+    },
+    "live_regime_quality": {
+      "source": "Stage 8 verified Stage 6 regime quality",
+      "weight": 0.30,
+      "meaning": "Quality assigned to the current directional regime by the locked Stage 8 contract."
+    },
+    "activation_match_quality": {
+      "source": "Stage 7 reason_code and match_reason",
+      "weight": 0.20,
+      "mapping": {
+        "OR_CONTINUATION_MATCH": 1.00,
+        "TREND_RATE_MATCH": 0.90
+      },
+      "meaning": "Strength of the explicit research-to-live-condition match that activated the edge."
+    },
+    "portfolio_rank_quality": {
+      "source": "Stage 8 portfolio_rank",
+      "weight": 0.10,
+      "formula": "1 - ((portfolio_rank - 1) / max(edge_active_count - 1, 1)) * 0.50",
+      "range": "[0.50, 1.00] for active candidates",
+      "meaning": "Relative prioritization quality inherited from Stage 8; not an independent market signal."
+    }
+  },
+  "final_score": {
+    "formula": "100 * (0.40*research_strength_score + 0.30*live_regime_quality + 0.20*activation_match_quality + 0.10*portfolio_rank_quality)",
+    "range": "0-100",
+    "interpretation": "Candidate quality/confidence index only. It must never be described as a probability of profit, probability of continuation, or expected return."
+  },
+  "fail_closed_rules": [
+    "Exactly 29 canonical symbols must be present.",
+    "Stage 5 research profiles must cover exactly the canonical 29.",
+    "Stage 6, Stage 7, and Stage 8 inputs must each cover exactly the canonical 29.",
+    "Only EDGE_ACTIVE rows may receive a quality/confidence score.",
+    "EDGE_INACTIVE, DATA_STALE, and DATA_INVALID rows retain their state and receive null score and null rank.",
+    "EDGE_ACTIVE requires fresh Stage 6 data and a valid Stage 8 ranking score/rank.",
+    "No score may be emitted when required provenance or component inputs are missing or inconsistent.",
+    "Historical research evidence remains a behavioural prior and is not converted into a current-session probability.",
+    "Trade authorization and trade signal generation remain hard-disabled."
+  ],
+  "outputs": [
+    "candidate_quality_score",
+    "research_strength_score",
+    "live_regime_quality",
+    "activation_match_quality",
+    "portfolio_rank_quality",
+    "EDGE_ACTIVE",
+    "EDGE_INACTIVE",
+    "DATA_STALE",
+    "DATA_INVALID"
+  ],
+  "provenance": {
+    "research_profile_source": "config/psy29_edge_profiles_v1.json",
+    "stage6_source": "Stage 6 PSY29 Live Regime Engine V2",
+    "stage7_source": "Stage 7 PSY29 Research-Conditioned Edge Activation",
+    "stage8_source": "Stage 8 PSY29 Portfolio Edge Ranking"
+  },
+  "trade_authorization": false,
+  "trade_signal_generation": false
+}
