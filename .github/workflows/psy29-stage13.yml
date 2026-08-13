@@ -1,0 +1,105 @@
+name: PSY29 Stage 13 - Scenario Adjudication
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage13:
+    name: Validate PSY29 Stage 13
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Verify files and syntax
+        run: |
+          set -e
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_edge_profiles_v1.json
+          test -f config/psy29_stage13_scenario_adjudication_contract.json
+          test -f scripts/stage13_scenario_adjudication.py
+          python -m py_compile scripts/stage13_scenario_adjudication.py
+
+      - name: Create deterministic fixture
+        run: |
+          python - <<'PY'
+          import csv,json
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          root=Path('/tmp/p13'); root.mkdir(parents=True,exist_ok=True)
+          u=json.loads(Path('config/psy29_live_universe_contract.json').read_text())['universe']
+          syms=[x['symbol'] for x in u]
+          assert len(syms)==29 and len(set(syms))==29
+          (root/'profiles.json').write_text(json.dumps({'profiles':[{'symbol':s} for s in syms]}))
+          ts=(datetime.now(timezone.utc)-timedelta(seconds=30)).isoformat(timespec='seconds').replace('+00:00','Z')
+          p={'research_provenance':'stage5','stage6_provenance':'stage6','stage7_provenance':'stage7','stage8_provenance':'stage8','stage9_provenance':'stage9','stage10_provenance':'stage10','stage11_provenance':'stage11','stage12_provenance':'stage12'}
+          def wr(n,rows):
+              with open(root/n,'w',newline='') as f:
+                  w=csv.DictWriter(f,fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+          s6=[{'symbol':s,'regime':'BULLISH_BREAKOUT_REGIME','data_status':'FRESH'} for s in syms]
+          s7=[{'symbol':s,'activation':'EDGE_ACTIVE','data_status':'FRESH'} for s in syms]
+          s8=[{'symbol':s,'activation':'EDGE_ACTIVE','data_status':'FRESH','portfolio_rank':i} for i,s in enumerate(syms,1)]
+          s9=[{'symbol':s,'activation':'EDGE_ACTIVE','data_status':'FRESH','candidate_quality_score':90} for s in syms]
+          s10=[{'symbol':s,'integrity_state':'INTEGRITY_PASS','data_status':'FRESH',**{k:p[k] for k in ['research_provenance','stage6_provenance','stage7_provenance','stage8_provenance']}} for s in syms]
+          s11=[{'symbol':s,'analysis_state':'EXECUTION_ANALYSIS_VALID','structure_state':'BREAKOUT_STRUCTURE','price_volume_quality':'STRONG','event_state':'BREAKOUT_OBSERVED','research_live_alignment':'HIGH','live_data_timestamp':ts,**p} for s in syms]
+          s12=[{'symbol':s,'stage12_state':'EXECUTION_SCENARIO_READY','scenario_classification':'BREAKOUT_SCENARIO','scenario_quality':'HIGH','research_live_match':'STRONG_MATCH','execution_environment_quality':'HIGH','upstream_integrity':'INTEGRITY_PASS','live_analysis_state':'EXECUTION_ANALYSIS_VALID',**p,'live_data_timestamp':ts,'trade_ready_output':False,'trade_authorized':False,'trade_signal_generated':False} for s in syms]
+          for n,r in [('stage6.csv',s6),('stage7.csv',s7),('stage8.csv',s8),('stage9.csv',s9),('stage10.csv',s10),('stage11.csv',s11),('stage12.csv',s12)]: wr(n,r)
+          print('fixture PASS',ts)
+          PY
+
+      - name: Run Stage 13
+        run: |
+          mkdir -p output/stage13
+          python scripts/stage13_scenario_adjudication.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles /tmp/p13/profiles.json \
+            --stage6 /tmp/p13/stage6.csv --stage7 /tmp/p13/stage7.csv \
+            --stage8 /tmp/p13/stage8.csv --stage9 /tmp/p13/stage9.csv \
+            --stage10 /tmp/p13/stage10.csv --stage11 /tmp/p13/stage11.csv \
+            --stage12 /tmp/p13/stage12.csv \
+            --contract config/psy29_stage13_scenario_adjudication_contract.json \
+            --output output/stage13
+
+      - name: HARD VERIFY Stage 13
+        run: |
+          python - <<'PY'
+          import json,pandas as pd
+          from pathlib import Path
+          o=Path('output/stage13')
+          s=json.loads((o/'stage13_summary.json').read_text())
+          d=pd.read_csv(o/'PSY29_STAGE13_SCENARIO_ADJUDICATION.csv')
+          assert s['engine_execution_status']=='PASS'
+          assert s['validation_status']=='PASS'
+          assert s['status']=='PASS'
+          assert s['coverage']==29 and len(d)==29 and d.symbol.nunique()==29
+          assert set(d.stage13_state)=={'SCENARIO_CONFIRMED'}
+          assert set(d.dominant_scenario)=={'BREAKOUT'}
+          assert (d.scenario_confidence>=.70).all()
+          for c in ['research_provenance','stage6_provenance','stage7_provenance','stage8_provenance','stage9_provenance','stage10_provenance','stage11_provenance','stage12_provenance','stage13_provenance']:
+              assert d[c].astype(str).str.strip().ne('').all()
+          for c in ['trade_ready_output','trade_authorized','trade_signal_generated','ce_pe_selection','entry_calculation','stop_loss_calculation','target_calculation','position_size_calculation','risk_calculation','capital_allocation','order_generation','execution']:
+              assert (d[c]==False).all()
+          print('PSY29 STAGE 13 HARD VERIFY: PASS')
+          print('29/29 | provenance | fail-closed boundaries: PASS')
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage13-validation
+          path: output/stage13/
+          if-no-files-found: error
