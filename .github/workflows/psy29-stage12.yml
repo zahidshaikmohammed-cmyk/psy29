@@ -1,0 +1,1111 @@
+name: PSY29 Stage 12 - Execution Readiness Scenario Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage12:
+    name: Validate PSY29 Stage 12
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+
+      # =====================================================
+      # CHECKOUT
+      # =====================================================
+
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      # =====================================================
+      # PYTHON
+      # =====================================================
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      # =====================================================
+      # VERIFY STAGE 5-12 ARCHITECTURE
+      # =====================================================
+
+      - name: Verify Stage 5-12 architecture
+        run: |
+          set -e
+
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_edge_profiles_v1.json
+
+          test -f config/psy29_stage10_integrity_gate_contract.json
+          test -f config/psy29_stage11_execution_analysis_contract.json
+          test -f config/psy29_stage12_execution_readiness_contract.json
+
+          test -f scripts/stage11_execution_analysis.py
+          test -f scripts/stage12_execution_readiness.py
+
+          echo "STAGE 5-12 ARCHITECTURE: PASS"
+
+      # =====================================================
+      # VERIFY STAGE 12 CONTRACT
+      # =====================================================
+
+      - name: Verify Stage 12 contract
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_stage12_execution_readiness_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8"
+          ) as f:
+              contract = json.load(f)
+
+          assert (
+              contract["contract"]
+              == "PSY29_LIVE_EXECUTION_READINESS_SCENARIO_GATE"
+          )
+
+          assert contract["version"] == "1.0"
+          assert contract["status"] == "LOCKED"
+          assert contract["coverage"] == 29
+
+          required_modules = [
+              "12A_upstream_eligibility",
+              "12B_live_structural_coherence",
+              "12C_research_live_scenario_match",
+              "12D_execution_environment_quality",
+              "12E_scenario_classification",
+              "12F_final_readiness_gate",
+          ]
+
+          for module in required_modules:
+              assert (
+                  contract["modules"][module]
+                  is True
+              )
+
+          safety = contract["safety"]
+
+          for field, value in safety.items():
+              assert (
+                  value is False
+              ), f"Safety boundary violated: {field}"
+
+          print(
+              "STAGE 12 CONTRACT: PASS"
+          )
+          PY
+
+      # =====================================================
+      # PYTHON SYNTAX
+      # =====================================================
+
+      - name: Compile Stage 12
+        run: |
+          python -m py_compile \
+            scripts/stage12_execution_readiness.py
+
+          echo "STAGE 12 PYTHON SYNTAX: PASS"
+
+      # =====================================================
+      # VERIFY CANONICAL 29
+      # =====================================================
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_live_universe_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8"
+          ) as f:
+              universe = json.load(f)
+
+          rows = universe["universe"]
+
+          assert len(rows) == 29
+
+          symbols = [
+              str(row["symbol"])
+              .upper()
+              .strip()
+              for row in rows
+          ]
+
+          ranks = [
+              int(row["rank"])
+              for row in rows
+          ]
+
+          assert len(set(symbols)) == 29
+          assert ranks == list(range(1, 30))
+
+          print(
+              "CANONICAL 29: PASS"
+          )
+
+          print(
+              "Unique symbols:",
+              len(set(symbols))
+          )
+          PY
+
+      # =====================================================
+      # DETERMINISTIC UPSTREAM FIXTURE
+      #
+      # This fixture is ONLY for CI validation.
+      # It does not modify Stage 5-11 research logic.
+      #
+      # Timestamp is intentionally current/previous UTC so
+      # deterministic data passes freshness validation.
+      # =====================================================
+
+      - name: Create deterministic upstream fixture
+        run: |
+          set -e
+
+          mkdir -p /tmp/psy29_stage12
+
+          python - <<'PY'
+          import csv
+          import json
+
+          from datetime import (
+              datetime,
+              timezone,
+              timedelta,
+          )
+
+          from pathlib import Path
+
+          universe_path = Path(
+              "config/"
+              "psy29_live_universe_contract.json"
+          )
+
+          with open(
+              universe_path,
+              "r",
+              encoding="utf-8"
+          ) as f:
+              universe = json.load(f)
+
+          symbols = [
+              row["symbol"]
+              for row in universe["universe"]
+          ]
+
+          assert len(symbols) == 29
+          assert len(set(symbols)) == 29
+
+          # Fresh deterministic timestamp.
+          #
+          # Keep fixture 30 seconds behind current UTC.
+          # This avoids hard-coded historical timestamps while
+          # remaining comfortably inside normal freshness limits.
+
+          timestamp = (
+              datetime.now(timezone.utc)
+              - timedelta(seconds=30)
+          ).isoformat(
+              timespec="seconds"
+          ).replace(
+              "+00:00",
+              "Z"
+          )
+
+          profiles = []
+
+          for rank, symbol in enumerate(
+              symbols,
+              start=1
+          ):
+
+              profiles.append(
+                  {
+                      "symbol": symbol,
+                      "rank": rank,
+                      "research_provenance":
+                          "config/psy29_edge_profiles_v1.json"
+                  }
+              )
+
+          Path(
+              "/tmp/psy29_stage12/profiles.json"
+          ).write_text(
+              json.dumps(
+                  {
+                      "profiles": profiles
+                  },
+                  indent=2
+              ),
+              encoding="utf-8"
+          )
+
+          # -------------------------------------------------
+          # CSV WRITER
+          # -------------------------------------------------
+
+          def write_csv(
+              filename,
+              rows
+          ):
+
+              path = (
+                  Path("/tmp/psy29_stage12")
+                  / filename
+              )
+
+              with open(
+                  path,
+                  "w",
+                  newline="",
+                  encoding="utf-8"
+              ) as f:
+
+                  writer = csv.DictWriter(
+                      f,
+                      fieldnames=list(
+                          rows[0].keys()
+                      )
+                  )
+
+                  writer.writeheader()
+                  writer.writerows(rows)
+
+          # -------------------------------------------------
+          # FIXTURE TABLES
+          # -------------------------------------------------
+
+          stage6_rows = []
+          stage7_rows = []
+          stage8_rows = []
+          stage9_rows = []
+          stage10_rows = []
+          stage11_rows = []
+
+          for index, symbol in enumerate(
+              symbols,
+              start=1
+          ):
+
+              # First three stocks receive a valid
+              # research-conditioned live scenario.
+              #
+              # Remaining stocks remain valid but inactive,
+              # allowing Stage 12 to test conditional/blocked
+              # scenario states without generating a trade.
+
+              edge_active = (
+                  index <= 3
+              )
+
+              if index == 1:
+
+                  structure_state = (
+                      "BREAKOUT_STRUCTURE"
+                  )
+
+                  event_state = (
+                      "BREAKOUT_OBSERVED"
+                  )
+
+                  price_volume_quality = (
+                      "STRONG"
+                  )
+
+                  research_live_alignment = (
+                      "HIGH"
+                  )
+
+                  regime = (
+                      "BULLISH_BREAKOUT_REGIME"
+                  )
+
+              elif index <= 3:
+
+                  structure_state = (
+                      "TRENDING_UP"
+                  )
+
+                  event_state = (
+                      "CONTINUATION"
+                  )
+
+                  price_volume_quality = (
+                      "MODERATE"
+                  )
+
+                  research_live_alignment = (
+                      "PARTIAL"
+                  )
+
+                  regime = (
+                      "BULLISH_ALIGNMENT_REGIME"
+                  )
+
+              else:
+
+                  structure_state = (
+                      "RANGE"
+                  )
+
+                  event_state = (
+                      "NO_EVENT"
+                  )
+
+                  price_volume_quality = (
+                      "WEAK"
+                  )
+
+                  research_live_alignment = (
+                      "UNCONFIRMED"
+                  )
+
+                  regime = (
+                      "RANGE_REGIME"
+                  )
+
+              activation = (
+                  "EDGE_ACTIVE"
+                  if edge_active
+                  else
+                  "EDGE_INACTIVE"
+              )
+
+              reason_code = (
+                  "RESEARCH_LIVE_MATCH"
+                  if edge_active
+                  else
+                  "NO_MATCH"
+              )
+
+              research_source = (
+                  "config/psy29_edge_profiles_v1.json"
+              )
+
+              # ---------------------------------------------
+              # STAGE 6
+              # ---------------------------------------------
+
+              stage6_rows.append(
+                  {
+                      "symbol": symbol,
+                      "regime": regime,
+                      "data_status": "FRESH",
+                  }
+              )
+
+              # ---------------------------------------------
+              # STAGE 7
+              # ---------------------------------------------
+
+              stage7_rows.append(
+                  {
+                      "symbol": symbol,
+                      "regime": regime,
+                      "data_status": "FRESH",
+                      "activation": activation,
+                      "reason_code": reason_code,
+                  }
+              )
+
+              # ---------------------------------------------
+              # STAGE 8
+              # ---------------------------------------------
+
+              stage8_rows.append(
+                  {
+                      "symbol": symbol,
+                      "activation": activation,
+                      "regime": regime,
+                      "data_status": "FRESH",
+                      "portfolio_rank": (
+                          index
+                          if edge_active
+                          else ""
+                      ),
+                      "ranking_score": (
+                          0.90
+                          if index == 1
+                          else
+                          (
+                              0.75
+                              if edge_active
+                              else ""
+                          )
+                      ),
+                  }
+              )
+
+              # ---------------------------------------------
+              # STAGE 9
+              # ---------------------------------------------
+
+              stage9_rows.append(
+                  {
+                      "symbol": symbol,
+                      "activation": activation,
+                      "regime": regime,
+                      "data_status": "FRESH",
+                      "candidate_quality_score": (
+                          95
+                          if index == 1
+                          else
+                          (
+                              75
+                              if edge_active
+                              else ""
+                          )
+                      ),
+                  }
+              )
+
+              # ---------------------------------------------
+              # STAGE 10
+              # ---------------------------------------------
+
+              stage10_rows.append(
+                  {
+                      "symbol": symbol,
+                      "integrity_state":
+                          "INTEGRITY_PASS",
+                      "activation": activation,
+                      "regime": regime,
+                      "data_status": "FRESH",
+                      "research_provenance":
+                          research_source,
+                      "stage6_provenance":
+                          "Stage 6 PSY29 Live Regime Engine V2",
+                      "stage7_provenance":
+                          "Stage 7 PSY29 Edge Activation",
+                      "stage8_provenance":
+                          "Stage 8 PSY29 Edge Ranking",
+                      "stage9_provenance":
+                          "Stage 9 PSY29 Candidate Quality",
+                  }
+              )
+
+              # ---------------------------------------------
+              # STAGE 11
+              # ---------------------------------------------
+
+              stage11_rows.append(
+                  {
+                      "symbol": symbol,
+
+                      "analysis_state":
+                          "EXECUTION_ANALYSIS_VALID",
+
+                      "structure_state":
+                          structure_state,
+
+                      "price_volume_quality":
+                          price_volume_quality,
+
+                      "event_state":
+                          event_state,
+
+                      "research_live_alignment":
+                          research_live_alignment,
+
+                      "live_data_timestamp":
+                          timestamp,
+
+                      "research_provenance":
+                          research_source,
+
+                      "stage6_provenance":
+                          "Stage 6 PSY29 Live Regime Engine V2",
+
+                      "stage7_provenance":
+                          "Stage 7 PSY29 Edge Activation",
+
+                      "stage8_provenance":
+                          "Stage 8 PSY29 Edge Ranking",
+
+                      "stage9_provenance":
+                          "Stage 9 PSY29 Candidate Quality",
+
+                      "stage10_provenance":
+                          "Stage 10 PSY29 Candidate Integrity Provenance",
+
+                      "stage11_provenance":
+                          "Stage 11 PSY29 Live Execution Analysis",
+                  }
+              )
+
+          write_csv(
+              "stage6.csv",
+              stage6_rows
+          )
+
+          write_csv(
+              "stage7.csv",
+              stage7_rows
+          )
+
+          write_csv(
+              "stage8.csv",
+              stage8_rows
+          )
+
+          write_csv(
+              "stage9.csv",
+              stage9_rows
+          )
+
+          write_csv(
+              "stage10.csv",
+              stage10_rows
+          )
+
+          write_csv(
+              "stage11.csv",
+              stage11_rows
+          )
+
+          print(
+              "DETERMINISTIC UPSTREAM FIXTURE: PASS"
+          )
+
+          print(
+              "Canonical symbols:",
+              len(symbols)
+          )
+
+          print(
+              "Fixture timestamp:",
+              timestamp
+          )
+          PY
+
+      # =====================================================
+      # RUN STAGE 12
+      # =====================================================
+
+      - name: Run Stage 12
+        run: |
+          set -e
+
+          mkdir -p output/stage12
+
+          python scripts/stage12_execution_readiness.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --profiles \
+            /tmp/psy29_stage12/profiles.json \
+            --stage6 \
+            /tmp/psy29_stage12/stage6.csv \
+            --stage7 \
+            /tmp/psy29_stage12/stage7.csv \
+            --stage8 \
+            /tmp/psy29_stage12/stage8.csv \
+            --stage9 \
+            /tmp/psy29_stage12/stage9.csv \
+            --stage10 \
+            /tmp/psy29_stage12/stage10.csv \
+            --stage11 \
+            /tmp/psy29_stage12/stage11.csv \
+            --contract \
+            config/psy29_stage12_execution_readiness_contract.json \
+            --output \
+            output/stage12
+
+      # =====================================================
+      # HARD VERIFY STAGE 12
+      # =====================================================
+
+      - name: HARD VERIFY Stage 12
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary_path = (
+              "output/stage12/"
+              "stage12_summary.json"
+          )
+
+          output_path = (
+              "output/stage12/"
+              "PSY29_STAGE12_EXECUTION_READINESS.csv"
+          )
+
+          with open(
+              summary_path,
+              "r",
+              encoding="utf-8"
+          ) as f:
+
+              summary = json.load(f)
+
+          dataframe = pd.read_csv(
+              output_path
+          )
+
+          # -------------------------------------------------
+          # ENGINE STATUS
+          # -------------------------------------------------
+
+          assert (
+              summary[
+                  "engine_execution_status"
+              ]
+              == "PASS"
+          )
+
+          # -------------------------------------------------
+          # VALIDATION STATUS
+          # -------------------------------------------------
+
+          assert (
+              summary[
+                  "validation_status"
+              ]
+              == "PASS"
+          )
+
+          assert (
+              summary[
+                  "status"
+              ]
+              == "PASS"
+          )
+
+          # -------------------------------------------------
+          # 29/29 COVERAGE
+          # -------------------------------------------------
+
+          assert (
+              summary[
+                  "coverage"
+              ]
+              == 29
+          )
+
+          assert (
+              summary[
+                  "expected_coverage"
+              ]
+              == 29
+          )
+
+          assert (
+              len(dataframe)
+              == 29
+          )
+
+          assert (
+              dataframe[
+                  "symbol"
+              ].nunique()
+              == 29
+          )
+
+          # -------------------------------------------------
+          # VALID STATE ENUMERATION
+          # -------------------------------------------------
+
+          allowed_states = {
+              "EXECUTION_SCENARIO_READY",
+              "EXECUTION_SCENARIO_CONDITIONAL",
+              "EXECUTION_SCENARIO_BLOCKED",
+              "DATA_STALE",
+              "DATA_INVALID",
+              "UPSTREAM_INVALID",
+          }
+
+          assert set(
+              dataframe[
+                  "stage12_state"
+              ]
+          ).issubset(
+              allowed_states
+          )
+
+          # -------------------------------------------------
+          # VALID SCENARIOS
+          # -------------------------------------------------
+
+          allowed_scenarios = {
+              "CONTINUATION_SCENARIO",
+              "BREAKOUT_SCENARIO",
+              "BREAKDOWN_SCENARIO",
+              "RETEST_SCENARIO",
+              "REVERSAL_RISK_SCENARIO",
+              "RANGE_SCENARIO",
+              "TRANSITION_SCENARIO",
+              "UNCLEAR_SCENARIO",
+          }
+
+          assert set(
+              dataframe[
+                  "scenario_classification"
+              ]
+          ).issubset(
+              allowed_scenarios
+          )
+
+          # -------------------------------------------------
+          # VALID MATCH STATES
+          # -------------------------------------------------
+
+          allowed_matches = {
+              "STRONG_MATCH",
+              "PARTIAL_MATCH",
+              "WEAK_MATCH",
+              "NO_MATCH",
+              "UNCONFIRMED",
+          }
+
+          assert set(
+              dataframe[
+                  "research_live_match"
+              ]
+          ).issubset(
+              allowed_matches
+          )
+
+          # -------------------------------------------------
+          # VALID ENVIRONMENT STATES
+          # -------------------------------------------------
+
+          allowed_environment = {
+              "HIGH",
+              "MODERATE",
+              "LOW",
+              "INVALID",
+          }
+
+          assert set(
+              dataframe[
+                  "execution_environment_quality"
+              ]
+          ).issubset(
+              allowed_environment
+          )
+
+          # -------------------------------------------------
+          # VALID QUALITY STATES
+          # -------------------------------------------------
+
+          allowed_quality = {
+              "HIGH",
+              "MODERATE",
+              "LOW",
+              "UNCONFIRMED",
+          }
+
+          assert set(
+              dataframe[
+                  "scenario_quality"
+              ]
+          ).issubset(
+              allowed_quality
+          )
+
+          # -------------------------------------------------
+          # PROVENANCE
+          # -------------------------------------------------
+
+          provenance_fields = [
+              "research_provenance",
+              "stage6_provenance",
+              "stage7_provenance",
+              "stage8_provenance",
+              "stage9_provenance",
+              "stage10_provenance",
+              "stage11_provenance",
+              "stage12_provenance",
+          ]
+
+          for field in provenance_fields:
+
+              assert (
+                  field
+                  in dataframe.columns
+              )
+
+              assert (
+                  dataframe[field]
+                  .astype(str)
+                  .str.strip()
+                  .ne("")
+              ).all()
+
+          # -------------------------------------------------
+          # HARD SAFETY
+          # -------------------------------------------------
+
+          assert (
+              dataframe[
+                  "trade_ready_output"
+              ]
+              == False
+          ).all()
+
+          assert (
+              dataframe[
+                  "trade_authorized"
+              ]
+              == False
+          ).all()
+
+          assert (
+              dataframe[
+                  "trade_signal_generated"
+              ]
+              == False
+          ).all()
+
+          assert (
+              summary[
+                  "trade_ready_output"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "trade_authorized"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "trade_signal_generated"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "ce_pe_selection"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "entry_calculation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "stop_loss_calculation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "target_calculation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "position_size_calculation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "risk_calculation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "capital_allocation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "order_generation"
+              ]
+              is False
+          )
+
+          assert (
+              summary[
+                  "execution"
+              ]
+              is False
+          )
+
+          # -------------------------------------------------
+          # FAIL CLOSED
+          # -------------------------------------------------
+
+          assert (
+              summary[
+                  "fail_closed"
+              ]
+              is True
+          )
+
+          # -------------------------------------------------
+          # POSITIVE SCENARIO TEST
+          #
+          # First fixture stock should demonstrate that the
+          # READY state can actually be reached when every
+          # locked condition is satisfied.
+          # -------------------------------------------------
+
+          assert (
+              "EXECUTION_SCENARIO_READY"
+              in set(
+                  dataframe[
+                      "stage12_state"
+                  ]
+              )
+          )
+
+          # -------------------------------------------------
+          # FINAL RESULT
+          # -------------------------------------------------
+
+          print(
+              "========================================"
+          )
+
+          print(
+              "PSY29 STAGE 12 HARD VERIFY: PASS"
+          )
+
+          print(
+              "29/29 coverage: PASS"
+          )
+
+          print(
+              "12A Upstream Eligibility: PASS"
+          )
+
+          print(
+              "12B Structural Coherence: PASS"
+          )
+
+          print(
+              "12C Research/Live Match: PASS"
+          )
+
+          print(
+              "12D Environment Quality: PASS"
+          )
+
+          print(
+              "12E Scenario Classification: PASS"
+          )
+
+          print(
+              "12F Final Readiness Gate: PASS"
+          )
+
+          print(
+              "Complete provenance: PASS"
+          )
+
+          print(
+              "Cross-stage validation: PASS"
+          )
+
+          print(
+              "Fail-closed behaviour: PASS"
+          )
+
+          print(
+              "Trade-ready output: FALSE"
+          )
+
+          print(
+              "Trade authorization: FALSE"
+          )
+
+          print(
+              "Trade signal generation: FALSE"
+          )
+
+          print(
+              "CE/PE selection: FALSE"
+          )
+
+          print(
+              "Entry calculation: FALSE"
+          )
+
+          print(
+              "Stop-loss calculation: FALSE"
+          )
+
+          print(
+              "Target calculation: FALSE"
+          )
+
+          print(
+              "Position sizing: FALSE"
+          )
+
+          print(
+              "Risk calculation: FALSE"
+          )
+
+          print(
+              "Capital allocation: FALSE"
+          )
+
+          print(
+              "Order generation: FALSE"
+          )
+
+          print(
+              "Execution: FALSE"
+          )
+
+          print(
+              "========================================"
+          )
+          PY
+
+      # =====================================================
+      # UPLOAD VALIDATION ARTIFACT
+      # =====================================================
+
+      - name: Upload Stage 12 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage12-execution-readiness-validation
+          path: output/stage12/
+          if-no-files-found: error
