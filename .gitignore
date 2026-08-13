@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Data artifacts
+/data/raw/*
+/data/processed/*
+/data/features/*
+!/data/**/.gitkeep
+*.csv
+*.csv.gz
+*.parquet
+*.feather
+*.sqlite
+
+# Research outputs
+/output/runtime/*
+/output/backtests/*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+*.pem
+*.key
+secrets.json
+credentials.json
