@@ -1,0 +1,19 @@
+name: PSY29 Stage 14 - Live Dashboard
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage14:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify Stage 14 files
+        run: |
+          python -m py_compile scripts/stage14_live_dashboard.py
+          test -f config/psy29_stage14_live_dashboard_contract.json
+          echo "PSY29 Stage 14 files verified"
