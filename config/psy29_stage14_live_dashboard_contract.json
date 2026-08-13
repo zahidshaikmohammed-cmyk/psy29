@@ -1,0 +1,123 @@
+{
+  "stage": 14,
+  "name": "LIVE DASHBOARD",
+  "version": "1.0",
+  "status": "LOCKED",
+  "locked": true,
+  "purpose": "Read-only observability and presentation layer for verified PSY29 Stages 5-13. Stage 14 preserves upstream analytical states and provenance and does not create new trading conclusions.",
+  "coverage": 29,
+  "modules": [
+    "14A_PIPELINE_INGESTION",
+    "14B_29_STOCK_STATE_MATRIX",
+    "14C_DASHBOARD_STATE_DERIVATION",
+    "14D_PRIORITY_VIEW",
+    "14E_SCENARIO_TRIGGER_PANEL",
+    "14F_DATA_HEALTH_PROVENANCE"
+  ],
+  "inputs": {
+    "canonical_universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "Stage 5 verified profiles",
+    "stage6": "verified live regime output",
+    "stage7": "verified edge activation output",
+    "stage8": "verified portfolio ranking output",
+    "stage9": "verified candidate quality output",
+    "stage10": "verified integrity/provenance output",
+    "stage11": "verified live execution analysis output",
+    "stage12": "verified execution readiness/scenario gate output",
+    "stage13": "verified scenario adjudication output"
+  },
+  "dashboard_states": [
+    "ACTIVE_SCENARIO",
+    "CONDITIONAL_SCENARIO",
+    "INACTIVE",
+    "STALE",
+    "INVALID",
+    "UPSTREAM_ERROR"
+  ],
+  "stage13_states": [
+    "SCENARIO_CONFIRMED",
+    "SCENARIO_CONDITIONAL",
+    "SCENARIO_UNCONFIRMED",
+    "SCENARIO_CONFLICTED",
+    "DATA_STALE",
+    "DATA_INVALID",
+    "UPSTREAM_INVALID"
+  ],
+  "scenario_states": [
+    "CONTINUATION",
+    "BREAKOUT",
+    "BREAKDOWN",
+    "RETEST",
+    "REVERSAL_RISK",
+    "RANGE",
+    "TRANSITION",
+    "UNCLEAR"
+  ],
+  "freshness": {
+    "max_age_seconds": 180,
+    "future_tolerance_seconds": 5
+  },
+  "required_provenance": [
+    "research_provenance",
+    "stage6_provenance",
+    "stage7_provenance",
+    "stage8_provenance",
+    "stage9_provenance",
+    "stage10_provenance",
+    "stage11_provenance",
+    "stage12_provenance",
+    "stage13_provenance",
+    "stage14_provenance"
+  ],
+  "required_safety_flags": {
+    "trade_ready_output": false,
+    "trade_authorized": false,
+    "trade_signal_generated": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size_calculation": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "order_generation": false,
+    "execution": false
+  },
+  "safety_boundaries": [
+    "Do not generate trade signals.",
+    "Do not authorize trades.",
+    "Do not select CE or PE.",
+    "Do not calculate entry, stop-loss, target, position size, risk, or capital allocation.",
+    "Do not generate or execute orders.",
+    "Do not rerank stocks; Stage 8 remains the ranking owner.",
+    "Do not reinterpret or overwrite upstream analytical states."
+  ],
+  "fail_closed_rules": [
+    "Canonical coverage must be exactly 29 unique symbols.",
+    "Every Stage 5-13 dependency required by the dashboard must be present and cover the same canonical 29.",
+    "Missing, duplicate, unexpected, invalid, or stale upstream records must not produce a normal dashboard state.",
+    "Missing provenance must produce UPSTREAM_ERROR.",
+    "Upstream DATA_INVALID must produce INVALID.",
+    "Upstream DATA_STALE must produce STALE.",
+    "Stage 13 conflicts must remain visible and must not be promoted to ACTIVE_SCENARIO.",
+    "Dashboard values must preserve their upstream source values."
+  ],
+  "validation": {
+    "coverage": "29/29",
+    "uniqueness": true,
+    "upstream_completeness": true,
+    "state_enum_integrity": true,
+    "value_preservation": true,
+    "provenance_completeness": true,
+    "freshness_validation": true,
+    "safety_boundary_scan": true,
+    "fail_closed_validation": true,
+    "engine_execution_status_separate_from_validation_status": true
+  },
+  "outputs": [
+    "PSY29_STAGE14_LIVE_DASHBOARD.json",
+    "PSY29_STAGE14_LIVE_DASHBOARD.csv",
+    "PSY29_STAGE14_SUMMARY.json",
+    "PSY29_STAGE14_DASHBOARD.md"
+  ]
+}
