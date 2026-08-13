@@ -1,0 +1,553 @@
+name: PSY29 Stage 10 - Candidate Integrity Provenance Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage10:
+    name: Validate PSY29 Candidate Integrity and Provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Verify Stage 5-10 inputs
+        run: |
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_edge_profiles_v1.json
+
+          test -f config/psy29_stage7_edge_activation_contract.json
+          test -f config/psy29_stage8_edge_ranking_contract.json
+          test -f config/psy29_stage9_candidate_quality_contract.json
+          test -f config/psy29_stage10_integrity_gate_contract.json
+
+          test -f scripts/step9_live_regime_v2.py
+          test -f scripts/stage7_edge_activation.py
+          test -f scripts/stage8_edge_ranking.py
+          test -f scripts/stage9_candidate_quality.py
+          test -f scripts/stage10_integrity_gate.py
+
+      - name: Verify canonical 29 and Stage 5 profiles
+        run: |
+          python - <<'PY'
+          import json
+
+          with open("config/psy29_live_universe_contract.json") as f:
+              universe = json.load(f)
+
+          with open("config/psy29_edge_profiles_v1.json") as f:
+              profiles = json.load(f)
+
+          symbols = [
+              x["symbol"]
+              for x in universe["universe"]
+          ]
+
+          profile_symbols = [
+              x["symbol"]
+              for x in profiles["profiles"]
+          ]
+
+          assert len(symbols) == 29
+          assert len(set(symbols)) == 29
+
+          assert [x["rank"] for x in universe["universe"]] == list(range(1, 30))
+
+          assert len(profile_symbols) == 29
+          assert len(set(profile_symbols)) == 29
+          assert set(profile_symbols) == set(symbols)
+
+          print("CANONICAL 29 + STAGE 5 PROFILES: PASS")
+          PY
+
+      - name: Verify Stage 10 safety contract
+        run: |
+          python - <<'PY'
+          import json
+
+          with open(
+              "config/psy29_stage10_integrity_gate_contract.json"
+          ) as f:
+              contract = json.load(f)
+
+          assert contract["coverage"] == 29
+
+          assert contract["trade_authorization"] is False
+          assert contract["trade_signal_generation"] is False
+
+          safety = contract["safety"]
+
+          assert safety["trade_ready_output"] is False
+          assert safety["trade_authorization"] is False
+          assert safety["trade_signal_generation"] is False
+          assert safety["ce_pe_selection"] is False
+          assert safety["entry_calculation"] is False
+          assert safety["stop_loss_calculation"] is False
+          assert safety["target_calculation"] is False
+          assert safety["execution"] is False
+
+          print("STAGE 10 SAFETY CONTRACT: PASS")
+          PY
+
+      - name: Compile Stage 6-10 engines
+        run: |
+          python -m py_compile \
+            scripts/step9_live_regime_v2.py \
+            scripts/stage7_edge_activation.py \
+            scripts/stage8_edge_ranking.py \
+            scripts/stage9_candidate_quality.py \
+            scripts/stage10_integrity_gate.py
+
+      - name: Create deterministic Stage 6 input fixtures
+        run: |
+          mkdir -p /tmp/psy29_stage10
+
+          python - <<'PY'
+          import csv
+          import json
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+
+          universe = json.loads(
+              Path(
+                  "config/psy29_live_universe_contract.json"
+              ).read_text()
+          )
+
+          symbols = [
+              x["symbol"]
+              for x in universe["universe"]
+          ]
+
+          assert len(symbols) == 29
+          assert len(set(symbols)) == 29
+
+          # 30 seconds old relative to the GitHub runner.
+          # This is deliberately inside the Stage 6 90-second freshness gate.
+          timestamp = (
+              datetime.now(timezone.utc)
+              - timedelta(seconds=30)
+          ).isoformat(
+              timespec="seconds"
+          ).replace("+00:00", "Z")
+
+          security_map = {
+              "status": "PASS",
+              "canonical_count": 29,
+              "resolved_count": 29,
+              "unique_security_id_count": 29,
+              "mappings": [
+                  {
+                      "symbol": symbol,
+                      "security_id": f"TEST_{i:03d}",
+                      "exchange": "NSE",
+                      "segment": "E"
+                  }
+                  for i, symbol in enumerate(symbols, start=1)
+              ]
+          }
+
+          Path(
+              "/tmp/psy29_stage10/security_map.json"
+          ).write_text(
+              json.dumps(
+                  security_map,
+                  indent=2
+              )
+          )
+
+          rows = []
+
+          for symbol in symbols:
+
+              if symbol == "NESTLEIND":
+                  values = (
+                      105,
+                      100,
+                      104,
+                      101,
+                      103,
+                      98
+                  )
+
+              elif symbol == "ICICIPRULI":
+                  values = (
+                      95,
+                      100,
+                      96,
+                      99,
+                      102,
+                      97
+                  )
+
+              elif symbol == "TCS":
+                  values = (
+                      101,
+                      100,
+                      101,
+                      100,
+                      102,
+                      98
+                  )
+
+              elif symbol == "AMBUJACEM":
+                  values = (
+                      99,
+                      100,
+                      99,
+                      100,
+                      102,
+                      98
+                  )
+
+              else:
+                  values = (
+                      100,
+                      100,
+                      100,
+                      100,
+                      102,
+                      98
+                  )
+
+              rows.append(
+                  {
+                      "symbol": symbol,
+                      "timestamp": timestamp,
+                      "last_price": values[0],
+                      "vwap": values[1],
+                      "ema9": values[2],
+                      "ema20": values[3],
+                      "first15_high": values[4],
+                      "first15_low": values[5]
+                  }
+              )
+
+          with open(
+              "/tmp/psy29_stage10/snapshot.csv",
+              "w",
+              newline=""
+          ) as f:
+
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=[
+                      "symbol",
+                      "timestamp",
+                      "last_price",
+                      "vwap",
+                      "ema9",
+                      "ema20",
+                      "first15_high",
+                      "first15_low"
+                  ]
+              )
+
+              writer.writeheader()
+              writer.writerows(rows)
+
+          print(
+              f"STAGE 6 FIXTURE CREATED: "
+              f"{len(rows)} rows; timestamp={timestamp}"
+          )
+          PY
+
+      - name: Run Stage 6 V2
+        run: |
+          mkdir -p /tmp/psy29_stage10/stage6
+
+          python scripts/step9_live_regime_v2.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --security-map /tmp/psy29_stage10/security_map.json \
+            --snapshot /tmp/psy29_stage10/snapshot.csv \
+            --output /tmp/psy29_stage10/stage6
+
+      - name: HARD VERIFY Stage 6 prerequisite
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open(
+                  "/tmp/psy29_stage10/stage6/stage6_summary.json"
+              )
+          )
+
+          data = pd.read_csv(
+              "/tmp/psy29_stage10/stage6/PSY29_STAGE6_LIVE_REGIMES.csv"
+          )
+
+          assert summary["engine_execution_status"] == "PASS"
+          assert summary["validation_status"] == "PASS"
+          assert summary["status"] == "PASS"
+
+          assert summary["universe_size"] == 29
+          assert summary["fresh_count"] == 29
+          assert summary["stale_count"] == 0
+          assert summary["invalid_count"] == 0
+
+          assert len(data) == 29
+          assert data["symbol"].nunique() == 29
+
+          print("STAGE 6 PREREQUISITE: PASS")
+          PY
+
+      - name: Run Stage 7
+        run: |
+          mkdir -p /tmp/psy29_stage10/stage7
+
+          python scripts/stage7_edge_activation.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --contract config/psy29_stage7_edge_activation_contract.json \
+            --regimes /tmp/psy29_stage10/stage6/PSY29_STAGE6_LIVE_REGIMES.csv \
+            --output /tmp/psy29_stage10/stage7
+
+      - name: HARD VERIFY Stage 7 prerequisite
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open(
+                  "/tmp/psy29_stage10/stage7/stage7_summary.json"
+              )
+          )
+
+          data = pd.read_csv(
+              "/tmp/psy29_stage10/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv"
+          )
+
+          assert summary["engine_execution_status"] == "PASS"
+          assert summary["validation_status"] == "PASS"
+          assert summary["status"] == "PASS"
+
+          assert summary["coverage"] == 29
+
+          assert len(data) == 29
+          assert data["symbol"].nunique() == 29
+
+          print("STAGE 7 PREREQUISITE: PASS")
+          PY
+
+      - name: Run Stage 8
+        run: |
+          mkdir -p /tmp/psy29_stage10/stage8
+
+          python scripts/stage8_edge_ranking.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --contract config/psy29_stage8_edge_ranking_contract.json \
+            --edge-activation /tmp/psy29_stage10/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv \
+            --regimes /tmp/psy29_stage10/stage6/PSY29_STAGE6_LIVE_REGIMES.csv \
+            --output /tmp/psy29_stage10/stage8
+
+      - name: HARD VERIFY Stage 8 prerequisite
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open(
+                  "/tmp/psy29_stage10/stage8/stage8_summary.json"
+              )
+          )
+
+          data = pd.read_csv(
+              "/tmp/psy29_stage10/stage8/PSY29_STAGE8_EDGE_RANKING.csv"
+          )
+
+          assert summary["engine_execution_status"] == "PASS"
+          assert summary["validation_status"] == "PASS"
+          assert summary["status"] == "PASS"
+
+          assert summary["coverage"] == 29
+
+          assert len(data) == 29
+          assert data["symbol"].nunique() == 29
+
+          assert (
+              data["trade_authorized"] == False
+          ).all()
+
+          assert (
+              data["trade_signal_generated"] == False
+          ).all()
+
+          print("STAGE 8 PREREQUISITE: PASS")
+          PY
+
+      - name: Run Stage 9
+        run: |
+          mkdir -p /tmp/psy29_stage10/stage9
+
+          python scripts/stage9_candidate_quality.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --contract config/psy29_stage9_candidate_quality_contract.json \
+            --stage6 /tmp/psy29_stage10/stage6/PSY29_STAGE6_LIVE_REGIMES.csv \
+            --stage7 /tmp/psy29_stage10/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv \
+            --stage8 /tmp/psy29_stage10/stage8/PSY29_STAGE8_EDGE_RANKING.csv \
+            --output /tmp/psy29_stage10/stage9
+
+      - name: HARD VERIFY Stage 9 prerequisite
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open(
+                  "/tmp/psy29_stage10/stage9/stage9_summary.json"
+              )
+          )
+
+          data = pd.read_csv(
+              "/tmp/psy29_stage10/stage9/PSY29_STAGE9_CANDIDATE_QUALITY.csv"
+          )
+
+          assert summary["engine_execution_status"] == "PASS"
+          assert summary["validation_status"] == "PASS"
+          assert summary["status"] == "PASS"
+
+          assert summary["coverage"] == 29
+          assert summary["data_stale_count"] == 0
+          assert summary["data_invalid_count"] == 0
+
+          assert len(data) == 29
+          assert data["symbol"].nunique() == 29
+
+          assert (
+              data["trade_authorized"] == False
+          ).all()
+
+          assert (
+              data["trade_signal_generated"] == False
+          ).all()
+
+          print("STAGE 9 PREREQUISITE: PASS")
+          PY
+
+      - name: Run Stage 10 Integrity Gate
+        run: |
+          mkdir -p output/stage10
+
+          python scripts/stage10_integrity_gate.py \
+            --universe config/psy29_live_universe_contract.json \
+            --profiles config/psy29_edge_profiles_v1.json \
+            --contract config/psy29_stage10_integrity_gate_contract.json \
+            --stage6 /tmp/psy29_stage10/stage6/PSY29_STAGE6_LIVE_REGIMES.csv \
+            --stage7 /tmp/psy29_stage10/stage7/PSY29_STAGE7_EDGE_ACTIVATION.csv \
+            --stage8 /tmp/psy29_stage10/stage8/PSY29_STAGE8_EDGE_RANKING.csv \
+            --stage9 /tmp/psy29_stage10/stage9/PSY29_STAGE9_CANDIDATE_QUALITY.csv \
+            --output output/stage10
+
+      - name: HARD VERIFY Stage 10
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          summary = json.load(
+              open(
+                  "output/stage10/stage10_summary.json"
+              )
+          )
+
+          data = pd.read_csv(
+              "output/stage10/PSY29_STAGE10_INTEGRITY.csv"
+          )
+
+          allowed = {
+              "INTEGRITY_PASS",
+              "INTEGRITY_FAIL",
+              "DATA_STALE",
+              "DATA_INVALID"
+          }
+
+          assert summary["engine_execution_status"] == "PASS"
+          assert summary["validation_status"] == "PASS"
+          assert summary["status"] == "PASS"
+
+          assert summary["coverage"] == 29
+
+          assert len(data) == 29
+          assert data["symbol"].nunique() == 29
+
+          assert set(
+              data["integrity_state"]
+          ).issubset(allowed)
+
+          assert (
+              data["trade_ready_output"] == False
+          ).all()
+
+          assert (
+              data["trade_authorized"] == False
+          ).all()
+
+          assert (
+              data["trade_signal_generated"] == False
+          ).all()
+
+          # Stage 10 must retain provenance for every canonical symbol.
+          assert data["research_provenance"].notna().all()
+          assert data["stage6_provenance"].notna().all()
+          assert data["stage7_provenance"].notna().all()
+          assert data["stage8_provenance"].notna().all()
+          assert data["stage9_provenance"].notna().all()
+
+          # Deterministic validation must contain no stale/invalid rows.
+          assert summary["data_stale_count"] == 0
+          assert summary["data_invalid_count"] == 0
+
+          # Every deterministic row should pass the integrity gate.
+          assert summary["integrity_pass_count"] == 29
+          assert summary["integrity_fail_count"] == 0
+
+          print("========================================")
+          print("PSY29 STAGE 10 HARD VERIFY: PASS")
+          print("29/29 coverage")
+          print("29/29 INTEGRITY_PASS")
+          print("0 INTEGRITY_FAIL")
+          print("0 DATA_STALE")
+          print("0 DATA_INVALID")
+          print("Complete provenance: PASS")
+          print("Cross-stage consistency: PASS")
+          print("Trade-ready output: FALSE")
+          print("Trade authorization: FALSE")
+          print("Trade signal generation: FALSE")
+          print("CE/PE selection: ABSENT")
+          print("Entry calculation: ABSENT")
+          print("Stop-loss calculation: ABSENT")
+          print("Target calculation: ABSENT")
+          print("Execution: ABSENT")
+          print("========================================")
+          PY
+
+      - name: Upload Stage 10 validation output
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage10-integrity-provenance-validation
+          path: output/stage10/
+          if-no-files-found: error
