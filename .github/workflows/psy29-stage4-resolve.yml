@@ -1,0 +1,29 @@
+name: PSY29 Stage 4 - Dhan Security ID Resolution
+
+on:
+  workflow_dispatch:
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Resolve and verify 29 Dhan security IDs
+        run: python scripts/stage4_resolve_dhan_security_ids.py
+
+      - name: Upload Stage 4 verification output
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage4-security-map
+          path: output/stage4/
+          if-no-files-found: error
