@@ -1,0 +1,227 @@
+{
+  "contract": "PSY29_LIVE_SCENARIO_ADJUDICATION_TRIGGER_INTEGRITY_GATE",
+  "version": "1.0",
+  "status": "IMPLEMENTED",
+  "purpose": "Adjudicate the verified Stage 5-12 pipeline into one coherent live market scenario context per canonical stock, including supporting evidence, conflicting evidence, confirmation conditions, invalidation conditions, and trigger integrity without generating or authorizing a trade.",
+  "coverage": 29,
+  "modules": {
+    "13A_upstream_consistency_audit": true,
+    "13B_dominant_scenario_adjudication": true,
+    "13C_scenario_evidence_stack": true,
+    "13D_confirmation_condition": true,
+    "13E_invalidation_condition": true,
+    "13F_final_scenario_integrity_gate": true
+  },
+  "inputs": {
+    "stage5": "config/psy29_edge_profiles_v1.json",
+    "stage6": "Stage 6 PSY29 Live Regime Engine V2 output",
+    "stage7": "Stage 7 PSY29 Research-Conditioned Edge Activation output",
+    "stage8": "Stage 8 PSY29 Portfolio Edge Ranking output",
+    "stage9": "Stage 9 PSY29 Candidate Quality Confidence output",
+    "stage10": "Stage 10 PSY29 Candidate Integrity Provenance output",
+    "stage11": "Stage 11 PSY29 Live Execution Analysis output",
+    "stage12": "Stage 12 PSY29 Live Execution Readiness & Scenario Gate output",
+    "universe": "config/psy29_live_universe_contract.json"
+  },
+  "output_states": [
+    "SCENARIO_CONFIRMED",
+    "SCENARIO_CONDITIONAL",
+    "SCENARIO_UNCONFIRMED",
+    "SCENARIO_CONFLICTED",
+    "DATA_STALE",
+    "DATA_INVALID",
+    "UPSTREAM_INVALID"
+  ],
+  "scenario_states": [
+    "CONTINUATION",
+    "BREAKOUT",
+    "BREAKDOWN",
+    "RETEST",
+    "REVERSAL_RISK",
+    "RANGE",
+    "TRANSITION",
+    "UNCLEAR"
+  ],
+  "evidence_states": [
+    "SUPPORTING",
+    "NEUTRAL",
+    "CONFLICTING",
+    "MISSING",
+    "STALE",
+    "INVALID"
+  ],
+  "module_contracts": {
+    "13A_upstream_consistency_audit": {
+      "purpose": "Verify Stage 5-12 coverage, states, timestamps, provenance and cross-stage compatibility before adjudication.",
+      "fail_closed": true
+    },
+    "13B_dominant_scenario_adjudication": {
+      "purpose": "Determine the dominant observable market scenario from verified live and research-conditioned evidence.",
+      "trade_decision": false
+    },
+    "13C_scenario_evidence_stack": {
+      "purpose": "Expose supporting, neutral, conflicting, missing, stale and invalid evidence rather than hiding disagreement in an aggregate score.",
+      "trade_decision": false
+    },
+    "13D_confirmation_condition": {
+      "purpose": "Describe the observable market condition required to confirm the adjudicated scenario.",
+      "trade_decision": false,
+      "monetary_entry": false
+    },
+    "13E_invalidation_condition": {
+      "purpose": "Describe the observable structural condition that invalidates the scenario.",
+      "trade_decision": false,
+      "monetary_stop_loss": false
+    },
+    "13F_final_scenario_integrity_gate": {
+      "purpose": "Assign the final Stage 13 scenario state using fail-closed rules and complete provenance.",
+      "trade_decision": false
+    }
+  },
+  "scenario_mapping": {
+    "BREAKOUT_STRUCTURE": "BREAKOUT",
+    "BREAKDOWN_STRUCTURE": "BREAKDOWN",
+    "TRENDING_UP": "CONTINUATION",
+    "TRENDING_DOWN": "CONTINUATION",
+    "RANGE": "RANGE",
+    "TRANSITION": "TRANSITION",
+    "UNCLEAR": "UNCLEAR"
+  },
+  "readiness_mapping": {
+    "EXECUTION_SCENARIO_READY": "SCENARIO_CONFIRMED",
+    "EXECUTION_SCENARIO_CONDITIONAL": "SCENARIO_CONDITIONAL",
+    "EXECUTION_SCENARIO_BLOCKED": "SCENARIO_UNCONFIRMED",
+    "DATA_STALE": "DATA_STALE",
+    "DATA_INVALID": "DATA_INVALID",
+    "UPSTREAM_INVALID": "UPSTREAM_INVALID"
+  },
+  "decision_rules": {
+    "scenario_confirmed": [
+      "All required Stage 5-12 dependencies are valid.",
+      "Stage 10 integrity is INTEGRITY_PASS.",
+      "Stage 11 analysis is valid or sufficiently descriptive.",
+      "Stage 12 is EXECUTION_SCENARIO_READY.",
+      "A non-UNCLEAR dominant scenario exists.",
+      "No material conflicting evidence exists.",
+      "Required provenance is complete."
+    ],
+    "scenario_conditional": [
+      "Dependencies are valid.",
+      "A dominant scenario exists.",
+      "No fatal conflict exists.",
+      "One or more confirmation/evidence components remain partial or moderate."
+    ],
+    "scenario_unconfirmed": [
+      "Evidence is insufficient to establish a dominant scenario.",
+      "Stage 12 is blocked without stale/invalid data.",
+      "Scenario remains UNCLEAR."
+    ],
+    "scenario_conflicted": [
+      "Major live evidence sources materially disagree.",
+      "Conflicting evidence prevents a coherent dominant scenario."
+    ],
+    "data_stale": [
+      "Required live data is stale."
+    ],
+    "data_invalid": [
+      "Required data is malformed, missing, contradictory or unverifiable."
+    ],
+    "upstream_invalid": [
+      "Required provenance is missing.",
+      "Stage 10 integrity is not INTEGRITY_PASS for a non-data-stale/non-data-invalid dependency.",
+      "Stage 11 or Stage 12 is blocked upstream."
+    ]
+  },
+  "required_output_fields": [
+    "canonical_rank",
+    "symbol",
+    "stage13_state",
+    "dominant_scenario",
+    "scenario_confidence",
+    "evidence_stack",
+    "supporting_evidence",
+    "conflicting_evidence",
+    "confirmation_condition",
+    "invalidation_condition",
+    "stage6_regime",
+    "stage7_edge_state",
+    "stage8_portfolio_rank",
+    "stage9_quality",
+    "stage10_integrity",
+    "stage11_analysis_state",
+    "stage12_readiness_state",
+    "research_provenance",
+    "stage6_provenance",
+    "stage7_provenance",
+    "stage8_provenance",
+    "stage9_provenance",
+    "stage10_provenance",
+    "stage11_provenance",
+    "stage12_provenance",
+    "stage13_provenance",
+    "live_data_timestamp",
+    "trade_ready_output",
+    "trade_authorized",
+    "trade_signal_generated"
+  ],
+  "provenance_contract": {
+    "required": true,
+    "traceability_direction": "Stage 13 -> Stage 12 -> Stage 11 -> Stage 10 -> Stage 9 -> Stage 8 -> Stage 7 -> Stage 6 -> Stage 5",
+    "research_profile_source": "config/psy29_edge_profiles_v1.json",
+    "stage6_required": true,
+    "stage7_required": true,
+    "stage8_required": true,
+    "stage9_required": true,
+    "stage10_required": true,
+    "stage11_required": true,
+    "stage12_required": true
+  },
+  "validation_contract": {
+    "canonical_coverage": 29,
+    "required_unique_symbols": 29,
+    "missing_symbols_allowed": false,
+    "duplicate_symbols_allowed": false,
+    "unexpected_symbols_allowed": false,
+    "complete_provenance_required": true,
+    "cross_stage_consistency_required": true,
+    "fresh_live_data_required": true,
+    "fail_closed_required": true,
+    "engine_execution_status_separate_from_validation_status": true
+  },
+  "safety": {
+    "trade_ready_output": false,
+    "trade_authorized": false,
+    "trade_signal_generated": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size_calculation": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "order_generation": false,
+    "execution": false,
+    "historical_probability_as_live_probability": false
+  },
+  "fail_closed_rules": [
+    "Exactly 29 canonical symbols are mandatory.",
+    "Missing, duplicate or unexpected symbols invalidate the run.",
+    "Missing Stage 5-12 dependencies cannot become valid.",
+    "Stale live data cannot become valid.",
+    "Invalid live data cannot become valid.",
+    "Missing provenance blocks valid scenario classification.",
+    "Material cross-stage contradiction cannot become SCENARIO_CONFIRMED.",
+    "Historical research evidence remains behavioural evidence only.",
+    "Stage 13 cannot output TRADE_READY.",
+    "Stage 13 cannot authorize a trade.",
+    "Stage 13 cannot select CE or PE.",
+    "Stage 13 cannot calculate monetary execution parameters."
+  ],
+  "immutability_rules": [
+    "Stage 13 must not modify Stage 2-12 logic.",
+    "Stage 13 must not modify the canonical 29 universe.",
+    "Stage 13 must not modify historical research evidence.",
+    "Changes to this contract require an explicit Stage 13 version change.",
+    "Scenario confirmation is not trade authorization."
+  ]
+}
