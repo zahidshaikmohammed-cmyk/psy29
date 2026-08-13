@@ -1,0 +1,62 @@
+name: PSY29 Step 6 V3 - Walk-Forward OOS Edge Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful PSY29 Step 2 acquisition run ID
+        required: true
+        default: '31702235542'
+
+jobs:
+  walk-forward-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow
+
+      - name: Download Step 2 dataset
+        uses: actions/download-artifact@v4
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: psy29-step2-intraday-*
+          path: input/data
+          merge-multiple: true
+
+      - name: Locate parquet dataset
+        shell: bash
+        run: |
+          mkdir -p input/data/raw/intraday
+          find input/data -type f -name '*.parquet' -print0 | xargs -0 -r -I{} cp "{}" input/data/raw/intraday/
+          count=$(find input/data/raw/intraday -type f -name '*.parquet' | wc -l)
+          echo "Parquet files found: $count"
+          if [ "$count" -eq 0 ]; then exit 1; fi
+
+      - name: Run Step 6 V3
+        run: python scripts/step6_edge_events_v3.py --input input/data/raw/intraday --output output/step6_v3
+
+      - name: Verify Step 6 V3 output
+        shell: bash
+        run: |
+          test -s output/step6_v3/edge_event_oos_research_ranking.csv
+          test -s output/step6_v3/edge_events_oos_by_session.csv
+          test -s output/step6_v3/step6_v3_summary.json
+          echo "Step 6 V3 output verified."
+
+      - name: Upload Step 6 V3 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-step6-v3-walk-forward
+          path: output/step6_v3
+          retention-days: 30
