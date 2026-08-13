@@ -1,0 +1,377 @@
+name: PSY29 Stage 17 - Live Decision Stability and Change-Control
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage17:
+    name: PSY29 Stage 17 Hard Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+
+      # =====================================================
+      # CHECKOUT
+      # =====================================================
+
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      # =====================================================
+      # PYTHON
+      # =====================================================
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # =====================================================
+      # VERIFY REQUIRED FILES
+      # =====================================================
+
+      - name: Verify Stage 17 files
+        run: |
+          set -e
+
+          test -f \
+            config/psy29_stage17_live_decision_stability_contract.json
+
+          test -f \
+            scripts/stage17_live_stability.py
+
+          test -f \
+            scripts/stage17_test_fixture.py
+
+          test -f \
+            scripts/stage17_check.py
+
+          echo "STAGE 17 FILES: PASS"
+
+      # =====================================================
+      # CONTRACT VALIDATION
+      # =====================================================
+
+      - name: Validate Stage 17 contract
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_stage17_live_decision_stability_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              contract = json.load(handle)
+
+          assert contract["stage"] == 17
+          assert contract["version"] == "1.0"
+          assert contract["status"] == "LOCKED"
+
+          expected_modules = [
+              "17A_UPSTREAM_CONTRACT_VERIFICATION",
+              "17B_CANONICAL_29_UNIVERSE_INTEGRITY",
+              "17C_CURRENT_STATE_RECONSTRUCTION",
+              "17D_CHANGE_DETECTION",
+              "17E_STABILITY_CLASSIFICATION",
+              "17F_CROSS_STAGE_CHANGE_CONSISTENCY",
+              "17G_PROVENANCE_CHAIN",
+              "17H_FINAL_STATE_ADJUDICATION",
+          ]
+
+          assert contract["modules"] == expected_modules
+
+          assert contract["coverage"]["expected"] == 29
+          assert contract["coverage"]["required"] is True
+          assert contract["coverage"]["partial_pass"] is False
+
+          expected_states = {
+              "STABLE",
+              "CHANGED",
+              "DETERIORATING",
+              "EMERGING",
+              "INVALIDATED",
+              "UNSTABLE",
+              "DATA_STALE",
+              "DATA_INVALID",
+              "PROVENANCE_FAIL",
+          }
+
+          assert set(
+              contract["allowed_states"]
+          ) == expected_states
+
+          for key, value in contract[
+              "safety_boundaries"
+          ].items():
+
+              assert value is False, (
+                  f"Safety boundary violated: {key}"
+              )
+
+          assert contract[
+              "fail_closed"
+          ] is True
+
+          assert contract[
+              "provenance_required"
+          ] is True
+
+          assert contract[
+              "cross_stage_consistency_required"
+          ] is True
+
+          print(
+              "STAGE 17 CONTRACT: PASS"
+          )
+          PY
+
+      # =====================================================
+      # PYTHON SYNTAX
+      # =====================================================
+
+      - name: Compile Stage 17 Python
+        run: |
+          set -e
+
+          python -m py_compile \
+            scripts/stage17_live_stability.py
+
+          python -m py_compile \
+            scripts/stage17_test_fixture.py
+
+          python -m py_compile \
+            scripts/stage17_check.py
+
+          echo "STAGE 17 PYTHON SYNTAX: PASS"
+
+      # =====================================================
+      # CANONICAL 29
+      # =====================================================
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "config/"
+              "psy29_live_universe_contract.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              data = json.load(handle)
+
+          universe = data.get(
+              "universe"
+          )
+
+          assert isinstance(
+              universe,
+              list,
+          )
+
+          symbols = [
+              str(item["symbol"])
+              .strip()
+              .upper()
+              for item in universe
+              if isinstance(item, dict)
+          ]
+
+          assert len(symbols) == 29
+          assert len(set(symbols)) == 29
+
+          print(
+              "CANONICAL 29: PASS"
+          )
+          PY
+
+      # =====================================================
+      # DETERMINISTIC FIXTURE
+      # =====================================================
+
+      - name: Create deterministic Stage 17 fixture
+        run: |
+          set -e
+
+          rm -rf \
+            /tmp/psy29_stage17_fixture \
+            /tmp/psy29_stage17_output
+
+          mkdir -p \
+            /tmp/psy29_stage17_fixture \
+            /tmp/psy29_stage17_output
+
+          python scripts/stage17_test_fixture.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --output \
+            /tmp/psy29_stage17_fixture
+
+          echo "STAGE 17 FIXTURE: PASS"
+
+      # =====================================================
+      # RUN STAGE 17
+      # =====================================================
+
+      - name: Run Stage 17
+        run: |
+          set -e
+
+          python scripts/stage17_live_stability.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --stage5 \
+            /tmp/psy29_stage17_fixture/stage5.csv \
+            --stage6 \
+            /tmp/psy29_stage17_fixture/stage6.csv \
+            --stage7 \
+            /tmp/psy29_stage17_fixture/stage7.csv \
+            --stage8 \
+            /tmp/psy29_stage17_fixture/stage8.csv \
+            --stage9 \
+            /tmp/psy29_stage17_fixture/stage9.csv \
+            --stage10 \
+            /tmp/psy29_stage17_fixture/stage10.csv \
+            --stage11 \
+            /tmp/psy29_stage17_fixture/stage11.csv \
+            --stage12 \
+            /tmp/psy29_stage17_fixture/stage12.csv \
+            --stage13 \
+            /tmp/psy29_stage17_fixture/stage13.csv \
+            --stage14 \
+            /tmp/psy29_stage17_fixture/stage14.csv \
+            --stage15 \
+            /tmp/psy29_stage17_fixture/stage15.csv \
+            --stage16 \
+            /tmp/psy29_stage17_fixture/stage16.csv \
+            --output \
+            /tmp/psy29_stage17_output
+
+      # =====================================================
+      # VERIFY OUTPUTS
+      # =====================================================
+
+      - name: Verify Stage 17 outputs
+        run: |
+          set -e
+
+          test -f \
+            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY.json
+
+          test -f \
+            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY.csv
+
+          test -f \
+            /tmp/psy29_stage17_output/PSY29_STAGE17_VALIDATION.json
+
+          echo "STAGE 17 OUTPUTS: PASS"
+
+      # =====================================================
+      # HARD VERIFY
+      # =====================================================
+
+      - name: HARD VERIFY Stage 17
+        run: |
+          set -e
+
+          python scripts/stage17_check.py \
+            --universe \
+            config/psy29_live_universe_contract.json \
+            --output \
+            /tmp/psy29_stage17_output
+
+      # =====================================================
+      # FINAL VALIDATION
+      # =====================================================
+
+      - name: Verify final Stage 17 status
+        run: |
+          python - <<'PY'
+          import json
+
+          path = (
+              "/tmp/psy29_stage17_output/"
+              "PSY29_STAGE17_VALIDATION.json"
+          )
+
+          with open(
+              path,
+              "r",
+              encoding="utf-8",
+          ) as handle:
+              validation = json.load(handle)
+
+          assert validation[
+              "validation_status"
+          ] == "PASS"
+
+          coverage = validation[
+              "coverage"
+          ]
+
+          assert coverage[
+              "expected"
+          ] == 29
+
+          assert coverage[
+              "actual"
+          ] == 29
+
+          assert coverage[
+              "unique"
+          ] == 29
+
+          print(
+              "========================================"
+          )
+
+          print(
+              "PSY29 STAGE 17 FINAL VALIDATION: PASS"
+          )
+
+          print(
+              "29/29 coverage: PASS"
+          )
+
+          print(
+              "Fail-closed validation: PASS"
+          )
+
+          print(
+              "Provenance validation: PASS"
+          )
+
+          print(
+              "Safety boundaries: PASS"
+          )
+
+          print(
+              "========================================"
+          )
+          PY
+
+      # =====================================================
+      # ARTIFACT
+      # =====================================================
+
+      - name: Upload Stage 17 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage17-validation
+          path: /tmp/psy29_stage17_output/
+          if-no-files-found: error
