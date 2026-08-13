@@ -11,9 +11,14 @@ on:
         description: "End date (YYYY-MM-DD)"
         required: true
         default: "2026-08-13"
+      resume_run_id:
+        description: "Optional previous GitHub Actions run ID containing a PSY29 partial artifact"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   acquire-history:
@@ -25,6 +30,7 @@ jobs:
       DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: ${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout PSY29
@@ -66,7 +72,35 @@ jobs:
             echo "Dhan credentials detected."
           fi
 
+      - name: Restore partial PSY29 run
+        if: ${{ inputs.resume_run_id != '' }}
+        shell: bash
+        run: |
+          echo "Restoring partial data from run ${{ inputs.resume_run_id }}..."
+          rm -rf resume_download
+          mkdir -p resume_download
+          gh run download "${{ inputs.resume_run_id }}" \
+            -n psy29-step2-partial \
+            -D resume_download
+
+          if [ ! -d resume_download/data/raw/intraday ]; then
+            echo "ERROR: Partial artifact does not contain data/raw/intraday"
+            exit 1
+          fi
+
+          mkdir -p data/raw/intraday output
+          cp -a resume_download/data/raw/intraday/. data/raw/intraday/
+          if [ -f resume_download/output/step2_checkpoint.json ]; then
+            cp resume_download/output/step2_checkpoint.json output/step2_checkpoint.json
+          fi
+          if [ -f resume_download/output/step2_failures.jsonl ]; then
+            cp resume_download/output/step2_failures.jsonl output/step2_failures.jsonl
+          fi
+
+          echo "Restored $(find data/raw/intraday -type f -name '*.parquet' | wc -l) parquet files."
+
       - name: Run PSY29 historical acquisition
+        id: acquire
         run: |
           echo "Starting PSY29 Step 2..."
           echo "From: ${{ inputs.from_date }}"
@@ -75,7 +109,61 @@ jobs:
             --from-date "${{ inputs.from_date }}" \
             --to-date "${{ inputs.to_date }}"
 
+      - name: Generate acquisition manifest
+        if: ${{ always() }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from datetime import datetime, timezone
+
+          root = Path("data/raw/intraday")
+          files = sorted(root.glob("*.parquet"))
+          checkpoint_path = Path("output/step2_checkpoint.json")
+          checkpoint = {}
+          if checkpoint_path.exists():
+              checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+
+          manifest = {
+              "project": "PSY29",
+              "step": 2,
+              "status": "complete" if not checkpoint.get("failed") else "partial",
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "from_date": "${{ inputs.from_date }}",
+              "to_date": "${{ inputs.to_date }}",
+              "file_count": len(files),
+              "completed_count": checkpoint.get("completed_count", len(files)),
+              "failed_count": checkpoint.get("failed_count", 0),
+              "failed": checkpoint.get("failed", []),
+              "files": [
+                  {"symbol": f.stem, "filename": f.name, "bytes": f.stat().st_size}
+                  for f in files
+              ],
+          }
+
+          Path("output").mkdir(parents=True, exist_ok=True)
+          Path("output/acquisition_manifest.json").write_text(
+              json.dumps(manifest, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload partial checkpoint
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-step2-partial
+          path: |
+            data/raw/intraday/
+            output/step2_checkpoint.json
+            output/step2_failures.jsonl
+            output/acquisition_manifest.json
+          retention-days: 7
+          overwrite: true
+          if-no-files-found: warn
+
       - name: Verify acquired dataset
+        if: ${{ steps.acquire.outcome == 'success' }}
         run: |
           FILE_COUNT=$(find data/raw/intraday -type f -name "*.parquet" 2>/dev/null | wc -l)
           echo "Parquet files acquired: $FILE_COUNT"
@@ -85,36 +173,8 @@ jobs:
           fi
           find data/raw/intraday -type f -name "*.parquet" | sort
 
-      - name: Generate acquisition manifest
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json
-          from datetime import datetime, timezone
-
-          root = Path("data/raw/intraday")
-          files = sorted(root.glob("*.parquet"))
-          manifest = {
-              "project": "PSY29",
-              "step": 2,
-              "status": "acquisition_complete",
-              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-              "from_date": "${{ inputs.from_date }}",
-              "to_date": "${{ inputs.to_date }}",
-              "file_count": len(files),
-              "files": [
-                  {"symbol": f.stem, "filename": f.name, "bytes": f.stat().st_size}
-                  for f in files
-              ],
-          }
-          Path("output").mkdir(parents=True, exist_ok=True)
-          Path("output/acquisition_manifest.json").write_text(
-              json.dumps(manifest, indent=2), encoding="utf-8"
-          )
-          print(json.dumps(manifest, indent=2))
-          PY
-
-      - name: Upload historical dataset artifact
+      - name: Upload complete historical dataset
+        if: ${{ steps.acquire.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: psy29-step2-intraday-${{ inputs.from_date }}-${{ inputs.to_date }}
@@ -125,5 +185,8 @@ jobs:
           if-no-files-found: error
 
       - name: PSY29 Step 2 completion
+        if: ${{ steps.acquire.outcome == 'success' }}
         run: |
+          echo "=============================================="
           echo "PSY29 STEP 2 DATA ACQUISITION COMPLETE"
+          echo "=============================================="
