@@ -1,0 +1,37 @@
+{
+  "stage": 17,
+  "name": "PSY29 Stage 17 — Live Decision Stability & Change-Control Engine",
+  "version": "1.0",
+  "status": "LOCKED",
+  "purpose": "Detect and classify material changes, stability, deterioration, emergence, invalidation, and provenance or cross-stage failures in the verified Stage 5–16 pipeline without generating trading decisions.",
+  "modules": [
+    "17A_UPSTREAM_CONTRACT_VERIFICATION",
+    "17B_CANONICAL_29_UNIVERSE_INTEGRITY",
+    "17C_CURRENT_STATE_RECONSTRUCTION",
+    "17D_CHANGE_DETECTION",
+    "17E_STABILITY_CLASSIFICATION",
+    "17F_CROSS_STAGE_CHANGE_CONSISTENCY",
+    "17G_PROVENANCE_CHAIN",
+    "17H_FINAL_STATE_ADJUDICATION"
+  ],
+  "inputs": ["canonical_universe", "stage5", "stage6", "stage7", "stage8", "stage9", "stage10", "stage11", "stage12", "stage13", "stage14", "stage15", "stage16"],
+  "allowed_states": ["STABLE", "CHANGED", "DETERIORATING", "EMERGING", "INVALIDATED", "UNSTABLE", "DATA_STALE", "DATA_INVALID", "PROVENANCE_FAIL"],
+  "coverage": {"expected": 29, "required": true, "partial_pass": false},
+  "safety_boundaries": {
+    "trade_signal": false,
+    "trade_authorization": false,
+    "trade_ready": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "execution": false,
+    "upstream_modification": false
+  },
+  "fail_closed": true,
+  "provenance_required": true,
+  "cross_stage_consistency_required": true
+}
