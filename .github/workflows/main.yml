@@ -1,222 +1,381 @@
-name: PSY29 Step 2 - Historical Data Acquisition
+"""
+PSY29 STEP 2
+Acquire 1-minute NSE cash-equity historical data for stocks
+that have an NSE stock-futures (FUTSTK) contract.
 
-on:
-  workflow_dispatch:
-    inputs:
-      from_date:
-        description: "Start date (YYYY-MM-DD)"
-        required: true
-        default: "2026-01-01"
+Research-only.
+NO ORDER / TRADING functionality.
+"""
 
-      to_date:
-        description: "End date (YYYY-MM-DD)"
-        required: true
-        default: "2026-08-13"
+import argparse
+from datetime import date
+from io import StringIO
+from pathlib import Path
 
-permissions:
-  contents: read
+import pandas as pd
+import requests
 
-jobs:
-  acquire-history:
-    name: acquire-history
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+from dhan.client import DhanClient
+from dhan.historical import fetch_intraday
 
-    env:
-      DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
-      DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
-      PYTHONUNBUFFERED: "1"
-      PYTHONPATH: ${{ github.workspace }}
 
-    steps:
+MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv"
 
-      # ---------------------------------------------------------
-      # 1. Checkout repository
-      # ---------------------------------------------------------
-      - name: Checkout PSY29
-        uses: actions/checkout@v4
+OUT = Path("data/raw/intraday")
 
-      # ---------------------------------------------------------
-      # 2. Setup Python
-      # ---------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
 
-      # ---------------------------------------------------------
-      # 3. Install dependencies
-      # ---------------------------------------------------------
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+def download_master() -> pd.DataFrame:
+    """Download the current Dhan detailed instrument master."""
 
-      # ---------------------------------------------------------
-      # 4. Verify repository structure
-      # ---------------------------------------------------------
-      - name: Verify PSY29 structure
-        run: |
-          echo "Repository:"
-          pwd
+    print("Downloading current Dhan instrument master...", flush=True)
 
-          echo ""
-          echo "Top-level files:"
-          find . -maxdepth 2 -type f | sort
+    response = requests.get(
+        MASTER_URL,
+        timeout=60,
+    )
 
-          echo ""
-          echo "Checking Dhan package..."
+    response.raise_for_status()
 
-          test -f dhan/__init__.py || {
-            echo "ERROR: dhan/__init__.py is missing."
-            exit 1
-          }
+    df = pd.read_csv(
+        StringIO(response.text),
+        low_memory=False,
+    )
 
-          test -f dhan/client.py || {
-            echo "ERROR: dhan/client.py is missing."
-            exit 1
-          }
+    print(
+        f"Instrument master downloaded: {len(df):,} rows",
+        flush=True,
+    )
 
-          test -f dhan/historical.py || {
-            echo "ERROR: dhan/historical.py is missing."
-            exit 1
-          }
+    print(
+        "Columns detected:",
+        ", ".join(df.columns.tolist()),
+        flush=True,
+    )
 
-          test -f dhan/instruments.py || {
-            echo "ERROR: dhan/instruments.py is missing."
-            exit 1
-          }
+    return df
 
-          test -f scripts/acquire_fno_history.py || {
-            echo "ERROR: acquisition script is missing."
-            exit 1
-          }
 
-          echo ""
-          echo "PSY29 repository structure OK."
+def load_fno_underlyings() -> pd.DataFrame:
+    """
+    Build the research universe directly from FUTSTK contracts.
 
-      # ---------------------------------------------------------
-      # 5. Verify Python can import PSY29 modules
-      # ---------------------------------------------------------
-      - name: Verify Python imports
-        run: |
-          python -c "from dhan.client import DhanClient; from dhan.historical import fetch_intraday; from dhan.instruments import download_master; print('PSY29 Dhan modules import successfully.')"
+    We intentionally use:
+        SECURITY_ID
+        UNDERLYING_SECURITY_ID
+        UNDERLYING_SYMBOL
 
-      # ---------------------------------------------------------
-      # 6. Verify secrets
-      # ---------------------------------------------------------
-      - name: Verify secrets are configured
-        shell: bash
-        run: |
-          if [ -z "$DHAN_ACCESS_TOKEN" ]; then
-            echo "ERROR: DHAN_ACCESS_TOKEN GitHub Secret is missing."
-            exit 1
-          fi
+    instead of the deprecated SEM_* fields.
+    """
 
-          if [ -z "$DHAN_CLIENT_ID" ]; then
-            echo "WARNING: DHAN_CLIENT_ID is not configured."
-          else
-            echo "Dhan credentials detected."
-          fi
+    df = download_master()
 
-      # ---------------------------------------------------------
-      # 7. Run PSY29 historical acquisition
-      # ---------------------------------------------------------
-      - name: Run PSY29 historical acquisition
-        run: |
-          echo "Starting PSY29 Step 2..."
-          echo "From: ${{ inputs.from_date }}"
-          echo "To:   ${{ inputs.to_date }}"
-          echo ""
+    required = {
+        "EXCH_ID",
+        "SEGMENT",
+        "INSTRUMENT",
+        "UNDERLYING_SECURITY_ID",
+        "UNDERLYING_SYMBOL",
+    }
 
-          python -m scripts.acquire_fno_history \
-            --from-date "${{ inputs.from_date }}" \
-            --to-date "${{ inputs.to_date }}"
+    missing = required - set(df.columns)
 
-      # ---------------------------------------------------------
-      # 8. Verify downloaded data
-      # ---------------------------------------------------------
-      - name: Verify acquired dataset
-        run: |
-          echo "Checking acquired data..."
+    if missing:
+        raise RuntimeError(
+            "Dhan instrument master is missing required columns: "
+            + ", ".join(sorted(missing))
+        )
 
-          mkdir -p output
+    # NSE derivatives
+    fno = df[
+        (df["EXCH_ID"].astype(str).str.upper() == "NSE")
+        & (df["SEGMENT"].astype(str).str.upper() == "D")
+        & (
+            df["INSTRUMENT"]
+            .astype(str)
+            .str.upper()
+            .eq("FUTSTK")
+        )
+    ].copy()
 
-          FILE_COUNT=$(find data/raw/intraday -type f -name "*.parquet" 2>/dev/null | wc -l)
+    if fno.empty:
+        raise RuntimeError(
+            "No NSE FUTSTK instruments were found in Dhan's current master."
+        )
 
-          echo "Parquet files acquired: $FILE_COUNT"
+    # Keep only the underlying equity identifiers.
+    universe = fno[
+        [
+            "UNDERLYING_SECURITY_ID",
+            "UNDERLYING_SYMBOL",
+        ]
+    ].copy()
 
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "ERROR: No historical data files were created."
-            exit 1
-          fi
+    universe = universe.dropna(
+        subset=[
+            "UNDERLYING_SECURITY_ID",
+            "UNDERLYING_SYMBOL",
+        ]
+    )
 
-          echo ""
-          echo "Acquired files:"
-          find data/raw/intraday -type f -name "*.parquet" | sort
+    universe["UNDERLYING_SECURITY_ID"] = (
+        universe["UNDERLYING_SECURITY_ID"]
+        .astype(str)
+        .str.strip()
+    )
 
-      # ---------------------------------------------------------
-      # 9. Generate acquisition manifest
-      # ---------------------------------------------------------
-      - name: Generate acquisition manifest
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json
-          from datetime import datetime, timezone
+    universe["UNDERLYING_SYMBOL"] = (
+        universe["UNDERLYING_SYMBOL"]
+        .astype(str)
+        .str.strip()
+    )
 
-          root = Path("data/raw/intraday")
-          files = sorted(root.glob("*.parquet"))
+    universe = universe[
+        (universe["UNDERLYING_SECURITY_ID"] != "")
+        & (universe["UNDERLYING_SYMBOL"] != "")
+    ]
 
-          manifest = {
-              "project": "PSY29",
-              "step": 2,
-              "status": "acquisition_complete",
-              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-              "from_date": "${{ inputs.from_date }}",
-              "to_date": "${{ inputs.to_date }}",
-              "file_count": len(files),
-              "files": [
-                  {
-                      "symbol": f.stem,
-                      "filename": f.name,
-                      "bytes": f.stat().st_size
-                  }
-                  for f in files
-              ]
-          }
+    universe = universe.drop_duplicates(
+        subset=["UNDERLYING_SECURITY_ID"]
+    )
 
-          Path("output/acquisition_manifest.json").write_text(
-              json.dumps(manifest, indent=2),
-              encoding="utf-8"
-          )
+    universe = universe.sort_values(
+        "UNDERLYING_SYMBOL"
+    ).reset_index(drop=True)
 
-          print(json.dumps(manifest, indent=2))
-          PY
+    print(
+        f"NSE stock-F&O underlying universe: {len(universe):,} stocks",
+        flush=True,
+    )
 
-      # ---------------------------------------------------------
-      # 10. Upload dataset as GitHub Actions artifact
-      # ---------------------------------------------------------
-      - name: Upload historical dataset artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: psy29-step2-intraday-${{ inputs.from_date }}-${{ inputs.to_date }}
-          path: |
-            data/raw/intraday/
-            output/acquisition_manifest.json
-          retention-days: 7
-          if-no-files-found: error
+    print(
+        "First candidates:",
+        ", ".join(
+            universe["UNDERLYING_SYMBOL"]
+            .head(20)
+            .tolist()
+        ),
+        flush=True,
+    )
 
-      # ---------------------------------------------------------
-      # 11. Final status
-      # ---------------------------------------------------------
-      - name: PSY29 Step 2 completion
-        run: |
-          echo ""
-          echo "=============================================="
-          echo "PSY29 STEP 2 DATA ACQUISITION COMPLETE"
-          echo "=============================================="
-          echo ""
-          echo "Historical dataset successfully acquired."
-          echo "The artifact has been uploaded to GitHub Actions."
+    return universe
+
+
+def main() -> None:
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "PSY29 Step 2 - "
+            "Acquire 1-minute NSE equity history"
+        )
+    )
+
+    parser.add_argument(
+        "--from-date",
+        required=True,
+        help="YYYY-MM-DD",
+    )
+
+    parser.add_argument(
+        "--to-date",
+        required=True,
+        help="YYYY-MM-DD",
+    )
+
+    args = parser.parse_args()
+
+    from_date = date.fromisoformat(
+        args.from_date
+    )
+
+    to_date = date.fromisoformat(
+        args.to_date
+    )
+
+    if from_date > to_date:
+        raise ValueError(
+            "--from-date cannot be after --to-date"
+        )
+
+    print(
+        "",
+        flush=True,
+    )
+
+    print(
+        "==============================================",
+        flush=True,
+    )
+
+    print(
+        "PSY29 STEP 2 - HISTORICAL ACQUISITION",
+        flush=True,
+    )
+
+    print(
+        "==============================================",
+        flush=True,
+    )
+
+    print(
+        f"Date range: {from_date} → {to_date}",
+        flush=True,
+    )
+
+    # Build universe
+    universe = load_fno_underlyings()
+
+    # Create output directory
+    OUT.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # Initialize Dhan client
+    client = DhanClient()
+
+    total = len(universe)
+
+    completed = 0
+    failed = 0
+
+    for index, row in universe.iterrows():
+
+        symbol = str(
+            row["UNDERLYING_SYMBOL"]
+        ).strip()
+
+        security_id = str(
+            row["UNDERLYING_SECURITY_ID"]
+        ).strip()
+
+        position = index + 1
+
+        print(
+            "",
+            flush=True,
+        )
+
+        print(
+            f"[{position}/{total}] {symbol} "
+            f"(security_id={security_id})",
+            flush=True,
+        )
+
+        try:
+
+            rows = fetch_intraday(
+                client=client,
+                security_id=security_id,
+                from_date=from_date,
+                to_date=to_date,
+                interval="1",
+                exchange_segment="NSE_EQ",
+                instrument="EQUITY",
+            )
+
+            if not rows:
+                print(
+                    f"WARNING: {symbol} returned 0 candles",
+                    flush=True,
+                )
+
+                failed += 1
+                continue
+
+            df = pd.DataFrame(rows)
+
+            if df.empty:
+                failed += 1
+                continue
+
+            # Remove duplicate candles.
+            df = df.drop_duplicates(
+                subset=[
+                    "security_id",
+                    "timestamp",
+                ]
+            )
+
+            # Sort chronologically.
+            df = df.sort_values(
+                "timestamp"
+            ).reset_index(drop=True)
+
+            output_file = (
+                OUT / f"{symbol}.parquet"
+            )
+
+            df.to_parquet(
+                output_file,
+                index=False,
+            )
+
+            completed += 1
+
+            print(
+                f"SUCCESS: {symbol} "
+                f"candles={len(df):,}",
+                flush=True,
+            )
+
+        except Exception as exc:
+
+            failed += 1
+
+            print(
+                f"FAILED: {symbol}: {exc}",
+                flush=True,
+            )
+
+            # Continue with the next stock.
+            continue
+
+    print(
+        "",
+        flush=True,
+    )
+
+    print(
+        "==============================================",
+        flush=True,
+    )
+
+    print(
+        "PSY29 STEP 2 ACQUISITION SUMMARY",
+        flush=True,
+    )
+
+    print(
+        "==============================================",
+        flush=True,
+    )
+
+    print(
+        f"Universe:   {total}",
+        flush=True,
+    )
+
+    print(
+        f"Completed:  {completed}",
+        flush=True,
+    )
+
+    print(
+        f"Failed:     {failed}",
+        flush=True,
+    )
+
+    print(
+        "==============================================",
+        flush=True,
+    )
+
+    # We require at least one successful dataset.
+    if completed == 0:
+        raise RuntimeError(
+            "PSY29 acquired zero datasets."
+        )
+
+
+if __name__ == "__main__":
+    main()
