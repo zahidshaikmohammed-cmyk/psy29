@@ -55,7 +55,7 @@ jobs:
       - name: Verify Step 6 output
         shell: bash
         run: |
-          test -s output/step6/stock_edge_events.csv
+          test -s output/step6/stock_edge_event_summary.csv
           test -s output/step6/step6_summary.json
           echo "Step 6 output verified."
 
