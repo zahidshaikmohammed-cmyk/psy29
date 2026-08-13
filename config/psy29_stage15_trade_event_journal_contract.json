@@ -1,0 +1,280 @@
+{
+  "stage": 15,
+  "name": "TRADE / EVENT JOURNAL",
+  "version": "1.0",
+  "status": "LOCKED",
+  "locked": true,
+
+  "purpose": "Append-only, provenance-preserving journal layer for verified PSY29 Stage 5-14 outputs. Stage 15 records canonical-stock state snapshots and deterministic state transitions without creating new trading conclusions, trade signals, trade authorization, or execution instructions.",
+
+  "coverage": 29,
+
+  "modules": [
+    "15A_EVENT_CAPTURE",
+    "15B_29_STOCK_SNAPSHOT",
+    "15C_STATE_TRANSITION_DETECTION",
+    "15D_EVENT_CLASSIFICATION",
+    "15E_PROVENANCE_CHAIN",
+    "15F_IMMUTABLE_RECORDING",
+    "15G_JOURNAL_INTEGRITY"
+  ],
+
+  "upstream_dependencies": {
+    "stage5": "verified research-conditioned behavioural profiles",
+    "stage6": "verified live regime output",
+    "stage7": "verified edge activation output",
+    "stage8": "verified portfolio edge ranking output",
+    "stage9": "verified candidate quality/confidence output",
+    "stage10": "verified candidate integrity/provenance output",
+    "stage11": "verified live execution-analysis output",
+    "stage12": "verified live execution-readiness/scenario gate output",
+    "stage13": "verified scenario adjudication output",
+    "stage14": "verified live dashboard output"
+  },
+
+  "inputs": {
+    "canonical_universe": "config/psy29_live_universe_contract.json",
+    "research_profiles": "verified Stage 5 profiles",
+    "stage6": "verified Stage 6 output",
+    "stage7": "verified Stage 7 output",
+    "stage8": "verified Stage 8 output",
+    "stage9": "verified Stage 9 output",
+    "stage10": "verified Stage 10 output",
+    "stage11": "verified Stage 11 output",
+    "stage12": "verified Stage 12 output",
+    "stage13": "verified Stage 13 output",
+    "stage14": "verified Stage 14 dashboard output",
+    "previous_journal": "optional previous verified Stage 15 journal"
+  },
+
+  "journal_principles": [
+    "Append-only recording",
+    "No destructive mutation of historical journal records",
+    "Deterministic event classification",
+    "Canonical 29-stock coverage",
+    "Complete upstream provenance",
+    "State-transition visibility",
+    "Fail-closed validation",
+    "Hash-linked journal records",
+    "No new trading logic"
+  ],
+
+  "tracked_states": {
+    "stage7_edge": [
+      "EDGE_ACTIVE",
+      "EDGE_INACTIVE",
+      "DATA_STALE",
+      "DATA_INVALID"
+    ],
+
+    "stage10_integrity": [
+      "INTEGRITY_PASS",
+      "INTEGRITY_FAIL",
+      "DATA_STALE",
+      "DATA_INVALID"
+    ],
+
+    "stage13_scenario": [
+      "SCENARIO_CONFIRMED",
+      "SCENARIO_CONDITIONAL",
+      "SCENARIO_UNCONFIRMED",
+      "SCENARIO_CONFLICTED",
+      "DATA_STALE",
+      "DATA_INVALID",
+      "UPSTREAM_INVALID"
+    ],
+
+    "stage14_dashboard": [
+      "ACTIVE_SCENARIO",
+      "CONDITIONAL_SCENARIO",
+      "INACTIVE",
+      "STALE",
+      "INVALID",
+      "UPSTREAM_ERROR"
+    ]
+  },
+
+  "event_classes": [
+    "INITIAL_SNAPSHOT",
+    "STATE_UNCHANGED",
+    "EDGE_ACTIVATED",
+    "EDGE_DEACTIVATED",
+    "REGIME_CHANGED",
+    "INTEGRITY_CHANGED",
+    "QUALITY_CHANGED",
+    "RANK_CHANGED",
+    "SCENARIO_CHANGED",
+    "SCENARIO_CONFIRMED",
+    "SCENARIO_CONDITIONAL",
+    "SCENARIO_CONFLICTED",
+    "DATA_BECAME_STALE",
+    "DATA_BECAME_VALID",
+    "DATA_BECAME_INVALID",
+    "UPSTREAM_ERROR",
+    "PROVENANCE_CHANGED"
+  ],
+
+  "snapshot_fields": [
+    "canonical_rank",
+    "symbol",
+    "stage6_regime",
+    "stage7_edge_state",
+    "stage8_portfolio_rank",
+    "stage9_quality_score",
+    "stage10_integrity",
+    "stage11_analysis_state",
+    "stage12_readiness_state",
+    "stage13_state",
+    "stage13_scenario",
+    "stage13_confidence",
+    "stage14_dashboard_state",
+    "live_data_timestamp"
+  ],
+
+  "required_provenance": [
+    "research_provenance",
+    "stage6_provenance",
+    "stage7_provenance",
+    "stage8_provenance",
+    "stage9_provenance",
+    "stage10_provenance",
+    "stage11_provenance",
+    "stage12_provenance",
+    "stage13_provenance",
+    "stage14_provenance",
+    "stage15_provenance"
+  ],
+
+  "event_record_requirements": {
+    "event_id": true,
+    "event_timestamp": true,
+    "symbol": true,
+    "canonical_rank": true,
+    "event_class": true,
+    "previous_snapshot_hash": true,
+    "current_snapshot_hash": true,
+    "record_hash": true,
+    "provenance_complete": true
+  },
+
+  "hash_chain": {
+    "enabled": true,
+    "algorithm": "SHA256",
+    "genesis_previous_hash": "GENESIS",
+    "record_hash_inputs": [
+      "event_id",
+      "event_timestamp",
+      "symbol",
+      "canonical_rank",
+      "event_class",
+      "previous_snapshot_hash",
+      "current_snapshot_hash",
+      "provenance"
+    ],
+    "previous_record_hash_required": true
+  },
+
+  "freshness": {
+    "max_age_seconds": 180,
+    "future_tolerance_seconds": 5
+  },
+
+  "safety_boundaries": {
+    "trade_ready_output": false,
+    "trade_signal_generated": false,
+    "trade_authorized": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size_calculation": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "order_generation": false,
+    "execution": false
+  },
+
+  "forbidden_operations": [
+    "Do not generate trade signals.",
+    "Do not authorize trades.",
+    "Do not output TRADE_READY.",
+    "Do not select CE or PE.",
+    "Do not calculate entry.",
+    "Do not calculate stop-loss.",
+    "Do not calculate target.",
+    "Do not calculate position size.",
+    "Do not calculate risk.",
+    "Do not allocate capital.",
+    "Do not generate orders.",
+    "Do not execute orders.",
+    "Do not modify Stage 2-14 logic.",
+    "Do not reinterpret upstream analytical states.",
+    "Do not overwrite historical journal records.",
+    "Do not silently repair invalid upstream data."
+  ],
+
+  "fail_closed_rules": [
+    "Canonical universe must contain exactly 29 unique symbols.",
+    "Every required upstream Stage 5-14 dependency must cover the same canonical 29.",
+    "Missing upstream records cause validation failure.",
+    "Duplicate symbols cause validation failure.",
+    "Unexpected symbols cause validation failure.",
+    "Invalid state values cause validation failure.",
+    "Missing provenance causes validation failure.",
+    "Invalid timestamps cause validation failure.",
+    "Stale live data must remain explicitly classified as stale.",
+    "Invalid upstream data must remain explicitly classified as invalid.",
+    "Historical journal records must never be rewritten.",
+    "Hash-chain discontinuity causes journal validation failure.",
+    "Safety-boundary violations cause validation failure.",
+    "Any hard validation failure prevents a PASS result."
+  ],
+
+  "coverage_contract": {
+    "expected_stocks": 29,
+    "minimum_stocks": 29,
+    "maximum_stocks": 29,
+    "duplicates_allowed": false,
+    "missing_allowed": false,
+    "unexpected_symbols_allowed": false
+  },
+
+  "validation_contract": {
+    "canonical_29_validation": true,
+    "upstream_completeness_validation": true,
+    "state_enum_validation": true,
+    "freshness_validation": true,
+    "provenance_validation": true,
+    "snapshot_integrity_validation": true,
+    "event_class_validation": true,
+    "hash_chain_validation": true,
+    "append_only_validation": true,
+    "safety_boundary_scan": true,
+    "cross_stage_consistency_validation": true,
+    "fail_closed_validation": true,
+    "engine_status_separate_from_validation_status": true
+  },
+
+  "outputs": [
+    "PSY29_STAGE15_EVENT_JOURNAL.jsonl",
+    "PSY29_STAGE15_SNAPSHOT.json",
+    "PSY29_STAGE15_EVENTS.csv",
+    "PSY29_STAGE15_SUMMARY.json",
+    "PSY29_STAGE15_VALIDATION.json"
+  ],
+
+  "status_values": [
+    "PASS",
+    "FAIL",
+    "DATA_STALE",
+    "DATA_INVALID",
+    "UPSTREAM_ERROR"
+  ],
+
+  "provenance_contract": {
+    "stage15_provenance": "PSY29 Stage 15 Trade/Event Journal v1.0",
+    "preserve_all_upstream_provenance": true,
+    "provenance_must_be_nonempty": true,
+    "provenance_is_immutable": true
+  }
+}
