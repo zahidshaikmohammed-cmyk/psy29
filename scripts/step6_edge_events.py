@@ -1,7 +1,7 @@
-"""PSY29 Step 6: discover repeatable intraday edge-event behaviour.
+"""PSY29 Step 6 V2: adaptive intraday edge-event discovery.
 
-This stage describes recurring intraday event patterns. It does not select the
-final 29 and does not use future/live information.
+Uses stock-specific empirical baselines instead of fixed universal thresholds.
+This stage is descriptive/research-only and never selects the final 29.
 """
 from __future__ import annotations
 import argparse, json
@@ -12,6 +12,12 @@ import pandas as pd
 
 START = pd.Timestamp("09:15:00").time()
 END = pd.Timestamp("15:30:00").time()
+
+
+def q(s: pd.Series, p: float, fallback: float) -> float:
+    s = pd.to_numeric(s, errors="coerce").dropna()
+    return float(s.quantile(p)) if len(s) else float(fallback)
+
 
 def session_events(file_path: Path) -> list[dict]:
     df = pd.read_parquet(file_path)
@@ -38,26 +44,32 @@ def session_events(file_path: Path) -> list[dict]:
             continue
         o = float(g.open.iloc[0]); c = float(g.close.iloc[-1])
         h = float(g.high.max()); l = float(g.low.min())
-        returns = g.close.pct_change()
+        returns = g.close.pct_change().dropna()
         path_length = float(returns.abs().sum())
         net = (c - o) / o if o else np.nan
         efficiency = abs(net) / (path_length + 1e-12)
-        same = (np.sign(g.close.diff()).replace(0, np.nan).ffill().diff().fillna(0) != 0).mean()
+        direction = np.sign(g.close.diff()).replace(0, np.nan).ffill().dropna()
+        switch_rate = float(direction.diff().ne(0).mean()) if len(direction) > 1 else np.nan
 
-        # Opening range: first 15 one-minute bars.
         op = g.iloc[:15]
         orh = float(op.high.max()); orl = float(op.low.min())
         after = g.iloc[15:]
         up_break = bool((after.high > orh).any()) if len(after) else False
         down_break = bool((after.low < orl).any()) if len(after) else False
-        final_or_direction = 1 if c > orh else (-1 if c < orl else 0)
-        or_cont = (c > orh and up_break) or (c < orl and down_break)
+        close_beyond_up = bool(c > orh) if len(after) else False
+        close_beyond_down = bool(c < orl) if len(after) else False
+        or_width = (orh - orl) / o if o else np.nan
+        breakout_extension = max(
+            (c - orh) / o if o else 0.0,
+            (orl - c) / o if o else 0.0,
+            0.0,
+        )
+        or_cont = bool((up_break and close_beyond_up) or (down_break and close_beyond_down))
 
-        # Range expansion: later median bar range >= 1.5x opening median.
         bar_range = (g.high - g.low) / g.open.replace(0, np.nan)
         base = float(bar_range.iloc[:15].median())
         later = float(bar_range.iloc[15:].median()) if len(after) else np.nan
-        expansion = bool(later >= 1.5 * base) if np.isfinite(base) and base > 0 and np.isfinite(later) else False
+        expansion_ratio = later / base if np.isfinite(base) and base > 0 and np.isfinite(later) else np.nan
 
         out.append({
             "symbol": file_path.stem,
@@ -66,46 +78,97 @@ def session_events(file_path: Path) -> list[dict]:
             "day_abs_return": abs(net),
             "day_range_pct": (h - l) / o if o else np.nan,
             "directional_efficiency": efficiency,
-            "direction_switch_rate": float(same),
-            "opening_range_pct": (orh - orl) / o if o else np.nan,
+            "direction_switch_rate": switch_rate,
+            "opening_range_pct": or_width,
             "or_up_break": up_break,
             "or_down_break": down_break,
-            "or_continuation": bool(or_cont),
-            "range_expansion": expansion,
-            "final_or_direction": final_or_direction,
+            "or_continuation": or_cont,
+            "breakout_extension_pct": breakout_extension,
+            "range_expansion_ratio": expansion_ratio,
             "volume": float(g.volume.fillna(0).sum()),
         })
     return out
 
+
 def summarize(events: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for sym, g in events.groupby("symbol", sort=True):
-        def rate(col): return float(g[col].mean())
-        def med(col): return float(g[col].median())
-        trend = (g.day_abs_return >= 0.0075) & (g.directional_efficiency >= 0.15)
-        strong = (g.day_abs_return >= 0.01) & (g.directional_efficiency >= 0.25)
-        low_chop = g.direction_switch_rate <= 0.10
+        # Empirical, stock-specific baselines. Fixed thresholds are deliberately avoided.
+        r60, r75, r85 = (q(g.day_abs_return, p, 0.0) for p in (0.60, 0.75, 0.85))
+        e60, e75 = (q(g.directional_efficiency, p, 0.0) for p in (0.60, 0.75))
+        sw25 = q(g.direction_switch_rate, 0.25, 1.0)
+        ex75 = q(g.range_expansion_ratio.replace([np.inf, -np.inf], np.nan), 0.75, 1.0)
+        or75 = q(g.opening_range_pct, 0.75, 0.0)
+        bx60 = q(g.breakout_extension_pct, 0.60, 0.0)
+
+        trend = (g.day_abs_return >= r75) & (g.directional_efficiency >= e60)
+        strong = (g.day_abs_return >= r85) & (g.directional_efficiency >= e75)
+        low_chop = g.direction_switch_rate <= sw25
+        range_expansion = g.range_expansion_ratio >= ex75
+        adaptive_or = g.or_continuation & (g.opening_range_pct <= or75) & (g.breakout_extension_pct >= bx60)
+
+        # Stability: split chronologically into first/second half and compare event rates.
+        mid = len(g) // 2
+        g1, g2 = g.iloc[:mid], g.iloc[mid:]
+        def split_rate(mask1, mask2):
+            a = float(mask1.mean()) if len(mask1) else 0.0
+            b = float(mask2.mean()) if len(mask2) else 0.0
+            return a, b, 1.0 - abs(a - b)
+        t1 = (g1.day_abs_return >= r75) & (g1.directional_efficiency >= e60)
+        t2 = (g2.day_abs_return >= r75) & (g2.directional_efficiency >= e60)
+        s1 = (g1.day_abs_return >= r85) & (g1.directional_efficiency >= e75)
+        s2 = (g2.day_abs_return >= r85) & (g2.directional_efficiency >= e75)
+        tr_a, tr_b, tr_stab = split_rate(t1, t2)
+        st_a, st_b, st_stab = split_rate(s1, s2)
+
+        # Composite research score only; it is NOT the final stock selector.
+        components = {
+            "trend_rate": float(trend.mean()),
+            "strong_rate": float(strong.mean()),
+            "adaptive_or_rate": float(adaptive_or.mean()),
+            "range_expansion_rate": float(range_expansion.mean()),
+            "low_chop_rate": float(low_chop.mean()),
+            "trend_stability": tr_stab,
+            "strong_stability": st_stab,
+        }
+        edge_score = float(
+            0.22 * components["trend_rate"]
+            + 0.18 * components["strong_rate"]
+            + 0.16 * components["adaptive_or_rate"]
+            + 0.12 * components["range_expansion_rate"]
+            + 0.10 * components["low_chop_rate"]
+            + 0.12 * components["trend_stability"]
+            + 0.10 * components["strong_stability"]
+        )
         rows.append({
             "symbol": sym,
             "sessions": len(g),
-            "trend_event_rate": float(trend.mean()),
-            "strong_trend_event_rate": float(strong.mean()),
-            "or_continuation_rate": rate("or_continuation"),
-            "range_expansion_rate": rate("range_expansion"),
-            "low_chop_rate": float(low_chop.mean()),
-            "or_up_break_rate": rate("or_up_break"),
-            "or_down_break_rate": rate("or_down_break"),
-            "median_event_return": med("day_abs_return"),
-            "median_efficiency": med("directional_efficiency"),
-            "median_range_pct": med("day_range_pct"),
-            "median_switch_rate": med("direction_switch_rate"),
-            "median_opening_range_pct": med("opening_range_pct"),
-            "event_consistency": float(np.mean([
-                trend.mean(), strong.mean(), g.or_continuation.mean(),
-                g.range_expansion.mean(), low_chop.mean()
-            ])),
+            "adaptive_trend_event_rate": components["trend_rate"],
+            "adaptive_strong_trend_rate": components["strong_rate"],
+            "adaptive_or_continuation_rate": components["adaptive_or_rate"],
+            "adaptive_range_expansion_rate": components["range_expansion_rate"],
+            "adaptive_low_chop_rate": components["low_chop_rate"],
+            "trend_stability": tr_stab,
+            "strong_trend_stability": st_stab,
+            "trend_rate_first_half": tr_a,
+            "trend_rate_second_half": tr_b,
+            "strong_rate_first_half": st_a,
+            "strong_rate_second_half": st_b,
+            "median_event_return": float(g.day_abs_return.median()),
+            "median_efficiency": float(g.directional_efficiency.median()),
+            "median_range_pct": float(g.day_range_pct.median()),
+            "median_switch_rate": float(g.direction_switch_rate.median()),
+            "median_opening_range_pct": float(g.opening_range_pct.median()),
+            "trend_return_q75": r75,
+            "trend_return_q85": r85,
+            "efficiency_q60": e60,
+            "efficiency_q75": e75,
+            "switch_rate_q25": sw25,
+            "range_expansion_q75": ex75,
+            "edge_score_v2": edge_score,
         })
     return pd.DataFrame(rows)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -132,36 +195,44 @@ def main():
     if not all_events:
         raise RuntimeError("No intraday events generated")
     edf = pd.DataFrame(all_events)
-    summary_df = summarize(edf)
+    summary_df = summarize(edf).sort_values(
+        ["edge_score_v2", "adaptive_strong_trend_rate", "adaptive_trend_event_rate"],
+        ascending=False,
+    ).reset_index(drop=True)
+    summary_df.insert(0, "research_rank_v2", np.arange(1, len(summary_df) + 1))
+
     edf.to_csv(out / "edge_events_by_session.csv", index=False)
     summary_df.to_csv(out / "stock_edge_event_summary.csv", index=False)
-    summary_df.sort_values(
-        ["event_consistency", "trend_event_rate", "or_continuation_rate"],
-        ascending=False,
-    ).to_csv(out / "edge_event_research_ranking.csv", index=False)
+    summary_df.to_csv(out / "edge_event_research_ranking.csv", index=False)
 
     summary = {
         "project": "PSY29",
         "step": 6,
-        "version": "1.0",
+        "version": "2.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "stocks_input": len(files),
         "stocks_with_events": int(summary_df.symbol.nunique()),
         "sessions_analyzed": int(len(edf)),
         "errors": len(errors),
         "errors_detail": errors,
-        "event_definitions": {
-            "trend": "abs(day return)>=0.75% AND efficiency>=15%",
-            "strong_trend": "abs(day return)>=1% AND efficiency>=25%",
-            "opening_range_continuation": "post-15m OR break followed by close beyond same OR side",
-            "range_expansion": "median later bar range>=1.5x first-15m median",
-            "low_chop": "direction switch rate<=10%",
+        "threshold_method": "stock-specific empirical quantiles",
+        "quantiles": {
+            "trend_return": 0.75,
+            "strong_return": 0.85,
+            "trend_efficiency": 0.60,
+            "strong_efficiency": 0.75,
+            "low_chop_switch_rate": 0.25,
+            "range_expansion": 0.75,
+            "opening_range": 0.75,
+            "breakout_extension": 0.60,
         },
+        "stability_method": "chronological first-half vs second-half event-rate agreement",
         "final_selection_performed": False,
         "status": "PASS" if not errors else "PASS_WITH_ERRORS",
     }
     (out / "step6_summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
+
 
 if __name__ == "__main__":
     main()
