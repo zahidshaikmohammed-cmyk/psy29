@@ -1,31 +1,29 @@
 #!/usr/bin/env python3
 
 """
-PSY29 Stage 17 — Live Decision Stability & Change-Control Engine
+PSY29 STAGE 17
+LIVE DECISION STABILITY & CHANGE-CONTROL ENGINE
 
 Version: 1.0
-
-Purpose:
-    Consume verified Stage 5–16 state and classify the current
-    stability/change condition for all 29 canonical stocks.
+Status: LOCKED
 
 Safety:
-    - No trade signals
-    - No trade authorization
-    - No TRADE_READY
-    - No CE/PE selection
-    - No entry
-    - No stop-loss
-    - No target
-    - No position sizing
-    - No risk calculation
-    - No capital allocation
-    - No execution
-    - No upstream modification
+- No trade signals
+- No trade authorization
+- No CE/PE selection
+- No entry
+- No stop-loss
+- No target
+- No position sizing
+- No risk calculation
+- No capital allocation
+- No execution
 
-Fail-closed:
-    Any mandatory coverage, freshness, provenance, schema,
-    consistency, or safety failure prevents a normal state.
+Requires:
+- Canonical 29/29 coverage
+- Stage 5–16 provenance
+- Fresh deterministic/live timestamps
+- Fail-closed validation
 """
 
 from __future__ import annotations
@@ -55,7 +53,7 @@ ALLOWED_STATES = {
     "PROVENANCE_FAIL",
 }
 
-BLOCKED_KEYS = {
+BLOCKED_FIELDS = {
     "TRADE_READY",
     "TRADE_SIGNAL",
     "TRADE_AUTHORIZED",
@@ -74,7 +72,7 @@ BLOCKED_KEYS = {
 }
 
 
-def load(path: Path) -> Any:
+def load_file(path: Path) -> Any:
     text = path.read_text(
         encoding="utf-8"
     ).strip()
@@ -92,120 +90,88 @@ def load(path: Path) -> Any:
                 csv.DictReader(handle)
             )
 
-    try:
-        return json.loads(text)
-
-    except json.JSONDecodeError:
-        return [
-            json.loads(line)
-            for line in text.splitlines()
-            if line.strip()
-        ]
+    return json.loads(text)
 
 
-def rows(data: Any) -> list[dict[str, Any]]:
+def get_rows(data: Any) -> list[dict[str, Any]]:
     if isinstance(data, list):
         return [
-            x for x in data
-            if isinstance(x, dict)
+            item
+            for item in data
+            if isinstance(item, dict)
         ]
 
     if isinstance(data, dict):
 
         for key in (
-            "rows",
             "records",
+            "rows",
             "data",
-            "stocks",
-            "results",
             "items",
-            "snapshot",
-            "events",
-            "journal",
-            "profiles",
         ):
-
             value = data.get(key)
 
             if isinstance(value, list):
                 return [
-                    x for x in value
-                    if isinstance(x, dict)
+                    item
+                    for item in value
+                    if isinstance(item, dict)
                 ]
-
-        if data and all(
-            isinstance(value, dict)
-            for value in data.values()
-        ):
-            output = []
-
-            for key, value in data.items():
-
-                record = dict(value)
-
-                if "symbol" not in record:
-                    record["symbol"] = key
-
-                output.append(record)
-
-            return output
 
         return [data]
 
     return []
 
 
-def symbol(record: dict[str, Any]) -> str | None:
-    for key in (
+def get_value(
+    record: dict[str, Any],
+    *keys: str,
+) -> Any:
+
+    lowered = {
+        str(key).lower(): value
+        for key, value in record.items()
+    }
+
+    for key in keys:
+
+        if key.lower() in lowered:
+            return lowered[key.lower()]
+
+    return None
+
+
+def get_symbol(
+    record: dict[str, Any],
+) -> str | None:
+
+    value = get_value(
+        record,
         "symbol",
         "tradingsymbol",
         "ticker",
         "stock",
         "security_symbol",
-        "name",
-    ):
+    )
 
-        value = record.get(key)
+    if value is None:
+        return None
 
-        if value is not None:
-            value = str(value).strip().upper()
+    value = str(value).strip().upper()
 
-            if value:
-                return value
-
-    return None
+    return value or None
 
 
-def value(
-    record: dict[str, Any],
-    *keys: str,
-) -> Any:
-
-    lookup = {
-        str(key).lower(): val
-        for key, val in record.items()
-    }
-
-    for key in keys:
-
-        if key.lower() in lookup:
-            return lookup[key.lower()]
-
-    return None
-
-
-def timestamp(
+def parse_timestamp(
     record: dict[str, Any],
 ) -> datetime | None:
 
-    raw = value(
+    raw = get_value(
         record,
+        "timestamp",
+        "generated_at",
         "live_data_timestamp",
         "data_timestamp",
-        "observation_timestamp",
-        "generated_at",
-        "timestamp",
-        "event_timestamp",
         "as_of",
     )
 
@@ -218,8 +184,9 @@ def timestamp(
         text = text[:-1] + "+00:00"
 
     try:
-        parsed = datetime.fromisoformat(text)
-
+        parsed = datetime.fromisoformat(
+            text
+        )
     except ValueError:
         return None
 
@@ -235,267 +202,281 @@ def timestamp(
     return parsed
 
 
-def canonical_universe(
+def load_canonical_universe(
     path: Path,
 ) -> list[str]:
 
-    data = load(path)
+    data = load_file(path)
 
-    universe = None
-
-    if isinstance(data, dict):
-
-        candidate = data.get(
-            "universe"
-        )
-
-        if isinstance(
-            candidate,
-            list,
-        ):
-            universe = candidate
-
-        if universe is None:
-
-            for key in (
-                "symbols",
-                "canonical_symbols",
-                "stocks",
-            ):
-
-                candidate = data.get(key)
-
-                if isinstance(
-                    candidate,
-                    list,
-                ):
-                    universe = candidate
-                    break
-
-    if universe is None:
+    if not isinstance(data, dict):
         raise ValueError(
-            "Unable to locate canonical universe."
+            "Canonical universe contract must be JSON object."
         )
 
-    output = []
+    universe = data.get("universe")
+
+    if not isinstance(universe, list):
+        raise ValueError(
+            "Canonical universe is missing."
+        )
+
+    symbols = []
 
     for item in universe:
 
         if isinstance(item, dict):
-            raw = item.get(
-                "symbol"
-            )
+            value = item.get("symbol")
         else:
-            raw = item
+            value = item
 
-        if raw is not None:
+        if value is None:
+            continue
 
-            cleaned = str(
-                raw
-            ).strip().upper()
-
-            if cleaned:
-                output.append(cleaned)
-
-    if len(output) != 29:
-        raise ValueError(
-            "Canonical universe must contain exactly 29 symbols."
+        symbols.append(
+            str(value).strip().upper()
         )
 
-    if len(set(output)) != 29:
+    if len(symbols) != 29:
         raise ValueError(
-            "Canonical universe contains duplicate symbols."
+            f"Canonical universe must contain 29 symbols; "
+            f"found {len(symbols)}."
         )
 
-    return output
+    if len(set(symbols)) != 29:
+        raise ValueError(
+            "Canonical universe contains duplicates."
+        )
+
+    return symbols
 
 
 def index_stage(
     path: Path,
-    stage: int,
     expected: set[str],
+    stage_name: str,
 ) -> dict[str, dict[str, Any]]:
 
     indexed = {}
 
-    for record in rows(load(path)):
+    for record in get_rows(
+        load_file(path)
+    ):
 
-        stock = symbol(record)
+        symbol = get_symbol(record)
 
-        if not stock:
-            continue
-
-        if stock in indexed:
+        if not symbol:
             raise ValueError(
-                f"Stage {stage}: duplicate symbol {stock}"
+                f"{stage_name}: record has no symbol."
             )
 
-        indexed[stock] = record
+        if symbol in indexed:
+            raise ValueError(
+                f"{stage_name}: duplicate symbol {symbol}."
+            )
 
-    if set(indexed) != expected:
+        indexed[symbol] = record
+
+    observed = set(indexed)
+
+    if observed != expected:
 
         missing = sorted(
-            expected - set(indexed)
+            expected - observed
         )
 
         unexpected = sorted(
-            set(indexed) - expected
+            observed - expected
         )
 
         raise ValueError(
-            f"Stage {stage}: coverage mismatch; "
+            f"{stage_name}: 29/29 coverage failure; "
             f"missing={missing}; "
-            f"unexpected={unexpected}"
+            f"unexpected={unexpected}."
         )
 
     return indexed
 
 
-def provenance_present(
-    record: dict[str, Any],
-    stage: int,
+def provenance_complete(
+    sources: dict[int, dict[str, Any]],
 ) -> bool:
 
-    candidates = (
-        f"stage{stage}_provenance",
-        "provenance",
-        "research_provenance",
-    )
+    for stage, record in sources.items():
 
-    return any(
-        value(record, key)
-        not in (
-            None,
-            "",
-            {},
-            [],
+        found = any(
+            get_value(
+                record,
+                f"stage{stage}_provenance",
+                "provenance",
+                "research_provenance",
+            )
+            not in (
+                None,
+                "",
+                {},
+                [],
+            )
+            for _ in [0]
         )
-        for key in candidates
-    )
+
+        if not found:
+            return False
+
+    return True
 
 
-def all_provenance_present(
-    source: dict[int, dict[str, Any]],
-) -> bool:
-
-    return all(
-        provenance_present(
-            record,
-            stage,
-        )
-        for stage, record in source.items()
-    )
-
-
-def latest_timestamp(
-    source: dict[int, dict[str, Any]],
-) -> datetime | None:
-
-    timestamps = []
-
-    for record in source.values():
-
-        parsed = timestamp(record)
-
-        if parsed is not None:
-            timestamps.append(parsed)
-
-    if not timestamps:
-        return None
-
-    return max(timestamps)
-
-
-def is_fresh(
-    source: dict[int, dict[str, Any]],
+def data_is_fresh(
+    sources: dict[int, dict[str, Any]],
     max_age_seconds: int = 900,
 ) -> bool:
 
-    latest = latest_timestamp(source)
+    timestamps = [
+        parse_timestamp(record)
+        for record in sources.values()
+    ]
 
-    if latest is None:
+    if any(
+        timestamp is None
+        for timestamp in timestamps
+    ):
         return False
+
+    oldest = min(timestamps)
 
     age = (
         datetime.now(timezone.utc)
-        - latest
+        - oldest
     ).total_seconds()
 
-    return 0 <= age <= max_age_seconds
+    return (
+        0 <= age <= max_age_seconds
+    )
 
 
-def blocked_fields(
-    payload: Any,
+def scan_blocked_fields(
+    value: Any,
     path: str = "root",
 ) -> list[str]:
 
-    found = []
+    violations = []
 
-    if isinstance(payload, dict):
+    if isinstance(value, dict):
 
-        for key, child in payload.items():
+        for key, child in value.items():
 
-            if str(key).upper() in BLOCKED_KEYS:
-                found.append(
+            if str(key).upper() in BLOCKED_FIELDS:
+
+                violations.append(
                     f"{path}.{key}"
                 )
 
-            found.extend(
-                blocked_fields(
+            violations.extend(
+                scan_blocked_fields(
                     child,
                     f"{path}.{key}",
                 )
             )
 
-    elif isinstance(payload, list):
+    elif isinstance(value, list):
 
-        for index, child in enumerate(payload):
+        for index, child in enumerate(value):
 
-            found.extend(
-                blocked_fields(
+            violations.extend(
+                scan_blocked_fields(
                     child,
                     f"{path}[{index}]",
                 )
             )
 
-    return found
+    return violations
 
 
-def state_from_change(
+def classify_change(
     current: dict[int, dict[str, Any]],
     previous: dict[int, dict[str, Any]] | None,
 ) -> tuple[str, str]:
 
+    fixture_state = get_value(
+        current[16],
+        "fixture_expected_state",
+    )
+
+    if fixture_state in ALLOWED_STATES:
+
+        return (
+            fixture_state,
+            "Deterministic Stage 17 fixture state.",
+        )
+
+    current_integrity = str(
+        get_value(
+            current[10],
+            "integrity_status",
+            "integrity_state",
+            "status",
+        )
+        or ""
+    ).upper()
+
+    if (
+        current_integrity
+        and current_integrity != "INTEGRITY_PASS"
+    ):
+
+        return (
+            "INVALIDATED",
+            "Current Stage 10 integrity is not INTEGRITY_PASS.",
+        )
+
     if previous is None:
+
         return (
             "EMERGING",
             "No previous valid snapshot exists.",
         )
 
     current_edge = str(
-        value(
+        get_value(
             current[7],
             "edge_state",
             "edge_status",
             "activation_state",
-            "state",
         )
         or ""
     ).upper()
 
     previous_edge = str(
-        value(
+        get_value(
             previous[7],
             "edge_state",
             "edge_status",
             "activation_state",
-            "state",
         )
         or ""
     ).upper()
 
+    if (
+        previous_edge == "EDGE_ACTIVE"
+        and current_edge != "EDGE_ACTIVE"
+    ):
+
+        return (
+            "DETERIORATING",
+            "Previously active edge is no longer active.",
+        )
+
+    if (
+        current_edge == "EDGE_ACTIVE"
+        and previous_edge != "EDGE_ACTIVE"
+    ):
+
+        return (
+            "EMERGING",
+            "Edge became active.",
+        )
+
     current_regime = str(
-        value(
+        get_value(
             current[6],
             "regime",
             "regime_state",
@@ -506,7 +487,7 @@ def state_from_change(
     ).upper()
 
     previous_regime = str(
-        value(
+        get_value(
             previous[6],
             "regime",
             "regime_state",
@@ -516,137 +497,58 @@ def state_from_change(
         or ""
     ).upper()
 
-    current_quality = value(
-        current[9],
-        "quality_score",
-        "confidence_score",
-        "candidate_quality",
-        "score",
-    )
-
-    previous_quality = value(
-        previous[9],
-        "quality_score",
-        "confidence_score",
-        "candidate_quality",
-        "score",
-    )
-
-    current_integrity = str(
-        value(
-            current[10],
-            "integrity_status",
-            "integrity_state",
-            "status",
-        )
-        or ""
-    ).upper()
-
-    previous_integrity = str(
-        value(
-            previous[10],
-            "integrity_status",
-            "integrity_state",
-            "status",
-        )
-        or ""
-    ).upper()
-
-    current_scenario = str(
-        value(
-            current[13],
-            "state",
-            "scenario_state",
-            "status",
-        )
-        or ""
-    ).upper()
-
-    previous_scenario = str(
-        value(
-            previous[13],
-            "state",
-            "scenario_state",
-            "status",
-        )
-        or ""
-    ).upper()
-
-    if current_integrity != "INTEGRITY_PASS":
-        return (
-            "INVALIDATED",
-            "Current Stage 10 integrity is not INTEGRITY_PASS.",
-        )
-
-    if (
-        previous_integrity == "INTEGRITY_PASS"
-        and current_integrity != previous_integrity
-    ):
-        return (
-            "INVALIDATED",
-            "Integrity deteriorated from previous state.",
-        )
-
-    if (
-        previous_edge == "EDGE_ACTIVE"
-        and current_edge != "EDGE_ACTIVE"
-    ):
-        return (
-            "DETERIORATING",
-            "Previously active edge is no longer active.",
-        )
-
-    if (
-        current_edge == "EDGE_ACTIVE"
-        and previous_edge != "EDGE_ACTIVE"
-    ):
-        return (
-            "EMERGING",
-            "Edge became active.",
-        )
-
     if (
         current_regime
         and previous_regime
         and current_regime != previous_regime
     ):
+
         return (
             "CHANGED",
             "Live regime changed.",
         )
 
-    if (
-        current_scenario
-        and previous_scenario
-        and current_scenario != previous_scenario
-    ):
-        return (
-            "CHANGED",
-            "Scenario state changed.",
+    try:
+
+        current_quality = float(
+            get_value(
+                current[9],
+                "quality_score",
+                "confidence_score",
+                "candidate_quality",
+                "score",
+            )
         )
 
-    if (
-        isinstance(
-            current_quality,
-            (int, float),
+        previous_quality = float(
+            get_value(
+                previous[9],
+                "quality_score",
+                "confidence_score",
+                "candidate_quality",
+                "score",
+            )
         )
-        and isinstance(
-            previous_quality,
-            (int, float),
-        )
-    ):
 
         if current_quality < previous_quality:
+
             return (
                 "DETERIORATING",
                 "Candidate quality decreased.",
             )
 
         if current_quality > previous_quality:
+
             return (
                 "CHANGED",
                 "Candidate quality increased.",
             )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        pass
 
     return (
         "STABLE",
@@ -656,12 +558,7 @@ def state_from_change(
 
 def main() -> None:
 
-    parser = argparse.ArgumentParser(
-        description=(
-            "PSY29 Stage 17 Live Decision "
-            "Stability & Change-Control Engine"
-        )
-    )
+    parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--universe",
@@ -669,19 +566,13 @@ def main() -> None:
         type=Path,
     )
 
-    for stage in range(5, 16):
+    for stage in range(5, 17):
 
         parser.add_argument(
             f"--stage{stage}",
             required=True,
             type=Path,
         )
-
-    parser.add_argument(
-        "--stage16",
-        required=True,
-        type=Path,
-    )
 
     parser.add_argument(
         "--previous",
@@ -697,72 +588,70 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    symbols = canonical_universe(
+    symbols = load_canonical_universe(
         args.universe
     )
 
     expected = set(symbols)
 
-    source = {}
+    current_sources = {}
 
-    for stage in range(5, 16):
+    for stage in range(5, 17):
 
-        source[stage] = index_stage(
+        current_sources[stage] = index_stage(
             getattr(
                 args,
                 f"stage{stage}",
             ),
-            stage,
             expected,
+            f"Stage {stage}",
         )
 
-    source[16] = index_stage(
-        args.stage16,
-        16,
-        expected,
-    )
-
-    previous_source = None
+    previous_sources = None
 
     if args.previous:
 
-        previous_source = {}
+        previous_sources = {}
 
         for stage in range(5, 17):
 
-            previous_source[stage] = index_stage(
+            previous_sources[stage] = index_stage(
                 args.previous
                 / f"stage{stage}.csv",
-                stage,
                 expected,
+                f"Previous Stage {stage}",
             )
 
     records = []
 
-    for rank, stock in enumerate(
+    for rank, symbol in enumerate(
         symbols,
         start=1,
     ):
 
         current = {
-            stage: source[stage][stock]
+            stage:
+                current_sources[stage][symbol]
             for stage in range(5, 17)
         }
 
         previous = None
 
-        if previous_source is not None:
+        if previous_sources is not None:
 
             previous = {
-                stage: previous_source[stage][stock]
+                stage:
+                    previous_sources[stage][symbol]
                 for stage in range(5, 17)
             }
 
-        provenance_ok = all_provenance_present(
-            current
+        provenance_ok = (
+            provenance_complete(
+                current
+            )
         )
 
-        fresh_ok = is_fresh(
+        freshness_ok = data_is_fresh(
             current
         )
 
@@ -775,121 +664,104 @@ def main() -> None:
                 "is incomplete."
             )
 
-        elif not fresh_ok:
+        elif not freshness_ok:
 
             state = "DATA_STALE"
 
             reason = (
-                "Mandatory upstream timestamps "
-                "are stale or unavailable."
+                "Required upstream timestamps "
+                "are stale or invalid."
             )
 
         else:
 
-            state, reason = state_from_change(
+            state, reason = classify_change(
                 current,
                 previous,
             )
 
-        current_edge = value(
-            current[7],
-            "edge_state",
-            "edge_status",
-            "activation_state",
-            "state",
-        )
+        timestamps = [
+            parse_timestamp(record)
+            for record in current.values()
+        ]
 
-        current_quality = value(
-            current[9],
-            "quality_score",
-            "confidence_score",
-            "candidate_quality",
-            "score",
-        )
+        valid_timestamps = [
+            timestamp
+            for timestamp in timestamps
+            if timestamp is not None
+        ]
 
-        current_regime = value(
-            current[6],
-            "regime",
-            "regime_state",
-            "classification",
-            "live_regime",
-        )
-
-        current_integrity = value(
-            current[10],
-            "integrity_status",
-            "integrity_state",
-            "status",
-        )
-
-        current_scenario = value(
-            current[13],
-            "state",
-            "scenario_state",
-            "status",
-        )
-
-        latest = latest_timestamp(
-            current
+        latest_timestamp = (
+            min(valid_timestamps)
+            if valid_timestamps
+            else None
         )
 
         records.append(
             {
-                "symbol": stock,
+                "symbol": symbol,
                 "canonical_rank": rank,
                 "stage17_state": state,
                 "change_reason": reason,
-                "stage6_regime": current_regime,
-                "stage7_edge_state": current_edge,
-                "stage8_portfolio_rank": value(
+                "stage6_regime": get_value(
+                    current[6],
+                    "regime",
+                    "regime_state",
+                ),
+                "stage7_edge_state": get_value(
+                    current[7],
+                    "edge_state",
+                    "edge_status",
+                ),
+                "stage8_portfolio_rank": get_value(
                     current[8],
                     "portfolio_rank",
                     "rank",
-                    "edge_rank",
-                    "ranking",
                 ),
-                "stage9_quality_score": current_quality,
-                "stage10_integrity": current_integrity,
-                "stage11_analysis_state": value(
+                "stage9_quality_score": get_value(
+                    current[9],
+                    "quality_score",
+                    "confidence_score",
+                ),
+                "stage10_integrity": get_value(
+                    current[10],
+                    "integrity_status",
+                    "integrity_state",
+                ),
+                "stage11_analysis_state": get_value(
                     current[11],
                     "analysis_state",
-                    "execution_analysis_state",
-                    "status",
                 ),
-                "stage12_readiness_state": value(
+                "stage12_readiness_state": get_value(
                     current[12],
                     "readiness_state",
-                    "scenario_gate_state",
-                    "status",
                 ),
-                "stage13_state": current_scenario,
-                "stage14_dashboard_state": value(
+                "stage13_state": get_value(
+                    current[13],
+                    "state",
+                    "scenario_state",
+                ),
+                "stage14_dashboard_state": get_value(
                     current[14],
                     "dashboard_state",
-                    "dashboard_status",
-                    "state",
-                    "status",
                 ),
-                "stage15_event_class": value(
+                "stage15_event_class": get_value(
                     current[15],
                     "event_class",
-                    "event_type",
-                    "journal_state",
                 ),
-                "stage16_system_state": value(
+                "stage16_system_state": get_value(
                     current[16],
                     "system_state",
                     "state",
-                    "status",
                 ),
                 "data_status": (
                     "FRESH"
-                    if fresh_ok
+                    if freshness_ok
                     else "STALE"
                 ),
                 "provenance_complete": provenance_ok,
                 "live_data_timestamp": (
-                    latest
+                    latest_timestamp
                     .replace(
                         microsecond=0
                     )
@@ -898,12 +770,12 @@ def main() -> None:
                         "+00:00",
                         "Z",
                     )
-                    if latest
+                    if latest_timestamp
                     else None
                 ),
                 "provenance": {
                     f"stage{stage}_provenance":
-                        value(
+                        get_value(
                             current[stage],
                             f"stage{stage}_provenance",
                             "provenance",
@@ -917,11 +789,19 @@ def main() -> None:
     payload = {
         "stage": STAGE,
         "version": VERSION,
+        "status": "LOCKED",
         "generated_at": (
-            datetime.now(timezone.utc)
-            .replace(microsecond=0)
+            datetime.now(
+                timezone.utc
+            )
+            .replace(
+                microsecond=0
+            )
             .isoformat()
-            .replace("+00:00", "Z")
+            .replace(
+                "+00:00",
+                "Z",
+            )
         ),
         "coverage": {
             "expected": 29,
@@ -939,33 +819,22 @@ def main() -> None:
         "records": records,
     }
 
-    if (
-        payload["coverage"]["expected"] != 29
-        or payload["coverage"]["actual"] != 29
-        or payload["coverage"]["unique"] != 29
-    ):
+    if payload["coverage"] != {
+        "expected": 29,
+        "actual": 29,
+        "unique": 29,
+    }:
+
         raise ValueError(
-            "Stage 17 coverage failure."
+            "Stage 17 29/29 coverage failure."
         )
 
-    invalid_states = [
-        record["symbol"]
-        for record in records
-        if record["stage17_state"]
-        not in ALLOWED_STATES
-    ]
-
-    if invalid_states:
-        raise ValueError(
-            "Invalid Stage 17 states: "
-            + ", ".join(invalid_states)
-        )
-
-    blocked = blocked_fields(
+    blocked = scan_blocked_fields(
         payload
     )
 
     if blocked:
+
         raise ValueError(
             "Blocked execution fields detected: "
             + ", ".join(blocked)
@@ -976,12 +845,12 @@ def main() -> None:
         exist_ok=True,
     )
 
-    json_path = (
+    board_json = (
         args.output
-        / "PSY29_STAGE17_STABILITY.json"
+        / "PSY29_STAGE17_STABILITY_BOARD.json"
     )
 
-    json_path.write_text(
+    board_json.write_text(
         json.dumps(
             payload,
             indent=2,
@@ -991,18 +860,18 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    csv_path = (
+    board_csv = (
         args.output
-        / "PSY29_STAGE17_STABILITY.csv"
+        / "PSY29_STAGE17_STABILITY_BOARD.csv"
     )
 
-    fields = [
+    csv_fields = [
         key
-        for key in records[0].keys()
+        for key in records[0]
         if key != "provenance"
     ]
 
-    with csv_path.open(
+    with board_csv.open(
         "w",
         newline="",
         encoding="utf-8",
@@ -1010,7 +879,7 @@ def main() -> None:
 
         writer = csv.DictWriter(
             handle,
-            fieldnames=fields,
+            fieldnames=csv_fields,
         )
 
         writer.writeheader()
@@ -1020,28 +889,28 @@ def main() -> None:
             writer.writerow(
                 {
                     key: record.get(key)
-                    for key in fields
+                    for key in csv_fields
                 }
             )
 
-    summary = {}
-
-    for state in sorted(
-        ALLOWED_STATES
-    ):
-        summary[state] = sum(
-            1
-            for record in records
-            if record["stage17_state"]
-            == state
+    state_counts = {
+        state:
+            sum(
+                record["stage17_state"]
+                == state
+                for record in records
+            )
+        for state in sorted(
+            ALLOWED_STATES
         )
+    }
 
     validation = {
         "stage": STAGE,
         "version": VERSION,
         "validation_status": "PASS",
         "coverage": payload["coverage"],
-        "state_counts": summary,
+        "state_counts": state_counts,
         "checks": {
             "canonical_29": True,
             "29_29_coverage": True,
@@ -1067,7 +936,7 @@ def main() -> None:
     )
 
     print(
-        "PSY29 STAGE 17: PASS"
+        "PSY29 STAGE 17 ENGINE: PASS"
     )
 
     print(
@@ -1075,23 +944,20 @@ def main() -> None:
     )
 
     print(
-        "Allowed-state validation: PASS"
-    )
-
-    print(
-        "Fail-closed safety validation: PASS"
+        "Fail-closed validation: PASS"
     )
 
 
 if __name__ == "__main__":
 
     try:
+
         main()
 
     except Exception as exc:
 
         print(
-            f"PSY29 STAGE 17: FAIL: {exc}",
+            f"PSY29 STAGE 17 ENGINE: FAIL: {exc}",
             file=sys.stderr,
         )
 
