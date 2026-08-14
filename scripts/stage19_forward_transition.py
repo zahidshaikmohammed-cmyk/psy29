@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime,timezone
 
 STAGE17={"STABLE","CHANGED","DETERIORATING","EMERGING","INVALIDATED","UNSTABLE","DATA_STALE","DATA_INVALID","PROVENANCE_FAIL"}
+STAGE18={"CONTINUOUS","CHANGED","NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION","RECOVERED","HISTORY_UNAVAILABLE","HISTORY_INVALID","PROVENANCE_FAIL"}
 ALLOWED={"NO_TRANSITION","TRANSITION_DETECTED","TRANSITION_PERSISTING","TRANSITION_REVERSING","NO_CHANGE_POINT","EMERGING_CHANGE_POINT","CONFIRMED_CHANGE_POINT","CHANGE_POINT_UNSTABLE","INSUFFICIENT_TRANSITION_EVIDENCE","PROVENANCE_FAIL"}
 BLOCKED={"TRADE_READY","TRADE_SIGNAL","TRADE_AUTHORIZED","CE","PE","ENTRY","ENTRY_PRICE","STOP_LOSS","TAKE_PROFIT","TARGET","POSITION_SIZE","RISK","CAPITAL_ALLOCATION","ORDER","EXECUTION","FUTURE_PRICE_PREDICTION","DIRECTIONAL_RECOMMENDATION","BUY","SELL"}
 
@@ -39,7 +40,7 @@ def stamp(r):
     if s.endswith("Z"):s=s[:-1]+"+00:00"
     try:d=datetime.fromisoformat(s)
     except ValueError:return None
-    return (d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc))
+    return d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
 
 def prov(r):return val(r,"provenance","research_provenance") not in (None,"",{},[])
 
@@ -54,7 +55,7 @@ def scan(x,path="root"):
     return out
 
 def universe(p):
-    d=load(p); u=d.get("universe") if isinstance(d,dict) else None
+    d=load(p);u=d.get("universe") if isinstance(d,dict) else None
     if not isinstance(u,list):raise ValueError("canonical universe invalid")
     s=[str(x.get("symbol") if isinstance(x,dict) else x).strip().upper() for x in u]
     if len(s)!=29 or len(set(s))!=29:raise ValueError("canonical universe must be exactly 29 unique symbols")
@@ -71,15 +72,18 @@ def index(p,expected,label):
     return out
 
 def transition(current,history):
+    # History contains only prior verified snapshots; current Stage 17 is separate.
+    if current in {"DATA_STALE","DATA_INVALID"}:return "INSUFFICIENT_TRANSITION_EVIDENCE"
     if len(history)<2:return "INSUFFICIENT_TRANSITION_EVIDENCE"
-    prev=history[-1]; prev2=history[-2]
+    prev,prev2=history[-1],history[-2]
     if current=="UNSTABLE":return "CHANGE_POINT_UNSTABLE"
     if current==prev and current==prev2:
         if current in {"EMERGING","DETERIORATING"}:return "TRANSITION_PERSISTING"
         return "NO_TRANSITION"
+    if current==prev and current!=prev2:return "NO_CHANGE_POINT"
     if current!=prev and prev=="EMERGING" and current!="EMERGING":return "TRANSITION_REVERSING"
     if current!=prev and current==prev2:return "EMERGING_CHANGE_POINT"
-    if current!=prev and prev==prev2:return "CONFIRMED_CHANGE_POINT" if current not in {"DATA_STALE","DATA_INVALID","PROVENANCE_FAIL"} else "TRANSITION_DETECTED"
+    if current!=prev and prev==prev2:return "CONFIRMED_CHANGE_POINT"
     if current!=prev:return "TRANSITION_DETECTED"
     return "NO_CHANGE_POINT"
 
@@ -88,25 +92,22 @@ def main():
     p.add_argument("--contract",required=True,type=Path);p.add_argument("--universe",required=True,type=Path)
     p.add_argument("--stage17",required=True,type=Path);p.add_argument("--stage18",required=True,type=Path)
     p.add_argument("--history",required=True,type=Path);p.add_argument("--output",required=True,type=Path)
-    a=p.parse_args(); c=load(a.contract); syms=universe(a.universe); expected=set(syms)
+    a=p.parse_args();c=load(a.contract);syms=universe(a.universe);expected=set(syms)
     if c.get("stage")!=19 or c.get("version")!="1.0" or c.get("status")!="LOCKED":raise ValueError("Stage 19 contract invalid")
-    cur17=index(a.stage17,expected,"Stage 17"); cur18=index(a.stage18,expected,"Stage 18")
+    cur17=index(a.stage17,expected,"Stage 17");cur18=index(a.stage18,expected,"Stage 18")
     files=sorted(a.history.glob("*.csv")) if a.history.exists() else []
     snapshots=[];last=None
     for f in files:
-        snap=index(f,expected,f"History {f.name}")
-        times=[stamp(r) for r in snap.values()]
+        snap=index(f,expected,f"History {f.name}");times=[stamp(r) for r in snap.values()]
         if any(t is None for t in times):raise ValueError(f"History {f.name}: invalid timestamp")
         t=min(times)
         if last is not None and t<=last:raise ValueError("historical timestamps not strictly increasing")
         last=t;snapshots.append(snap)
     rec=[]
     for i,s in enumerate(syms,1):
-        r17=cur17[s];r18=cur18[s]
-        state=str(val(r17,"stage17_state","state") or "").upper()
+        r17=cur17[s];r18=cur18[s];state=str(val(r17,"stage17_state","state") or "").upper();r18state=str(val(r18,"stage18_state","state") or "").upper()
         if state not in STAGE17:raise ValueError(f"invalid Stage 17 state for {s}")
-        r18state=str(val(r18,"stage18_state","state") or "").upper()
-        if r18state not in {"CONTINUOUS","CHANGED","NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION","RECOVERED","HISTORY_UNAVAILABLE","HISTORY_INVALID","PROVENANCE_FAIL"}:raise ValueError(f"invalid Stage 18 state for {s}")
+        if r18state not in STAGE18:raise ValueError(f"invalid Stage 18 state for {s}")
         ok=prov(r17) and prov(r18)
         if not ok:final="PROVENANCE_FAIL"
         else:
@@ -120,6 +121,7 @@ def main():
     payload={"stage":19,"version":"1.0","status":"PASS","records":rec,"coverage":{"expected":29,"actual":len(rec),"unique":len({r['symbol'] for r in rec})},"safety":{"trading_decision_forbidden":True,"execution_forbidden":True},"provenance_required":True}
     bad=scan(payload)
     if bad:raise ValueError("blocked fields detected: "+str(bad))
+    if payload["coverage"]!={"expected":29,"actual":29,"unique":29}:raise ValueError("29/29 coverage failure")
     a.output.mkdir(parents=True,exist_ok=True)
     (a.output/"PSY29_STAGE19_TRANSITION_BOARD.json").write_text(json.dumps(payload,indent=2),encoding="utf-8")
     with (a.output/"PSY29_STAGE19_TRANSITION_BOARD.csv").open("w",encoding="utf-8",newline="") as f:
