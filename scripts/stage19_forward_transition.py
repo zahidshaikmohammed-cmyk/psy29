@@ -51,7 +51,7 @@ def scan(x,path="root"):
             if str(k).upper() in BLOCKED:out.append(f"{path}.{k}")
             out.extend(scan(v,f"{path}.{k}"))
     elif isinstance(x,list):
-        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]"))
+        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]") )
     return out
 
 def universe(p):
@@ -83,9 +83,6 @@ def transition(current,history,continuity):
     if current!=prev and prev=="EMERGING" and current!="EMERGING":return "TRANSITION_REVERSING"
     if current!=prev and current==prev2:return "EMERGING_CHANGE_POINT"
     if current!=prev and prev==prev2:
-        # Three verified observations establish the transition. Stage 18's
-        # cross-stage reconciliation distinguishes confirmed change from a
-        # merely detected change.
         if continuity in {"NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION"}:
             return "CONFIRMED_CHANGE_POINT"
         return "TRANSITION_DETECTED"
@@ -99,7 +96,11 @@ def main():
     p.add_argument("--history",required=True,type=Path);p.add_argument("--output",required=True,type=Path)
     a=p.parse_args();c=load(a.contract);syms=universe(a.universe);expected=set(syms)
     if c.get("stage")!=19 or c.get("version")!="1.0" or c.get("status")!="LOCKED":raise ValueError("Stage 19 contract invalid")
-    if c.get("allowed_states")!=list(ALLOWED):raise ValueError("Stage 19 allowed-state contract mismatch")
+    # Compare as sets: canonical state order is a contract property, not a semantic requirement.
+    # Using list(set(...)) here is nondeterministic across Python processes and caused the false failure.
+    contract_allowed=c.get("allowed_states")
+    if not isinstance(contract_allowed,list) or set(contract_allowed)!=ALLOWED or len(contract_allowed)!=len(ALLOWED):
+        raise ValueError("Stage 19 allowed-state contract mismatch")
     cur17=index(a.stage17,expected,"Stage 17");cur18=index(a.stage18,expected,"Stage 18")
     files=sorted(a.history.glob("*.csv")) if a.history.exists() else []
     snapshots=[];last=None
