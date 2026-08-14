@@ -9,23 +9,14 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from scripts.psy29_event_detector import SYMBOLS, process
+from tests.test_event_threshold_resolver import make_artifact
 
 IST = ZoneInfo("Asia/Kolkata")
+TEST_SESSION = "2026-07-28"
 
 
-def thresholds(priority=(0, 10000)):
-    return {
-        "schema": "PSY29_EVENT_DETECTOR_THRESHOLDS_V1",
-        "research_source_commit": "988472889edfd51046731d72f68f2e96e095a2f1",
-        "stocks": {
-            s: {
-                "Trend": {"r75": 0.01, "e60": 0.5, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
-                "Strong Trend": {"r85": 0.015, "e75": 0.8, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
-                "OR Continuation": {"or75": 0.02, "ext60": 0.004, "hard_earliest_offset": 15, "q25_offset": priority[0], "q75_offset": priority[1]},
-            }
-            for s in SYMBOLS
-        },
-    }
+def thresholds():
+    return make_artifact()
 
 
 def write_inputs(tmp_path: Path, ts: datetime, close: float = 100.0, high: float = 100.0, low: float = 100.0):
@@ -42,7 +33,7 @@ def write_inputs(tmp_path: Path, ts: datetime, close: float = 100.0, high: float
     validation.write_text(json.dumps({
         "status": "PASS", "mode": "live", "live_data": True, "provider": "DHAN",
         "fresh_count": 29, "fixture_count": 0, "coverage": {"actual": 29, "unique": 29},
-        "generated_at": "2026-08-17T06:00:00Z",
+        "generated_at": "2026-07-28T06:00:00Z",
     }), encoding="utf-8")
     threshold_path = tmp_path / "thresholds.json"
     threshold_path.write_text(json.dumps(thresholds()), encoding="utf-8")
@@ -57,7 +48,7 @@ def run_one(tmp_path, ts, close=100.0, high=100.0, low=100.0, state=None):
 
 
 def test_trend_and_strong_first_detection_are_current_bar_only(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base, close=100.0, state=state)
     result, _ = run_one(tmp_path, base + timedelta(minutes=1), close=102.0, state=state)
@@ -67,7 +58,7 @@ def test_trend_and_strong_first_detection_are_current_bar_only(tmp_path):
 
 
 def test_no_lookahead_and_first_timestamp_immutable(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     result, _ = run_one(tmp_path, base, close=100.0, state=state)
     assert result["detected_events"] == []
@@ -76,12 +67,12 @@ def test_no_lookahead_and_first_timestamp_immutable(tmp_path):
     result, _ = run_one(tmp_path, base + timedelta(minutes=2), close=104.0, state=state)
     assert result["detected_events"] == []
     saved = json.loads(state.read_text())
-    evt = saved["sessions"]["NESTLEIND|2026-08-17"]["events"]["Trend"]
+    evt = saved["sessions"]["NESTLEIND|2026-07-28"]["events"]["Trend"]
     assert evt["first_detectable_timestamp"] == (base + timedelta(minutes=1)).isoformat()
 
 
 def test_duplicate_current_bar_does_not_create_duplicate(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base, state=state)
     first, _ = run_one(tmp_path, base + timedelta(minutes=1), close=102, state=state)
@@ -91,7 +82,7 @@ def test_duplicate_current_bar_does_not_create_duplicate(tmp_path):
 
 
 def test_or_continuation_requires_completed_opening_range(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     for i in range(15):
         run_one(tmp_path, base + timedelta(minutes=i), close=100, high=100, low=99, state=state)
@@ -99,20 +90,19 @@ def test_or_continuation_requires_completed_opening_range(tmp_path):
     assert any(e["event_type"] == "OR Continuation" and e["instrument"] == "NESTLEIND" for e in result["detected_events"])
 
 
-def test_cutoff_is_inclusive_and_priority_is_non_blocking(tmp_path):
-    base = datetime(2026, 8, 17, 15, 0, tzinfo=IST)
+def test_cutoff_is_inclusive_and_q25_q75_are_not_fabricated(tmp_path):
+    base = datetime(2026, 7, 28, 15, 0, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base - timedelta(minutes=1), close=100, state=state)
     snap, validation, threshold_path = write_inputs(tmp_path, base, close=102)
-    threshold_path.write_text(json.dumps(thresholds(priority=(999, 1000))), encoding="utf-8")
     result = process(snap, validation, threshold_path, state, tmp_path / "out", "live")
     evt = next(e for e in result["detected_events"] if e["instrument"] == "NESTLEIND" and e["event_type"] == "Trend")
     assert evt["new_signal_eligible_by_cutoff"] is True
-    assert evt["historical_priority"] == "OUTSIDE_HISTORICAL_PRIORITY"
+    assert evt["historical_priority"] == "UNAVAILABLE_Q25_Q75_NOT_IN_V2"
 
 
 def test_fixture_and_invalid_provenance_fail_closed(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     snap, validation, threshold_path = write_inputs(tmp_path, base, close=102)
     data = json.loads(validation.read_text()); data.update({"mode": "fixture", "live_data": False, "fixture_count": 29}); validation.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="live-only"):
@@ -123,7 +113,7 @@ def test_fixture_and_invalid_provenance_fail_closed(tmp_path):
 
 
 def test_event_state_is_separate_from_emission_state(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
+    base = datetime(2026, 7, 28, 9, 15, tzinfo=IST)
     result, state = run_one(tmp_path, base, close=102)
     assert state.name == "state.json"
     assert not (tmp_path / "emission_ledger.json").exists()
