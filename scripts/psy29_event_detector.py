@@ -11,6 +11,8 @@ from datetime import datetime, time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from scripts.psy29_event_threshold_resolver import ThresholdResolutionError, resolve_v2_for_session, validate_v2_artifact
+
 IST = ZoneInfo("Asia/Kolkata")
 SYMBOLS = ["NESTLEIND","VEDL","ICICIPRULI","KALYANKJIL","KOTAKBANK","BANDHANBNK","BANKBARODA","TITAN","INFY","DLF","TCS","MAXHEALTH","KFINTECH","PRESTIGE","BHEL","RBLBANK","HCLTECH","ICICIGI","HDFCLIFE","MARICO","LUPIN","COFORGE","TECHM","SWIGGY","PERSISTENT","OBEROIRLTY","SUPREMEIND","LAURUSLABS","AMBUJACEM"]
 CUTOFF = dtime(15, 0, 0)
@@ -55,26 +57,6 @@ def validate_provenance(validation: dict, mode: str) -> None:
         raise ValueError("event detector requires exact 29/29 upstream coverage")
 
 
-def validate_thresholds(thresholds: dict) -> None:
-    if thresholds.get("research_source_commit") != "988472889edfd51046731d72f68f2e96e095a2f1":
-        raise ValueError("threshold artifact must cite canonical event-time research commit")
-    stocks = thresholds.get("stocks", {})
-    if set(stocks) != set(SYMBOLS):
-        raise ValueError("threshold artifact must contain exactly the canonical 29 stocks")
-    required = {
-        "Trend": ("r75", "e60", "hard_earliest_offset"),
-        "Strong Trend": ("r85", "e75", "hard_earliest_offset"),
-        "OR Continuation": ("or75", "ext60", "hard_earliest_offset"),
-    }
-    for symbol in SYMBOLS:
-        for evt, fields in required.items():
-            cfg = stocks[symbol].get(evt)
-            if not isinstance(cfg, dict) or any(f not in cfg for f in fields):
-                raise ValueError(f"missing {evt} thresholds for {symbol}")
-            if any(float(cfg[f]) != float(cfg[f]) for f in fields):
-                raise ValueError(f"non-finite threshold for {symbol}/{evt}")
-
-
 def _session_state(state: dict, symbol: str, date: str) -> dict:
     sessions = state.setdefault("sessions", {})
     key = f"{symbol}|{date}"
@@ -113,20 +95,26 @@ def detect_current(symbol: str, session: dict, thresholds: dict, bar_ts: datetim
 def process(snapshot: Path, validation_path: Path, thresholds_path: Path, state_path: Path, output: Path, mode: str = "live") -> dict:
     validation = _load_json(validation_path)
     validate_provenance(validation, mode)
-    thresholds = _load_json(thresholds_path)
-    validate_thresholds(thresholds)
+    artifact = _load_json(thresholds_path)
+    validate_v2_artifact(artifact)
     with snapshot.open("r", encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
     if len(rows) != 29 or {r.get("symbol", "").strip().upper() for r in rows} != set(SYMBOLS):
         raise ValueError("snapshot must contain exactly the canonical 29 symbols")
     state = _load_json(state_path) if state_path.exists() else {"schema": "PSY29_EVENT_DETECTOR_STATE_V1", "sessions": {}}
     detected = []
+    selected_sets: dict[str, str] = {}
     for row in rows:
         symbol = row["symbol"].strip().upper()
         ts = _parse_ts(row["timestamp"])
         if ts.time() < dtime(9, 15) or ts.time() > dtime(15, 30):
             raise ValueError(f"bar timestamp outside NSE session for {symbol}: {ts.isoformat()}")
         date = ts.date().isoformat()
+        try:
+            resolved = resolve_v2_for_session(artifact, symbol, date)
+        except ThresholdResolutionError as exc:
+            raise ValueError(str(exc)) from exc
+        selected_sets[symbol] = resolved["threshold_set_id"]
         sess = _session_state(state, symbol, date)
         if sess["bars"] and ts <= _parse_ts(sess["bars"][-1]["timestamp"]):
             if ts == _parse_ts(sess["bars"][-1]["timestamp"]):
@@ -136,19 +124,15 @@ def process(snapshot: Path, validation_path: Path, thresholds_path: Path, state_
         if any(v != v or v in (float("inf"), float("-inf")) for v in bar.values() if isinstance(v, float)):
             raise ValueError(f"non-finite bar for {symbol}")
         sess["bars"].append(bar)
-        for event in detect_current(symbol, sess, thresholds["stocks"], ts):
+        for event in detect_current(symbol, sess, resolved["stocks"], ts):
             evt = event["event_type"]
-            cfg = thresholds["stocks"][symbol][evt]
+            cfg = resolved["stocks"][symbol][evt]
             offset = (ts.hour * 60 + ts.minute) - 555
             if offset < int(cfg["hard_earliest_offset"]):
                 continue
             if evt in sess["events"]:
                 continue
             event_id = f"{symbol}|{evt}|{date}|{ts.isoformat()}"
-            priority = "UNKNOWN"
-            if "q25_offset" in cfg and "q75_offset" in cfg:
-                q25, q75 = float(cfg["q25_offset"]), float(cfg["q75_offset"])
-                priority = "HISTORICAL_PRIORITY" if q25 <= offset <= q75 else "OUTSIDE_HISTORICAL_PRIORITY"
             record = {
                 "event_id": event_id,
                 "instrument": symbol,
@@ -163,15 +147,18 @@ def process(snapshot: Path, validation_path: Path, thresholds_path: Path, state_
                     "fixture_count": 0,
                     "source_validation": str(validation_path),
                     "source_generated_at": validation.get("generated_at"),
+                    "threshold_set_id": resolved["threshold_set_id"],
+                    "threshold_effective_nse_session_date": resolved["effective_nse_session_date"],
+                    "threshold_training_end_nse_session_date": resolved["training_window"]["end"],
                 },
-                "historical_priority": priority,
+                "historical_priority": "UNAVAILABLE_Q25_Q75_NOT_IN_V2",
                 "new_signal_eligible_by_cutoff": ts.time() <= CUTOFF,
             }
             sess["events"][evt] = record
             detected.append(record)
     _atomic_json(state_path, state)
     output.mkdir(parents=True, exist_ok=True)
-    result = {"contract": "PSY29_CAUSAL_EVENT_DETECTOR_V1", "status": "PASS", "mode": "live", "detected_events": detected, "state_file": str(state_path), "research_source_commit": thresholds["research_source_commit"]}
+    result = {"contract": "PSY29_CAUSAL_EVENT_DETECTOR_V1", "status": "PASS", "mode": "live", "detected_events": detected, "state_file": str(state_path), "selected_threshold_sets": selected_sets, "q25_q75_telemetry": "UNAVAILABLE_IN_V2_NOT_FABRICATED", "threshold_schema": "PSY29_EVENT_DETECTOR_THRESHOLDS_V2", "research_source_commit": artifact["research_source"]["commit"]}
     _atomic_json(output / "PSY29_EVENT_DETECTOR_RESULT.json", result)
     return result
 
