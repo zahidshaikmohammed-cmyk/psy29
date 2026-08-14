@@ -1,0 +1,86 @@
+name: PSY29 Live Market Verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    # NSE session: 09:15-15:30 IST = 03:45-10:00 UTC.
+    # GitHub cron is best-effort; the acquisition layer itself enforces freshness.
+    - cron: "*/5 3-10 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  live-market:
+    name: PSY29 Live DHAN Acquisition
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify live acquisition files
+        run: |
+          set -e
+          test -f config/psy29_live_universe_contract.json
+          test -f config/psy29_live_dhan_data_contract.json
+          test -f dhan/client.py
+          test -f dhan/instruments.py
+          test -f scripts/psy29_live_dhan_acquisition.py
+          python -m py_compile dhan/client.py dhan/instruments.py scripts/psy29_live_dhan_acquisition.py
+
+      - name: Acquire and validate live PSY29 market data
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: |
+          set -e
+          rm -rf output/live
+          mkdir -p output/live
+          python scripts/psy29_live_dhan_acquisition.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output output/live
+
+      - name: HARD VERIFY live acquisition
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+
+          v=json.load(open('output/live/live_acquisition_validation.json',encoding='utf-8'))
+          assert v['status']=='PASS', v
+          assert v['provider']=='DHAN'
+          assert v['coverage']=={'expected':29,'actual':29,'unique':29}, v
+          assert v['fresh_count']==29, v
+          assert v['stale_count']==0, v
+          assert v['invalid_count']==0, v
+          assert v['signal_generation'] is False
+          assert v['order_execution'] is False
+
+          s=pd.read_csv('output/live/live_snapshot.csv')
+          e=pd.read_csv('output/live/execution_snapshot.csv')
+          assert len(s)==29 and s['symbol'].nunique()==29
+          assert len(e)==29 and e['symbol'].nunique()==29
+          required={'symbol','timestamp','last_price','vwap','ema9','ema20','first15_high','first15_low'}
+          assert required.issubset(s.columns), sorted(required-set(s.columns))
+          print('PSY29 LIVE DHAN ACQUISITION: HARD VERIFY PASS')
+          print('29/29 fresh:', len(s))
+          print('PSY29 repository only: PASS')
+          PY
+
+      - name: Upload live validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-live-market-validation
+          path: output/live/
+          if-no-files-found: error
