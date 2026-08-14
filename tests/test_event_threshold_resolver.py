@@ -13,14 +13,18 @@ from scripts.psy29_event_threshold_resolver import (
 )
 
 
+WINDOWS = [
+    ("2026-01-01", "2026-03-30", "2026-04-01", "2026-04-30", "A"),
+    ("2026-02-01", "2026-04-30", "2026-05-04", "2026-06-01", "B"),
+    ("2026-02-27", "2026-06-01", "2026-06-02", "2026-06-30", "C"),
+    ("2026-04-01", "2026-06-30", "2026-07-01", "2026-07-28", "D"),
+]
+
+
 def make_artifact():
     sets = []
-    windows = [
-        ("2026-01-01", "2026-03-30", "2026-04-01", "2026-04-30", "A"),
-        ("2026-02-01", "2026-04-30", "2026-05-04", "2026-06-01", "B"),
-    ]
     for symbol in SYMBOLS:
-        for train_start, train_end, effective, oos_end, suffix in windows:
+        for train_start, train_end, effective, oos_end, suffix in WINDOWS:
             sets.append({
                 "threshold_set_id": f"{symbol}|{suffix}",
                 "stock": symbol,
@@ -43,11 +47,21 @@ def make_artifact():
     }
 
 
+def test_exact_116_set_coverage_and_validation():
+    artifact = make_artifact()
+    assert len(artifact["threshold_sets"]) == 116
+    validate_v2_artifact(artifact)
+    assert {x["stock"] for x in artifact["threshold_sets"]} == set(SYMBOLS)
+    assert all(sum(x["stock"] == s for x in artifact["threshold_sets"]) == 4 for s in SYMBOLS)
+
+
 def test_selects_exact_effective_oos_window():
     artifact = make_artifact()
     result = resolve_v2_for_session(artifact, "NESTLEIND", "2026-05-04")
     assert result["threshold_set_id"] == "NESTLEIND|B"
     assert result["stocks"]["NESTLEIND"]["Trend"]["r75"] == 0.01
+    assert result["stocks"]["NESTLEIND"]["Strong Trend"]["e75"] == 0.80
+    assert result["stocks"]["NESTLEIND"]["OR Continuation"]["ext60"] == 0.004
     assert result["stocks"]["NESTLEIND"]["OR Continuation"]["hard_earliest_offset"] == 15
 
 
@@ -57,11 +71,15 @@ def test_first_and_last_valid_oos_dates():
     assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-04-30")["threshold_set_id"] == "NESTLEIND|A"
     assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-05-04")["threshold_set_id"] == "NESTLEIND|B"
     assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-06-01")["threshold_set_id"] == "NESTLEIND|B"
+    assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-06-02")["threshold_set_id"] == "NESTLEIND|C"
+    assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-06-30")["threshold_set_id"] == "NESTLEIND|C"
+    assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-07-01")["threshold_set_id"] == "NESTLEIND|D"
+    assert resolve_v2_for_session(artifact, "NESTLEIND", "2026-07-28")["threshold_set_id"] == "NESTLEIND|D"
 
 
 def test_expired_threshold_is_rejected():
     with pytest.raises(ThresholdResolutionError, match="no valid V2 threshold set"):
-        resolve_v2_for_session(make_artifact(), "NESTLEIND", "2026-06-02")
+        resolve_v2_for_session(make_artifact(), "NESTLEIND", "2026-07-29")
 
 
 def test_future_threshold_is_rejected():
@@ -106,12 +124,17 @@ def test_priority_telemetry_boundary_fails_only_when_required():
     artifact = make_artifact()
     causal = resolve_v2_for_session(artifact, "NESTLEIND", "2026-04-01")
     assert "q25_offset" not in causal["stocks"]["NESTLEIND"]["Trend"]
+    assert "q75_offset" not in causal["stocks"]["NESTLEIND"]["Trend"]
     with pytest.raises(ThresholdResolutionError, match="Q25/Q75 telemetry is required"):
         resolve_v2_for_session(artifact, "NESTLEIND", "2026-04-01", require_priority_telemetry=True)
 
 
-def test_exact_29_stock_coverage():
+def test_all_four_windows_resolve_for_all_29_stocks():
     artifact = make_artifact()
     validate_v2_artifact(artifact)
-    assert {x["stock"] for x in artifact["threshold_sets"]} == set(SYMBOLS)
-    assert len(artifact["threshold_sets"]) == 58
+    for symbol in SYMBOLS:
+        for _, _, effective, oos_end, suffix in WINDOWS:
+            result = resolve_v2_for_session(artifact, symbol, effective)
+            assert result["threshold_set_id"] == f"{symbol}|{suffix}"
+            result = resolve_v2_for_session(artifact, symbol, oos_end)
+            assert result["threshold_set_id"] == f"{symbol}|{suffix}"
