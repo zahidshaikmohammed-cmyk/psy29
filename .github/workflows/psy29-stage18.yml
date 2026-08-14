@@ -1,0 +1,141 @@
+name: PSY29 Stage 18 - Historical State Continuity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage18:
+    name: PSY29 Stage 18 Hard Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify Stage 18 files
+        run: |
+          set -e
+          test -f config/psy29_stage18_historical_state_continuity_contract.json
+          test -f scripts/stage18_historical_continuity.py
+          test -f scripts/stage18_test_fixture.py
+          test -f scripts/stage18_check.py
+          echo "STAGE 18 FILES: PASS"
+
+      - name: Validate Stage 18 contract
+        run: |
+          python - <<'PY'
+          import json
+          p='config/psy29_stage18_historical_state_continuity_contract.json'
+          c=json.load(open(p,encoding='utf-8'))
+          assert c['stage']==18
+          assert c['version']=='1.0'
+          assert c['status']=='LOCKED'
+          assert c['coverage']['expected']==29
+          assert c['coverage']['required'] is True
+          assert c['coverage']['partial_pass'] is False
+          assert len(c['allowed_states'])==9
+          assert c['history_rules']['minimum_valid_snapshots']>=1
+          assert c['fail_closed'] is True
+          assert c['provenance_required'] is True
+          assert c['cross_stage_consistency_required'] is True
+          for k,v in c['safety_boundaries'].items(): assert v is False, k
+          print('STAGE 18 CONTRACT: PASS')
+          PY
+
+      - name: Compile Stage 18 Python
+        run: |
+          set -e
+          python -m py_compile scripts/stage18_historical_continuity.py
+          python -m py_compile scripts/stage18_test_fixture.py
+          python -m py_compile scripts/stage18_check.py
+          echo "STAGE 18 PYTHON SYNTAX: PASS"
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+          c=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))
+          u=c['universe']
+          s=[x['symbol'] for x in u]
+          assert len(s)==29 and len(set(s))==29
+          print('CANONICAL 29: PASS')
+          PY
+
+      - name: Create deterministic Stage 18 fixture
+        run: |
+          set -e
+          rm -rf /tmp/psy29_stage18_fixture /tmp/psy29_stage18_output
+          mkdir -p /tmp/psy29_stage18_fixture /tmp/psy29_stage18_output
+          python scripts/stage18_test_fixture.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage18_fixture
+
+      - name: Run Stage 18
+        run: |
+          set -e
+          python scripts/stage18_historical_continuity.py \
+            --universe config/psy29_live_universe_contract.json \
+            --stage5 /tmp/psy29_stage18_fixture/stage5.csv \
+            --stage6 /tmp/psy29_stage18_fixture/stage6.csv \
+            --stage7 /tmp/psy29_stage18_fixture/stage7.csv \
+            --stage8 /tmp/psy29_stage18_fixture/stage8.csv \
+            --stage9 /tmp/psy29_stage18_fixture/stage9.csv \
+            --stage10 /tmp/psy29_stage18_fixture/stage10.csv \
+            --stage11 /tmp/psy29_stage18_fixture/stage11.csv \
+            --stage12 /tmp/psy29_stage18_fixture/stage12.csv \
+            --stage13 /tmp/psy29_stage18_fixture/stage13.csv \
+            --stage14 /tmp/psy29_stage18_fixture/stage14.csv \
+            --stage15 /tmp/psy29_stage18_fixture/stage15.csv \
+            --stage16 /tmp/psy29_stage18_fixture/stage16.csv \
+            --stage17 /tmp/psy29_stage18_fixture/stage17.csv \
+            --history /tmp/psy29_stage18_fixture/history \
+            --output /tmp/psy29_stage18_output
+
+      - name: Verify Stage 18 outputs
+        run: |
+          set -e
+          test -f /tmp/psy29_stage18_output/PSY29_STAGE18_HISTORICAL_BOARD.json
+          test -f /tmp/psy29_stage18_output/PSY29_STAGE18_HISTORICAL_BOARD.csv
+          test -f /tmp/psy29_stage18_output/PSY29_STAGE18_VALIDATION.json
+          echo "STAGE 18 OUTPUTS: PASS"
+
+      - name: HARD VERIFY Stage 18
+        run: |
+          python scripts/stage18_check.py \
+            --contract config/psy29_stage18_historical_state_continuity_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage18_output
+
+      - name: Verify final Stage 18 status
+        run: |
+          python - <<'PY'
+          import json
+          p='/tmp/psy29_stage18_output/PSY29_STAGE18_VALIDATION.json'
+          v=json.load(open(p,encoding='utf-8'))
+          assert v['validation_status']=='PASS'
+          assert v['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert v['provenance_complete'] is True
+          assert v['blocked_fields']==[]
+          print('========================================')
+          print('PSY29 STAGE 18 FINAL VALIDATION: PASS')
+          print('29/29 coverage: PASS')
+          print('Historical continuity: PASS')
+          print('Provenance: PASS')
+          print('Safety boundaries: PASS')
+          print('========================================')
+          PY
+
+      - name: Upload Stage 18 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage18-validation
+          path: /tmp/psy29_stage18_output/
+          if-no-files-found: error
