@@ -1,0 +1,45 @@
+name: PSY29 Signal Terminal Verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/psy29_integrated_service.py'
+      - '.github/workflows/psy29-signal-terminal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile signal terminal
+        run: python -m py_compile scripts/psy29_integrated_service.py
+      - name: Verify canonical universe
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))
+          s=[str(x['symbol']).strip().upper() for x in d['universe']]
+          assert len(s)==29 and len(set(s))==29
+          print('CANONICAL 29: PASS')
+          PY
+      - name: Verify Stage 20 contract is unchanged and read-only boundary remains
+        run: |
+          python - <<'PY'
+          import json
+          c=json.load(open('config/psy29_stage20_final_trading_signal_contract.json',encoding='utf-8'))
+          assert c['stage']==20 and c['status']=='LOCKED'
+          assert c['signal_policy']['multiple_signals_allowed'] is True
+          assert c['signal_policy']['daily_signal_cap'] is None
+          assert c['strategy_authority']['entry_owner']=='selected_strategy'
+          assert c['strategy_authority']['stop_loss_owner']=='selected_strategy'
+          assert c['strategy_authority']['take_profit_owner']=='selected_strategy'
+          print('STAGE 20 AUTHORITY: PASS')
+          PY
