@@ -4,6 +4,7 @@ from pathlib import Path
 
 SYMBOLS = ["NESTLEIND","VEDL","ICICIPRULI","KALYANKJIL","KOTAKBANK","BANDHANBNK","BANKBARODA","TITAN","INFY","DLF","TCS","MAXHEALTH","KFINTECH","PRESTIGE","BHEL","RBLBANK","HCLTECH","ICICIGI","HDFCLIFE","MARICO","LUPIN","COFORGE","TECHM","SWIGGY","PERSISTENT","OBEROIRLTY","SUPREMEIND","LAURUSLABS","AMBUJACEM"]
 TRAIN, TEST, STEP = 60, 20, 20
+CUTOFFS = {"14:15": 300, "14:30": 315, "14:45": 330, "15:00": 345, "15:15": 360}
 
 def q(v,p,fb=np.nan):
     s=pd.to_numeric(pd.Series(v),errors='coerce').dropna()
@@ -72,5 +73,20 @@ for (sym,evt),g in df.groupby(['symbol','event_type'],sort=False):
     x=g.minute_offset.astype(float); summary.append([sym,evt,len(x),x.min(),x.quantile(.25),x.median(),x.quantile(.75),x.quantile(.90),x.max()])
 summary=pd.DataFrame(summary,columns=['symbol','event_type','sample_count','earliest_offset','q25_offset','median_offset','q75_offset','p90_offset','maximum_offset'])
 for c in summary.columns[3:]: summary[c]=summary[c].round(1)
-summary.to_csv('event_time_summary.csv',index=False); pd.DataFrame(validation,columns=['symbol','oos_sessions','trend_count','strong_trend_count','or_continuation_count']).to_csv('event_time_validation.csv',index=False)
-print(summary.to_string(index=False)); print(pd.DataFrame(validation,columns=['symbol','oos_sessions','trend_count','strong_trend_count','or_continuation_count']).to_string(index=False))
+summary.to_csv('event_time_summary.csv',index=False)
+val=pd.DataFrame(validation,columns=['symbol','oos_sessions','trend_count','strong_trend_count','or_continuation_count']); val.to_csv('event_time_validation.csv',index=False)
+
+# Cutoff sensitivity: exact first-detection event counts, not percentile estimates.
+cut_rows=[]; stock_rows=[]
+for cutoff_label, cutoff_offset in CUTOFFS.items():
+    for evt in ['Trend','Strong Trend','OR Continuation']:
+        e=df[df.event_type==evt]
+        eligible=e[e.minute_offset<=cutoff_offset]
+        total=len(e); keep=len(eligible); lost=total-keep
+        cut_rows.append([cutoff_label,evt,total,keep,lost,keep/total if total else np.nan])
+        for sym in SYMBOLS:
+            se=e[e.symbol==sym]; sk=se[se.minute_offset<=cutoff_offset]
+            stock_rows.append([cutoff_label,sym,evt,len(se),len(sk),len(se)-len(sk),len(sk)/len(se) if len(se) else np.nan])
+cut=pd.DataFrame(cut_rows,columns=['cutoff','event_type','historical_events','eligible','lost','retention_rate']); cut.to_csv('cutoff_sensitivity.csv',index=False)
+pd.DataFrame(stock_rows,columns=['cutoff','symbol','event_type','historical_events','eligible','lost','retention_rate']).to_csv('cutoff_sensitivity_by_stock.csv',index=False)
+print(cut.to_string(index=False)); print('CANONICAL COUNT VALIDATION:', val[['trend_count','strong_trend_count','or_continuation_count']].sum().to_dict())
