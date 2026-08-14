@@ -2,6 +2,9 @@ name: PSY29 Research Threshold Generator
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - research-threshold-generator-20260815
 
 permissions:
   contents: read
