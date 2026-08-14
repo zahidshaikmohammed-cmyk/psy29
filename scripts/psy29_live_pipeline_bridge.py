@@ -8,11 +8,10 @@ signals or executes trades.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-
-import pandas as pd
 
 REQUIRED_STAGE11_LIVE = {
     "symbol", "timestamp",
@@ -21,6 +20,13 @@ REQUIRED_STAGE11_LIVE = {
     "vwap_5m", "ema9_5m", "ema20_5m",
     "first15_high", "first15_low", "swing_high", "swing_low",
 }
+
+NUMERIC_FIELDS = REQUIRED_STAGE11_LIVE - {"symbol", "timestamp"}
+
+
+def read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
 
 
 def main() -> None:
@@ -51,33 +57,45 @@ def main() -> None:
     if len(symbols) != 29 or len(set(symbols)) != 29:
         raise ValueError("canonical universe must be exactly 29 unique symbols")
 
-    df = pd.read_csv(a.snapshot)
-    missing = REQUIRED_STAGE11_LIVE - set(df.columns)
+    records = read_csv(a.snapshot)
+    if len(records) != 29:
+        raise ValueError(f"pipeline snapshot must contain 29 rows; got {len(records)}")
+    if not records:
+        raise ValueError("pipeline snapshot is empty")
+
+    missing = REQUIRED_STAGE11_LIVE - set(records[0])
     if missing:
         raise ValueError(f"pipeline snapshot missing Stage 11 live fields: {sorted(missing)}")
 
-    actual = df["symbol"].astype(str).str.upper().tolist()
-    if len(actual) != 29 or len(set(actual)) != 29 or set(actual) != set(symbols):
+    actual = [str(row["symbol"]).strip().upper() for row in records]
+    if len(set(actual)) != 29 or set(actual) != set(symbols):
         raise ValueError("pipeline snapshot 29/29 coverage mismatch")
 
-    freshness = df.get("freshness_status", pd.Series(dtype=str)).astype(str).str.upper()
+    freshness = [str(row.get("freshness_status", "")).upper() for row in records]
     if a.mode == "live":
-        if len(freshness) != 29 or not (freshness == "FRESH").all():
+        if freshness != ["FRESH"] * 29:
             raise ValueError("live execution snapshot contains non-fresh rows")
     else:
-        if len(freshness) != 29 or not (freshness == "FIXTURE").all():
+        if freshness != ["FIXTURE"] * 29:
             raise ValueError("fixture execution snapshot must contain explicit FIXTURE freshness status")
 
-    for field in REQUIRED_STAGE11_LIVE - {"symbol", "timestamp"}:
-        numeric = pd.to_numeric(df[field], errors="coerce")
-        if numeric.isna().any():
-            raise ValueError(f"pipeline snapshot contains non-numeric values in {field}")
+    for row in records:
+        for field in NUMERIC_FIELDS:
+            try:
+                value = float(row[field])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"non-numeric pipeline value in {field}") from exc
+            if value != value or value in (float("inf"), float("-inf")):
+                raise ValueError(f"non-finite pipeline value in {field}")
 
     out = a.output
     out.mkdir(parents=True, exist_ok=True)
     generated = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    df = df.sort_values("symbol").reset_index(drop=True)
-    df.to_csv(out / "live_pipeline_input.csv", index=False)
+    records.sort(key=lambda row: str(row["symbol"]).upper())
+    with (out / "live_pipeline_input.csv").open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(records[0]))
+        writer.writeheader()
+        writer.writerows(records)
 
     manifest = {
         "contract": "PSY29_LIVE_PIPELINE_INPUT",
