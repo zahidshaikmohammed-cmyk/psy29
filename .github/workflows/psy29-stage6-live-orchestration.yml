@@ -6,9 +6,13 @@ on:
       - research-stage6-live-orchestration-20260815
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   isolated-stage6-orchestration:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout research branch
         uses: actions/checkout@v4
@@ -18,11 +22,175 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Compile changed Python files
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile isolated Stage 6 files
         run: |
           python -m py_compile scripts/psy29_stage6_live_orchestrator.py
           python -m py_compile scripts/psy29_live_pipeline_service_cycle.py
+          python -m py_compile scripts/psy29_live_dhan_acquisition.py
+          python -m py_compile scripts/psy29_live_pipeline_bridge.py
+          python -m py_compile scripts/stage4_resolve_dhan_security_ids.py
           python -m py_compile tests/test_psy29_stage6_live_orchestrator.py
 
-      - name: Run isolated Stage 6 orchestration tests
+      - name: Run deterministic orchestration safety tests
         run: python -m unittest -v tests/test_psy29_stage6_live_orchestrator.py
+
+      - name: HARD FAIL CLOSED when NSE is closed
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          now = datetime.now(ZoneInfo("Asia/Kolkata"))
+          if now.weekday() >= 5:
+              raise SystemExit(f"PSY29 REAL-DHAN VALIDATION BLOCKED: NSE weekend closure ({now.isoformat()})")
+          print(f"NSE weekday validation gate: PASS ({now.isoformat()})")
+          PY
+
+      - name: Acquire genuine DHAN market data
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          rm -rf output/live runtime/live
+          mkdir -p output/live runtime/live
+          python scripts/psy29_live_dhan_acquisition.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output output/live
+
+      - name: HARD VERIFY genuine DHAN acquisition
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+          from pathlib import Path
+
+          v = json.loads(Path('output/live/live_acquisition_validation.json').read_text())
+          required = {
+              'status': 'PASS',
+              'provider': 'DHAN',
+              'fresh_count': 29,
+              'stale_count': 0,
+              'invalid_count': 0,
+              'signal_generation': False,
+              'order_execution': False,
+          }
+          for key, expected in required.items():
+              assert v.get(key) == expected, f'{key}={v.get(key)!r}, expected {expected!r}'
+          assert v.get('coverage') == {'expected': 29, 'actual': 29, 'unique': 29}, v
+          assert v.get('fixture_count', 0) == 0, v
+
+          snapshot = pd.read_csv('output/live/execution_snapshot.csv')
+          assert len(snapshot) == 29 and snapshot['symbol'].nunique() == 29
+          required_cols = {
+              'symbol', 'timestamp', 'last_price', 'vwap', 'ema9', 'ema20',
+              'first15_high', 'first15_low'
+          }
+          assert required_cols.issubset(snapshot.columns), sorted(required_cols - set(snapshot.columns))
+          print('REAL DHAN ACQUISITION HARD GATE: PASS')
+          print('29/29 fresh; fixture_count=0; provider=DHAN')
+          PY
+
+      - name: Bridge only the validated real-DHAN snapshot
+        run: |
+          set -euo pipefail
+          python scripts/psy29_live_pipeline_bridge.py \
+            --snapshot output/live/execution_snapshot.csv \
+            --validation output/live/live_acquisition_validation.json \
+            --universe config/psy29_live_universe_contract.json \
+            --output runtime/live \
+            --mode live
+
+      - name: HARD VERIFY live pipeline provenance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v = json.loads(Path('runtime/live/live_pipeline_input_validation.json').read_text())
+          assert v['status'] == 'PASS', v
+          assert v['mode'] == 'live', v
+          assert v['live_data'] is True, v
+          assert v['source'] == 'PSY29 execution_snapshot.csv', v
+          assert v['fresh_count'] == 29, v
+          assert v['fixture_count'] == 0, v
+          assert v['coverage'] == {'expected': 29, 'actual': 29, 'unique': 29}, v
+          print('LIVE PIPELINE PROVENANCE GATE: PASS')
+          PY
+
+      - name: Resolve and validate canonical 29-stock security map
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          python scripts/stage4_resolve_dhan_security_ids.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('output/stage4/psy29_dhan_security_id_map.json')
+          assert p.is_file(), p
+          v = json.loads(p.read_text())
+          assert v.get('status') == 'PASS', v
+          mapping = v.get('mapping')
+          assert isinstance(mapping, list) and len(mapping) == 29, v
+          symbols = [str(x.get('symbol','')).upper().strip() for x in mapping]
+          ids = [str(x.get('security_id','')).strip() for x in mapping]
+          assert len(set(symbols)) == 29 and len(set(ids)) == 29 and all(ids), v
+          print('SECURITY MAP GATE: PASS (29/29)')
+          PY
+
+      - name: Invoke existing Stage 6 engine through isolated orchestrator
+        run: |
+          set -euo pipefail
+          python scripts/psy29_stage6_live_orchestrator.py \
+            --manifest runtime/live/live_pipeline_input_validation.json \
+            --snapshot runtime/live/live_pipeline_input.csv \
+            --security-map output/stage4/psy29_dhan_security_id_map.json \
+            --output runtime/live/stage6
+
+      - name: HARD VERIFY Stage 6 and timestamp context
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          out = Path('runtime/live/stage6')
+          summary = json.loads((out / 'stage6_summary.json').read_text())
+          assert summary.get('status') == 'PASS', summary
+          assert summary.get('validation_status') == 'PASS', summary
+          assert summary.get('fresh_count') == 29, summary
+          assert summary.get('stale_count') == 0, summary
+          assert summary.get('invalid_count') == 0, summary
+
+          with (out / 'PSY29_STAGE6_LIVE_REGIMES.csv').open(newline='') as fh:
+              rows = list(csv.DictReader(fh))
+          assert len(rows) == 29, len(rows)
+          assert len({str(r['symbol']).upper().strip() for r in rows}) == 29
+
+          ctx = json.loads((out / 'PSY29_STAGE6_LIVE_SOURCE_CONTEXT.json').read_text())
+          assert ctx.get('status') == 'PASS', ctx
+          assert ctx.get('source', {}).get('provider') == 'DHAN', ctx
+          assert ctx.get('source', {}).get('live_data') is True, ctx
+          assert ctx.get('source', {}).get('fixture_count') == 0, ctx
+          timestamps = ctx.get('timestamps')
+          assert isinstance(timestamps, list) and len(timestamps) == 29, ctx
+          assert all(str(x.get('timestamp','')).strip() for x in timestamps), ctx
+          print('STAGE 6 HARD GATE: PASS')
+          print('29/29 fresh; 0 stale; 0 invalid; 29 unique output rows; timestamp context PASS')
+          PY
+
+      - name: Upload isolated real-DHAN Stage 6 validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage6-real-dhan-validation
+          path: |
+            output/live/
+            output/stage4/psy29_dhan_security_id_map.json
+            runtime/live/
+          if-no-files-found: warn
