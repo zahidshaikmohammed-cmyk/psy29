@@ -1,0 +1,28 @@
+name: PSY29 Stage 6 Live Orchestration (Isolated)
+
+on:
+  push:
+    branches:
+      - research-stage6-live-orchestration-20260815
+  workflow_dispatch:
+
+jobs:
+  isolated-stage6-orchestration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile changed Python files
+        run: |
+          python -m py_compile scripts/psy29_stage6_live_orchestrator.py
+          python -m py_compile scripts/psy29_live_pipeline_service_cycle.py
+          python -m py_compile tests/test_psy29_stage6_live_orchestrator.py
+
+      - name: Run isolated Stage 6 orchestration tests
+        run: python -m unittest -v tests/test_psy29_stage6_live_orchestrator.py
