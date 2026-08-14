@@ -1,0 +1,36 @@
+{
+  "stage": 20,
+  "version": "1.0",
+  "status": "LOCKED",
+  "name": "PSY29 Final Trading Signal Engine",
+  "purpose": "Continuously evaluate all 29 canonical stocks, retain every genuinely qualifying opportunity, suppress duplicate active opportunities using trade memory, and emit every new qualifying signal without an artificial daily signal cap.",
+  "universe": {"expected": 29, "unique_required": true, "partial_coverage": false},
+  "upstream_stages": [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],
+  "allowed_final_status": ["SIGNAL", "NO_TRADE", "FAIL_CLOSED"],
+  "allowed_directions": ["LONG", "SHORT"],
+  "signal_policy": {
+    "scan_all_available_stocks": true,
+    "multiple_signals_allowed": true,
+    "daily_signal_cap": null,
+    "duplicate_active_signal_blocked": true,
+    "traded_stock_permanent_blacklist": false,
+    "new_setup_after_invalidation_allowed": true,
+    "new_setup_after_completed_trade_allowed": true,
+    "forced_trade": false,
+    "fear_based_suppression": false,
+    "rank_before_release": true
+  },
+  "minimum_score": 70,
+  "tie_break_order": ["final_score", "confluence_score", "freshness_score", "symbol"],
+  "required_signal_fields": ["symbol","direction","entry","stop_loss","target","risk_reward","final_score","status","signal_id","provenance_complete"],
+  "memory_states": ["AVAILABLE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"],
+  "safety_boundaries": {
+    "broker_order_submission": false,
+    "automatic_execution": false,
+    "capital_deployment": false,
+    "upstream_modification": false
+  },
+  "fail_closed": true,
+  "provenance_required": true,
+  "deterministic": true
+}
