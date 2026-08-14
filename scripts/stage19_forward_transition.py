@@ -51,7 +51,7 @@ def scan(x,path="root"):
             if str(k).upper() in BLOCKED:out.append(f"{path}.{k}")
             out.extend(scan(v,f"{path}.{k}"))
     elif isinstance(x,list):
-        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]") )
+        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]"))
     return out
 
 def universe(p):
@@ -71,7 +71,7 @@ def index(p,expected,label):
     if set(out)!=expected:raise ValueError(f"{label}: 29/29 coverage failure")
     return out
 
-def transition(current,history):
+def transition(current,history,continuity):
     if current in {"DATA_STALE","DATA_INVALID"}:return "INSUFFICIENT_TRANSITION_EVIDENCE"
     if len(history)<2:return "INSUFFICIENT_TRANSITION_EVIDENCE"
     prev,prev2=history[-1],history[-2]
@@ -82,7 +82,13 @@ def transition(current,history):
     if current==prev and current!=prev2:return "NO_CHANGE_POINT"
     if current!=prev and prev=="EMERGING" and current!="EMERGING":return "TRANSITION_REVERSING"
     if current!=prev and current==prev2:return "EMERGING_CHANGE_POINT"
-    if current!=prev and prev==prev2:return "CONFIRMED_CHANGE_POINT"
+    if current!=prev and prev==prev2:
+        # Three verified observations establish the transition. Stage 18's
+        # cross-stage reconciliation distinguishes confirmed change from a
+        # merely detected change.
+        if continuity in {"NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION"}:
+            return "CONFIRMED_CHANGE_POINT"
+        return "TRANSITION_DETECTED"
     if current!=prev:return "TRANSITION_DETECTED"
     return "NO_CHANGE_POINT"
 
@@ -93,6 +99,7 @@ def main():
     p.add_argument("--history",required=True,type=Path);p.add_argument("--output",required=True,type=Path)
     a=p.parse_args();c=load(a.contract);syms=universe(a.universe);expected=set(syms)
     if c.get("stage")!=19 or c.get("version")!="1.0" or c.get("status")!="LOCKED":raise ValueError("Stage 19 contract invalid")
+    if c.get("allowed_states")!=list(ALLOWED):raise ValueError("Stage 19 allowed-state contract mismatch")
     cur17=index(a.stage17,expected,"Stage 17");cur18=index(a.stage18,expected,"Stage 18")
     files=sorted(a.history.glob("*.csv")) if a.history.exists() else []
     snapshots=[];last=None
@@ -104,31 +111,32 @@ def main():
         last=t;snapshots.append(snap)
     rec=[]
     for i,s in enumerate(syms,1):
-        r17=cur17[s];r18=cur18[s];state=str(val(r17,"stage17_state","state") or "").upper();r18state=str(val(r18,"stage18_state","state") or "").upper()
+        r17=cur17[s];r18=cur18[s]
+        state=str(val(r17,"stage17_state","state") or "").upper();continuity=str(val(r18,"stage18_state","state") or "").upper()
         if state not in STAGE17:raise ValueError(f"invalid Stage 17 state for {s}")
-        if r18state not in STAGE18:raise ValueError(f"invalid Stage 18 state for {s}")
-        ok=prov(r17) and prov(r18)
-        hs=[]
-        if snapshots:
-            for snap in snapshots:
-                x=str(val(snap[s],"stage17_state","state") or "").upper()
-                if x not in STAGE17:raise ValueError(f"invalid historical state for {s}")
-                hs.append(x)
+        if continuity not in STAGE18:raise ValueError(f"invalid Stage 18 state for {s}")
+        ok=prov(r17) and prov(r18);hs=[]
+        for snap in snapshots:
+            x=str(val(snap[s],"stage17_state","state") or "").upper()
+            if x not in STAGE17:raise ValueError(f"invalid historical state for {s}")
+            hs.append(x)
         if not ok:final="PROVENANCE_FAIL"
-        elif r18state in {"HISTORY_UNAVAILABLE","HISTORY_INVALID"} or len(hs)<2:final="INSUFFICIENT_TRANSITION_EVIDENCE"
-        else:final=transition(state,hs)
-        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"current_stage17_state":state,"stage18_continuity_state":r18state,"history_depth":len(snapshots),"previous_state":(hs[-1] if hs else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
+        elif continuity in {"HISTORY_UNAVAILABLE","HISTORY_INVALID"} or len(hs)<2:final="INSUFFICIENT_TRANSITION_EVIDENCE"
+        else:final=transition(state,hs,continuity)
+        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"current_stage17_state":state,"stage18_continuity_state":continuity,"history_depth":len(snapshots),"previous_state":(hs[-1] if hs else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
     payload={"stage":19,"version":"1.0","status":"PASS","records":rec,"coverage":{"expected":29,"actual":len(rec),"unique":len({r['symbol'] for r in rec})},"safety":{"trading_decision_forbidden":True,"execution_forbidden":True},"provenance_required":True}
     bad=scan(payload)
     if bad:raise ValueError("blocked fields detected: "+str(bad))
     if payload["coverage"]!={"expected":29,"actual":29,"unique":29}:raise ValueError("29/29 coverage failure")
+    observed={r["stage19_state"] for r in rec}
+    if observed!=ALLOWED:raise ValueError(f"Canonical 10-state coverage failed: {observed ^ ALLOWED}")
     a.output.mkdir(parents=True,exist_ok=True)
     (a.output/"PSY29_STAGE19_TRANSITION_BOARD.json").write_text(json.dumps(payload,indent=2),encoding="utf-8")
     with (a.output/"PSY29_STAGE19_TRANSITION_BOARD.csv").open("w",encoding="utf-8",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(rec[0]));w.writeheader();w.writerows(rec)
-    validation={"stage":19,"version":"1.0","validation_status":"PASS","coverage":payload["coverage"],"output_states_observed":sorted({r["stage19_state"] for r in rec}),"provenance_complete":all(r["provenance_complete"] for r in rec),"blocked_fields":[],"fail_closed":True}
+    validation={"stage":19,"version":"1.0","validation_status":"PASS","coverage":payload["coverage"],"output_states_observed":sorted(observed),"provenance_complete":all(r["provenance_complete"] for r in rec),"blocked_fields":[],"fail_closed":True}
     (a.output/"PSY29_STAGE19_VALIDATION.json").write_text(json.dumps(validation,indent=2),encoding="utf-8")
-    print("PSY29 STAGE 19: PASS");print("29/29 coverage: PASS");print("Transition classification: PASS");print("Provenance: PASS");print("Safety boundary scan: PASS")
+    print("PSY29 STAGE 19: PASS");print("29/29 coverage: PASS");print("10/10 canonical states: PASS");print("Provenance: PASS");print("Safety boundary scan: PASS")
 
 if __name__=="__main__":
     try:main()
