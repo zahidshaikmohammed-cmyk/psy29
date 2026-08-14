@@ -4,10 +4,13 @@ import csv
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from scripts.psy29_event_detector import SYMBOLS, process
+
+IST = ZoneInfo("Asia/Kolkata")
 
 
 def thresholds(priority=(0, 10000)):
@@ -54,7 +57,7 @@ def run_one(tmp_path, ts, close=100.0, high=100.0, low=100.0, state=None):
 
 
 def test_trend_and_strong_first_detection_are_current_bar_only(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base, close=100.0, state=state)
     result, _ = run_one(tmp_path, base + timedelta(minutes=1), close=102.0, state=state)
@@ -64,7 +67,7 @@ def test_trend_and_strong_first_detection_are_current_bar_only(tmp_path):
 
 
 def test_no_lookahead_and_first_timestamp_immutable(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     result, _ = run_one(tmp_path, base, close=100.0, state=state)
     assert result["detected_events"] == []
@@ -78,7 +81,7 @@ def test_no_lookahead_and_first_timestamp_immutable(tmp_path):
 
 
 def test_duplicate_current_bar_does_not_create_duplicate(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base, state=state)
     first, _ = run_one(tmp_path, base + timedelta(minutes=1), close=102, state=state)
@@ -88,7 +91,7 @@ def test_duplicate_current_bar_does_not_create_duplicate(tmp_path):
 
 
 def test_or_continuation_requires_completed_opening_range(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     state = tmp_path / "state.json"
     for i in range(15):
         run_one(tmp_path, base + timedelta(minutes=i), close=100, high=100, low=99, state=state)
@@ -97,7 +100,7 @@ def test_or_continuation_requires_completed_opening_range(tmp_path):
 
 
 def test_cutoff_is_inclusive_and_priority_is_non_blocking(tmp_path):
-    base = datetime(2026, 8, 17, 15, 0).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 15, 0, tzinfo=IST)
     state = tmp_path / "state.json"
     run_one(tmp_path, base - timedelta(minutes=1), close=100, state=state)
     snap, validation, threshold_path = write_inputs(tmp_path, base, close=102)
@@ -109,7 +112,7 @@ def test_cutoff_is_inclusive_and_priority_is_non_blocking(tmp_path):
 
 
 def test_fixture_and_invalid_provenance_fail_closed(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     snap, validation, threshold_path = write_inputs(tmp_path, base, close=102)
     data = json.loads(validation.read_text()); data.update({"mode": "fixture", "live_data": False, "fixture_count": 29}); validation.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="live-only"):
@@ -120,7 +123,7 @@ def test_fixture_and_invalid_provenance_fail_closed(tmp_path):
 
 
 def test_event_state_is_separate_from_emission_state(tmp_path):
-    base = datetime(2026, 8, 17, 9, 15).astimezone(__import__("zoneinfo").ZoneInfo("Asia/Kolkata"))
+    base = datetime(2026, 8, 17, 9, 15, tzinfo=IST)
     result, state = run_one(tmp_path, base, close=102)
     assert state.name == "state.json"
     assert not (tmp_path / "emission_ledger.json").exists()
