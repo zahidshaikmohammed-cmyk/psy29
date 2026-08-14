@@ -6,8 +6,8 @@ place orders, or alter Stage 20 strategy logic.
 """
 from __future__ import annotations
 
+import csv
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,6 +35,11 @@ def run(*args: object) -> None:
     subprocess.run([sys.executable, *map(str, args)], cwd=ROOT, check=True, timeout=240)
 
 
+def read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="psy29_live_stage20_") as td:
         root = Path(td)
@@ -60,12 +65,11 @@ def main() -> None:
         assert manifest["signal_generation"] is False
         assert manifest["order_execution"] is False
 
-        import pandas as pd
-        pipeline = pd.read_csv(live / "live_pipeline_input.csv")
+        pipeline = read_csv(live / "live_pipeline_input.csv")
         assert len(pipeline) == 29
-        assert pipeline["symbol"].nunique() == 29
-        assert STAGE11_REQUIRED <= set(pipeline.columns)
-        assert (pipeline["freshness_status"].astype(str).str.upper() == "FIXTURE").all()
+        assert len({row["symbol"].strip().upper() for row in pipeline}) == 29
+        assert STAGE11_REQUIRED <= set(pipeline[0])
+        assert all(str(row["freshness_status"]).upper() == "FIXTURE" for row in pipeline)
         print("LIVE PIPELINE -> STAGE 11 INPUT COMPATIBILITY: PASS")
 
         contract = json.loads(STAGE20_CONTRACT.read_text(encoding="utf-8"))
