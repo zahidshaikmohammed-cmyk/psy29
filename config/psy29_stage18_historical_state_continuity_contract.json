@@ -1,0 +1,42 @@
+{
+  "stage": 18,
+  "name": "PSY29 Stage 18 — Historical State Continuity & Regime Memory Engine",
+  "version": "1.0",
+  "status": "LOCKED",
+  "purpose": "Relate the current verified Stage 17 state to prior verified state history without prediction, trading decisions, or execution.",
+  "modules": [
+    "18A_HISTORICAL_SNAPSHOT_INTEGRITY",
+    "18B_CANONICAL_29_HISTORICAL_COVERAGE",
+    "18C_STATE_CONTINUITY_RECONSTRUCTION",
+    "18D_PERSISTENCE_DETECTION",
+    "18E_HISTORICAL_REGIME_MEMORY",
+    "18F_CROSS_SNAPSHOT_CONSISTENCY",
+    "18G_PROVENANCE_CHAIN",
+    "18H_FINAL_HISTORICAL_ADJUDICATION"
+  ],
+  "inputs": ["canonical_universe", "stage5", "stage6", "stage7", "stage8", "stage9", "stage10", "stage11", "stage12", "stage13", "stage14", "stage15", "stage16", "stage17", "historical_stage17_snapshots"],
+  "allowed_states": ["CONTINUOUS", "CHANGED", "NEW_STATE", "PERSISTENT_DETERIORATION", "PERSISTENT_INVALIDATION", "RECOVERED", "HISTORY_UNAVAILABLE", "HISTORY_INVALID", "PROVENANCE_FAIL"],
+  "coverage": {"expected": 29, "required": true, "partial_pass": false},
+  "history_rules": {"minimum_valid_snapshots": 1, "snapshot_coverage": 29, "partial_snapshot_pass": false, "timestamp_order_required": true},
+  "safety_boundaries": {
+    "trade_signal": false,
+    "trade_authorization": false,
+    "trade_ready": false,
+    "ce_pe_selection": false,
+    "entry_calculation": false,
+    "stop_loss_calculation": false,
+    "target_calculation": false,
+    "position_size": false,
+    "risk_calculation": false,
+    "capital_allocation": false,
+    "order": false,
+    "execution": false,
+    "future_price_prediction": false,
+    "directional_recommendation": false,
+    "upstream_modification": false
+  },
+  "fail_closed": true,
+  "provenance_required": true,
+  "cross_stage_consistency_required": true,
+  "upstream_mutation_forbidden": true
+}
