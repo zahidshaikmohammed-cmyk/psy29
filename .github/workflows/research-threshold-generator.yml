@@ -10,6 +10,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  PYTHONPATH: .
+
 jobs:
   generate:
     runs-on: ubuntu-latest
