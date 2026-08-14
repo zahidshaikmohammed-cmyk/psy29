@@ -21,7 +21,7 @@ def thresholds(priority=(0, 10000)):
             s: {
                 "Trend": {"r75": 0.01, "e60": 0.5, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
                 "Strong Trend": {"r85": 0.015, "e75": 0.8, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
-                "OR Continuation": {"or75": 0.02, "ext60": 0.004, "hard_earliest_offset": 16, "q25_offset": priority[0], "q75_offset": priority[1]},
+                "OR Continuation": {"or75": 0.02, "ext60": 0.004, "hard_earliest_offset": 15, "q25_offset": priority[0], "q75_offset": priority[1]},
             }
             for s in SYMBOLS
         },
