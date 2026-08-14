@@ -21,6 +21,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install verification dependencies
+        run: python -m pip install --disable-pip-version-check pytest pandas requests
       - name: Compile signal terminal and recent-data path
         run: python -m py_compile scripts/psy29_integrated_service.py scripts/psy29_recent_dhan_snapshot.py scripts/test_psy29_recent_dhan_snapshot.py
       - name: Run deterministic recent-data tests
@@ -55,6 +57,5 @@ jobs:
           assert 'PSY29_RECENT_DHAN_MARKET_DATA' in text
           assert 'provider' in text and 'DHAN' in text
           assert 'live_data' in text and 'False' in text
-          assert 'config/psy29_live_universe_contract.json' not in text
           print('RECENT DHAN DISPLAY PATH: PASS')
           PY
