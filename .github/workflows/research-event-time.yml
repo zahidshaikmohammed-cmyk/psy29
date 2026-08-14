@@ -38,4 +38,6 @@ jobs:
           path: |
             event_time_summary.csv
             event_time_validation.csv
+            cutoff_sensitivity.csv
+            cutoff_sensitivity_by_stock.csv
           retention-days: 30
