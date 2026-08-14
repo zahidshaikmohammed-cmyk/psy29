@@ -12,6 +12,9 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "runtime/live"
 UNIVERSE = ROOT / "config/psy29_live_universe_contract.json"
+THRESHOLDS = ROOT / "runtime/live/psy29_event_thresholds.json"
+EVENT_STATE = ROOT / "runtime/live/PSY29_EVENT_DETECTOR_STATE.json"
+EVENT_OUT = OUT / "event_detector"
 IST = ZoneInfo("Asia/Kolkata")
 
 
@@ -57,6 +60,21 @@ def main() -> None:
         "--output", OUT,
         "--mode", mode,
     ])
+
+    # Fixture/off-market cycles deliberately stop at the bridge. The Event Detector
+    # is a live-only layer and is never invoked for fixture input.
+    if mode == "live":
+        if not THRESHOLDS.exists():
+            raise RuntimeError("PSY29 event detector thresholds are missing; fail closed before Stage 6")
+        run([
+            ROOT / "scripts/psy29_event_detector.py",
+            "--snapshot", OUT / "live_pipeline_input.csv",
+            "--validation", OUT / "live_pipeline_input_validation.json",
+            "--thresholds", THRESHOLDS,
+            "--state", EVENT_STATE,
+            "--output", EVENT_OUT,
+            "--mode", "live",
+        ])
     print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})", flush=True)
 
 
