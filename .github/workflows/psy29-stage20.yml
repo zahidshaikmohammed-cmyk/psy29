@@ -22,12 +22,19 @@ jobs:
           test -f scripts/stage20_final_trading_signal_engine.py
           test -f scripts/stage20_test_fixture.py
           test -f scripts/stage20_check.py
+          test -f scripts/psy29_live_pipeline_fixture.py
+          test -f scripts/psy29_live_pipeline_bridge.py
+          test -f scripts/psy29_live_stage20_compatibility_check.py
       - name: Compile Stage 20 Python
         run: |
           python -m py_compile scripts/stage20_final_trading_signal_engine.py
           python -m py_compile scripts/stage20_test_fixture.py
           python -m py_compile scripts/stage20_check.py
-          echo 'STAGE 20 PYTHON SYNTAX: PASS'
+          python -m py_compile scripts/psy29_live_pipeline_fixture.py
+          python -m py_compile scripts/psy29_live_pipeline_bridge.py
+          python -m py_compile scripts/psy29_live_pipeline_service_cycle.py
+          python -m py_compile scripts/psy29_live_stage20_compatibility_check.py
+          echo 'STAGE 20 + LIVE PIPELINE PYTHON SYNTAX: PASS'
       - name: Validate canonical 29
         run: |
           python - <<'PY'
@@ -93,6 +100,9 @@ jobs:
           print('2 active/traded duplicates suppressed: PASS')
           print('No artificial daily cap: PASS')
           PY
+      - name: Verify live pipeline -> Stage 20 compatibility
+        run: |
+          python scripts/psy29_live_stage20_compatibility_check.py
       - name: Upload Stage 20 validation artifact
         uses: actions/upload-artifact@v4
         with:
