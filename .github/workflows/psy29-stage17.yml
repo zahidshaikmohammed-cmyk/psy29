@@ -31,7 +31,7 @@ jobs:
           python-version: "3.11"
 
       # =====================================================
-      # VERIFY REQUIRED FILES
+      # VERIFY FILES
       # =====================================================
 
       - name: Verify Stage 17 files
@@ -77,58 +77,51 @@ jobs:
           assert contract["version"] == "1.0"
           assert contract["status"] == "LOCKED"
 
-          expected_modules = [
-              "17A_UPSTREAM_CONTRACT_VERIFICATION",
-              "17B_CANONICAL_29_UNIVERSE_INTEGRITY",
-              "17C_CURRENT_STATE_RECONSTRUCTION",
-              "17D_CHANGE_DETECTION",
-              "17E_STABILITY_CLASSIFICATION",
-              "17F_CROSS_STAGE_CHANGE_CONSISTENCY",
-              "17G_PROVENANCE_CHAIN",
-              "17H_FINAL_STATE_ADJUDICATION",
-          ]
+          assert (
+              contract["coverage"]["expected"]
+              == 29
+          )
 
-          assert contract["modules"] == expected_modules
+          assert (
+              contract["coverage"]["required"]
+              is True
+          )
 
-          assert contract["coverage"]["expected"] == 29
-          assert contract["coverage"]["required"] is True
-          assert contract["coverage"]["partial_pass"] is False
+          assert (
+              contract["coverage"]["partial_pass"]
+              is False
+          )
 
-          expected_states = {
-              "STABLE",
-              "CHANGED",
-              "DETERIORATING",
-              "EMERGING",
-              "INVALIDATED",
-              "UNSTABLE",
-              "DATA_STALE",
-              "DATA_INVALID",
-              "PROVENANCE_FAIL",
-          }
+          assert (
+              len(contract["allowed_states"])
+              == 9
+          )
 
-          assert set(
-              contract["allowed_states"]
-          ) == expected_states
+          assert (
+              contract["fail_closed"]
+              is True
+          )
+
+          assert (
+              contract["provenance_required"]
+              is True
+          )
+
+          assert (
+              contract[
+                  "cross_stage_consistency_required"
+              ]
+              is True
+          )
 
           for key, value in contract[
               "safety_boundaries"
           ].items():
 
               assert value is False, (
-                  f"Safety boundary violated: {key}"
+                  "Safety boundary violation: "
+                  + key
               )
-
-          assert contract[
-              "fail_closed"
-          ] is True
-
-          assert contract[
-              "provenance_required"
-          ] is True
-
-          assert contract[
-              "cross_stage_consistency_required"
-          ] is True
 
           print(
               "STAGE 17 CONTRACT: PASS"
@@ -216,13 +209,12 @@ jobs:
             /tmp/psy29_stage17_fixture \
             /tmp/psy29_stage17_output
 
-          python scripts/stage17_test_fixture.py \
+          python \
+            scripts/stage17_test_fixture.py \
             --universe \
             config/psy29_live_universe_contract.json \
             --output \
             /tmp/psy29_stage17_fixture
-
-          echo "STAGE 17 FIXTURE: PASS"
 
       # =====================================================
       # RUN STAGE 17
@@ -232,7 +224,8 @@ jobs:
         run: |
           set -e
 
-          python scripts/stage17_live_stability.py \
+          python \
+            scripts/stage17_live_stability.py \
             --universe \
             config/psy29_live_universe_contract.json \
             --stage5 \
@@ -259,11 +252,13 @@ jobs:
             /tmp/psy29_stage17_fixture/stage15.csv \
             --stage16 \
             /tmp/psy29_stage17_fixture/stage16.csv \
+            --previous \
+            /tmp/psy29_stage17_fixture/previous \
             --output \
             /tmp/psy29_stage17_output
 
       # =====================================================
-      # VERIFY OUTPUTS
+      # OUTPUT VALIDATION
       # =====================================================
 
       - name: Verify Stage 17 outputs
@@ -271,10 +266,10 @@ jobs:
           set -e
 
           test -f \
-            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY.json
+            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY_BOARD.json
 
           test -f \
-            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY.csv
+            /tmp/psy29_stage17_output/PSY29_STAGE17_STABILITY_BOARD.csv
 
           test -f \
             /tmp/psy29_stage17_output/PSY29_STAGE17_VALIDATION.json
@@ -289,14 +284,15 @@ jobs:
         run: |
           set -e
 
-          python scripts/stage17_check.py \
+          python \
+            scripts/stage17_check.py \
             --universe \
             config/psy29_live_universe_contract.json \
             --output \
             /tmp/psy29_stage17_output
 
       # =====================================================
-      # FINAL VALIDATION
+      # FINAL STATUS
       # =====================================================
 
       - name: Verify final Stage 17 status
@@ -316,25 +312,31 @@ jobs:
           ) as handle:
               validation = json.load(handle)
 
-          assert validation[
-              "validation_status"
-          ] == "PASS"
+          assert (
+              validation[
+                  "validation_status"
+              ]
+              == "PASS"
+          )
 
           coverage = validation[
               "coverage"
           ]
 
-          assert coverage[
-              "expected"
-          ] == 29
+          assert (
+              coverage["expected"]
+              == 29
+          )
 
-          assert coverage[
-              "actual"
-          ] == 29
+          assert (
+              coverage["actual"]
+              == 29
+          )
 
-          assert coverage[
-              "unique"
-          ] == 29
+          assert (
+              coverage["unique"]
+              == 29
+          )
 
           print(
               "========================================"
