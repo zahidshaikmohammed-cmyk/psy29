@@ -1,0 +1,138 @@
+name: PSY29 Stage 20 - Final Trading Signal Engine
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage20:
+    name: PSY29 Stage 20 Hard Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify Stage 20 files
+        run: |
+          set -e
+          test -f config/psy29_stage20_final_signal_engine_contract.json
+          test -f scripts/stage20_final_signal_engine.py
+          test -f scripts/stage20_test_fixture.py
+          test -f scripts/stage20_check.py
+          echo "STAGE 20 FILES: PASS"
+
+      - name: Validate Stage 20 contract
+        run: |
+          python - <<'PY'
+          import json
+          p='config/psy29_stage20_final_signal_engine_contract.json'
+          c=json.load(open(p,encoding='utf-8'))
+          assert c['stage']==20 and c['version']=='1.0' and c['status']=='LOCKED'
+          assert c['universe']=={'expected':29,'unique_required':True,'partial_coverage':False}
+          assert c['signal_policy']['scan_all_available_stocks'] is True
+          assert c['signal_policy']['multiple_signals_allowed'] is True
+          assert c['signal_policy']['daily_signal_cap'] is None
+          assert c['signal_policy']['duplicate_active_signal_blocked'] is True
+          assert c['signal_policy']['traded_stock_permanent_blacklist'] is False
+          assert c['signal_policy']['forced_trade'] is False
+          assert c['signal_policy']['fear_based_suppression'] is False
+          assert c['fail_closed'] is True and c['provenance_required'] is True
+          print('STAGE 20 CONTRACT: PASS')
+          PY
+
+      - name: Compile Stage 20 Python
+        run: |
+          set -e
+          python -m py_compile scripts/stage20_final_signal_engine.py
+          python -m py_compile scripts/stage20_test_fixture.py
+          python -m py_compile scripts/stage20_check.py
+          echo "STAGE 20 PYTHON SYNTAX: PASS"
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))
+          s=[str(x['symbol']).strip().upper() for x in d['universe']]
+          assert len(s)==29 and len(set(s))==29
+          print('CANONICAL 29: PASS')
+          PY
+
+      - name: Create deterministic Stage 20 fixture
+        run: |
+          rm -rf /tmp/psy29_stage20
+          python scripts/stage20_test_fixture.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage20
+
+      - name: Run Stage 20 final signal engine
+        run: |
+          rm -rf /tmp/psy29_stage20_output
+          python scripts/stage20_final_signal_engine.py \
+            --contract config/psy29_stage20_final_signal_engine_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --stage19 /tmp/psy29_stage20/stage19.csv \
+            --memory /tmp/psy29_stage20/memory.csv \
+            --output /tmp/psy29_stage20_output
+
+      - name: Verify Stage 20 outputs
+        run: |
+          set -e
+          test -f /tmp/psy29_stage20_output/PSY29_FINAL_SIGNAL_BOARD.json
+          test -f /tmp/psy29_stage20_output/PSY29_FINAL_SIGNAL_BOARD.csv
+          test -f /tmp/psy29_stage20_output/PSY29_STAGE20_VALIDATION.json
+          echo "STAGE 20 OUTPUTS: PASS"
+
+      - name: HARD VERIFY Stage 20
+        run: |
+          python scripts/stage20_check.py \
+            --contract config/psy29_stage20_final_signal_engine_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage20_output
+
+      - name: Verify multi-signal behavior
+        run: |
+          python - <<'PY'
+          import json
+          b=json.load(open('/tmp/psy29_stage20_output/PSY29_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
+          assert b['signal_count']==4
+          assert len(b['suppressed'])==2
+          assert b['status']=='SIGNAL'
+          assert b['policy']['daily_signal_cap'] is None
+          assert b['policy']['multiple_signals_allowed'] is True
+          print('MULTI-SIGNAL SCENARIO: PASS')
+          print('4 qualifying signals emitted from 29-stock universe: PASS')
+          print('2 duplicate/already-traded opportunities suppressed: PASS')
+          PY
+
+      - name: Final Stage 20 status
+        run: |
+          python - <<'PY'
+          import json
+          b=json.load(open('/tmp/psy29_stage20_output/PSY29_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
+          assert b['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert b['signal_count']>=1
+          assert b['policy']['broker_execution'] is False
+          print('========================================')
+          print('PSY29 STAGE 20 FINAL VALIDATION: PASS')
+          print(f"Signals emitted: {b['signal_count']}")
+          print('No artificial daily cap: PASS')
+          print('Trade-memory suppression: PASS')
+          print('Broker execution: BLOCKED')
+          print('========================================')
+          PY
+
+      - name: Upload Stage 20 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage20-final-signal
+          path: /tmp/psy29_stage20_output/
+          if-no-files-found: error
