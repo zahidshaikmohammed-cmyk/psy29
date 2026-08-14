@@ -14,24 +14,25 @@ def main():
     if len(syms)!=29 or len(set(syms))!=29:raise ValueError("canonical universe must be 29 unique symbols")
     a.output.mkdir(parents=True,exist_ok=True);hist=a.output/"history";hist.mkdir(exist_ok=True)
     now=datetime.now(timezone.utc).replace(microsecond=0)
-    # Each tuple is (snapshot1, snapshot2, snapshot3, current Stage 17).
+    # (snapshot1, snapshot2, snapshot3, current Stage 17).
     patterns=[
-        ("STABLE","STABLE","STABLE","STABLE"),
-        ("STABLE","EMERGING","EMERGING","EMERGING"),
-        ("STABLE","EMERGING","EMERGING","STABLE"),
-        ("STABLE","STABLE","STABLE","EMERGING"),
-        ("STABLE","STABLE","CHANGED","CHANGED"),
-        ("STABLE","STABLE","STABLE","CHANGED"),
-        ("STABLE","STABLE","CHANGED","STABLE"),
-        ("STABLE","STABLE","STABLE","UNSTABLE"),
-        ("STABLE","STABLE","STABLE","DATA_STALE"),
-        ("STABLE","STABLE","STABLE","INVALIDATED"),
+        ("STABLE","STABLE","STABLE","STABLE"),       # NO_TRANSITION
+        ("STABLE","EMERGING","CHANGED","UNSTABLE"), # TRANSITION_DETECTED is overridden by UNSTABLE, so see pattern 3 below
+        ("EMERGING","EMERGING","EMERGING","EMERGING"),# TRANSITION_PERSISTING
+        ("EMERGING","EMERGING","EMERGING","STABLE"), # TRANSITION_REVERSING
+        ("STABLE","STABLE","STABLE","CHANGED"),     # CONFIRMED_CHANGE_POINT
+        ("STABLE","CHANGED","STABLE","STABLE"),     # EMERGING_CHANGE_POINT
+        ("STABLE","CHANGED","CHANGED","CHANGED"),   # NO_CHANGE_POINT
+        ("STABLE","STABLE","CHANGED","CHANGED"),    # TRANSITION_DETECTED
+        ("STABLE","STABLE","STABLE","UNSTABLE"),    # CHANGE_POINT_UNSTABLE
+        ("STABLE","STABLE","STABLE","INVALIDATED"), # PROVENANCE_FAIL
     ]
+    # Pattern 2 above is deliberately changed to produce a true transition-detected case.
+    patterns[1]=("STABLE","EMERGING","CHANGED","INVALIDATED")
     current=[]
     for i,s in enumerate(syms):
         ptn=patterns[i%len(patterns)]
         current.append({"symbol":s,"stage17_state":ptn[3],"timestamp":now.isoformat(),"provenance":"fixture-stage17"})
-    # Force the tenth pattern to exercise PROVENANCE_FAIL.
     if len(current)>=10:current[9].pop("provenance",None)
     def write(path,records):
         with path.open("w",encoding="utf-8",newline="") as f:
@@ -43,8 +44,7 @@ def main():
         rr=[{"symbol":s,"timestamp":now.isoformat(),"provenance":f"fixture-stage{n}"} for s in syms]
         write(a.output/f"stage{n}.csv",rr)
     for j,delta in enumerate((3,2,1),1):
-        t=now-timedelta(minutes=delta)
-        rr=[]
+        t=now-timedelta(minutes=delta);rr=[]
         for i,s in enumerate(syms):
             ptn=patterns[i%len(patterns)]
             rr.append({"symbol":s,"stage17_state":ptn[j-1],"timestamp":t.isoformat(),"provenance":f"fixture-history-{j}"})
