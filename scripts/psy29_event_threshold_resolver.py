@@ -10,10 +10,10 @@ from datetime import date
 from math import isfinite
 from typing import Any
 
-from scripts.psy29_event_detector import EVENT_TYPES, SYMBOLS
-
 CANONICAL_RESEARCH_COMMIT = "988472889edfd51046731d72f68f2e96e095a2f1"
 V2_SCHEMA = "PSY29_EVENT_DETECTOR_THRESHOLDS_V2"
+CANONICAL_SYMBOLS = ("NESTLEIND","VEDL","ICICIPRULI","KALYANKJIL","KOTAKBANK","BANDHANBNK","BANKBARODA","TITAN","INFY","DLF","TCS","MAXHEALTH","KFINTECH","PRESTIGE","BHEL","RBLBANK","HCLTECH","ICICIGI","HDFCLIFE","MARICO","LUPIN","COFORGE","TECHM","SWIGGY","PERSISTENT","OBEROIRLTY","SUPREMEIND","LAURUSLABS","AMBUJACEM")
+EVENT_TYPES = ("Trend", "Strong Trend", "OR Continuation")
 
 
 class ThresholdResolutionError(ValueError):
@@ -43,19 +43,16 @@ def validate_v2_artifact(artifact: dict) -> None:
     source = artifact.get("research_source", {})
     if source.get("commit") != CANONICAL_RESEARCH_COMMIT:
         raise ThresholdResolutionError("threshold artifact does not cite canonical research commit")
-    if artifact.get("methodology", {}).get("train_sessions") != 60:
-        raise ThresholdResolutionError("V2 methodology must use 60 training sessions")
-    if artifact.get("methodology", {}).get("test_sessions") != 20:
-        raise ThresholdResolutionError("V2 methodology must use 20 OOS sessions")
-    if artifact.get("methodology", {}).get("step_sessions") != 20:
-        raise ThresholdResolutionError("V2 methodology must use 20-session steps")
+    method = artifact.get("methodology", {})
+    if method.get("train_sessions") != 60 or method.get("test_sessions") != 20 or method.get("step_sessions") != 20:
+        raise ThresholdResolutionError("V2 methodology must use exact 60/20/20 walk-forward")
 
     sets = artifact.get("threshold_sets")
     if not isinstance(sets, list) or not sets:
         raise ThresholdResolutionError("V2 threshold_sets is empty or malformed")
 
-    expected = set(SYMBOLS)
-    by_symbol: dict[str, list[dict]] = {s: [] for s in SYMBOLS}
+    expected = set(CANONICAL_SYMBOLS)
+    by_symbol: dict[str, list[dict]] = {s: [] for s in CANONICAL_SYMBOLS}
     seen_ids: set[str] = set()
     for item in sets:
         if not isinstance(item, dict):
@@ -85,11 +82,7 @@ def validate_v2_artifact(artifact: dict) -> None:
         vals = item.get("thresholds")
         if not isinstance(vals, dict):
             raise ThresholdResolutionError(f"missing thresholds for {symbol}/{threshold_id}")
-        required = {
-            "Trend": ("r75", "e60"),
-            "Strong Trend": ("r85", "e75"),
-            "OR Continuation": ("or75", "ext60"),
-        }
+        required = {"Trend": ("r75", "e60"), "Strong Trend": ("r85", "e75"), "OR Continuation": ("or75", "ext60")}
         for evt, fields in required.items():
             cfg = vals.get(evt)
             if not isinstance(cfg, dict):
@@ -97,13 +90,11 @@ def validate_v2_artifact(artifact: dict) -> None:
             for field in fields:
                 _finite(cfg.get(field), f"{symbol}/{threshold_id}/{evt}/{field}")
         hard = item.get("hard_earliest_offset")
-        if hard is None:
-            raise ThresholdResolutionError(f"missing hard_earliest_offset for {symbol}/{threshold_id}")
-        if int(hard) not in (0, 15):
+        if hard is None or int(hard) not in (0, 15):
             raise ThresholdResolutionError(f"invalid hard_earliest_offset for {symbol}/{threshold_id}")
         by_symbol[symbol].append(item)
 
-    if set(by_symbol) != expected or any(not by_symbol[s] for s in SYMBOLS):
+    if set(by_symbol) != expected or any(not by_symbol[s] for s in CANONICAL_SYMBOLS):
         raise ThresholdResolutionError("V2 artifact does not cover all 29 canonical stocks")
 
     for symbol, items in by_symbol.items():
@@ -119,26 +110,19 @@ def validate_v2_artifact(artifact: dict) -> None:
     declared = artifact.get("threshold_set_count")
     if declared is not None and int(declared) != len(sets):
         raise ThresholdResolutionError("threshold_set_count does not match threshold_sets")
+    if len(sets) != len(CANONICAL_SYMBOLS) * 4:
+        raise ThresholdResolutionError("V2 artifact must contain exactly 116 threshold sets")
+    if any(len(by_symbol[s]) != 4 for s in CANONICAL_SYMBOLS):
+        raise ThresholdResolutionError("every canonical stock must have exactly four threshold sets")
 
 
-def resolve_v2_for_session(
-    artifact: dict,
-    symbol: str,
-    target_session_date: str | date,
-    *,
-    require_priority_telemetry: bool = False,
-) -> dict:
-    """Return a V1-shaped threshold object for one stock/session, or fail closed.
-
-    The returned structure is intentionally compatible with the existing causal
-    detector's formula reader. No detector code is changed by this adapter.
-    """
+def resolve_v2_for_session(artifact: dict, symbol: str, target_session_date: str | date, *, require_priority_telemetry: bool = False) -> dict:
+    """Return a V1-shaped threshold object for one stock/session, or fail closed."""
     validate_v2_artifact(artifact)
     symbol = str(symbol).strip().upper()
-    if symbol not in SYMBOLS:
+    if symbol not in CANONICAL_SYMBOLS:
         raise ThresholdResolutionError(f"unknown canonical stock: {symbol}")
     target = target_session_date if isinstance(target_session_date, date) else _d(target_session_date, "target_session_date")
-
     candidates = []
     for item in artifact["threshold_sets"]:
         if str(item["stock"]).strip().upper() != symbol:
@@ -150,12 +134,10 @@ def resolve_v2_for_session(
             raise ThresholdResolutionError(f"training window reaches effective session for {symbol}")
         if effective <= target <= oos_end:
             candidates.append(item)
-
     if not candidates:
         raise ThresholdResolutionError(f"no valid V2 threshold set covers {symbol} on {target.isoformat()}; fail closed")
     if len(candidates) != 1:
         raise ThresholdResolutionError(f"ambiguous V2 threshold coverage for {symbol} on {target.isoformat()}")
-
     item = candidates[0]
     vals = item["thresholds"]
     result = {
@@ -165,18 +147,12 @@ def resolve_v2_for_session(
         "effective_nse_session_date": item["effective_nse_session_date"],
         "training_window": item["training_window"],
         "oos_window": item["oos_window"],
-        "stocks": {
-            symbol: {
-                "Trend": {"r75": _finite(vals["Trend"]["r75"], "Trend.r75"), "e60": _finite(vals["Trend"]["e60"], "Trend.e60"), "hard_earliest_offset": 0},
-                "Strong Trend": {"r85": _finite(vals["Strong Trend"]["r85"], "Strong Trend.r85"), "e75": _finite(vals["Strong Trend"]["e75"], "Strong Trend.e75"), "hard_earliest_offset": 0},
-                "OR Continuation": {"or75": _finite(vals["OR Continuation"]["or75"], "OR Continuation.or75"), "ext60": _finite(vals["OR Continuation"]["ext60"], "OR Continuation.ext60"), "hard_earliest_offset": 15},
-            }
-        },
+        "stocks": {symbol: {
+            "Trend": {"r75": _finite(vals["Trend"]["r75"], "Trend.r75"), "e60": _finite(vals["Trend"]["e60"], "Trend.e60"), "hard_earliest_offset": 0},
+            "Strong Trend": {"r85": _finite(vals["Strong Trend"]["r85"], "Strong Trend.r85"), "e75": _finite(vals["Strong Trend"]["e75"], "Strong Trend.e75"), "hard_earliest_offset": 0},
+            "OR Continuation": {"or75": _finite(vals["OR Continuation"]["or75"], "OR Continuation.or75"), "ext60": _finite(vals["OR Continuation"]["ext60"], "OR Continuation.ext60"), "hard_earliest_offset": 15},
+        }},
     }
-
-    # Historical timing telemetry is deliberately not fabricated. If a caller
-    # requires Q25/Q75, it must be supplied by a separate canonical telemetry
-    # artifact; causal threshold resolution itself remains unaffected.
     if require_priority_telemetry:
         missing = [evt for evt in EVENT_TYPES if not all(k in vals.get(evt, {}) for k in ("q25_offset", "q75_offset"))]
         if missing:
