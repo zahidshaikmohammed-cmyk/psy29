@@ -3,9 +3,9 @@ name: PSY29 Live Market Verification
 on:
   workflow_dispatch:
   schedule:
-    # NSE session: 09:15-15:30 IST = 03:45-10:00 UTC.
-    # GitHub cron is best-effort; the acquisition layer itself enforces freshness.
-    - cron: "*/5 3-10 * * 1-5"
+    # Start after enough 1m history exists for EMA20.
+    # 04:05 UTC = 09:35 IST. Continue through the NSE session.
+    - cron: "*/5 4-10 * * 1-5"
 
 permissions:
   contents: read
