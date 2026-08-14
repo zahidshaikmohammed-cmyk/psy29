@@ -4,7 +4,6 @@ import argparse,csv,hashlib,json,sys
 from pathlib import Path
 from datetime import datetime,timezone
 
-DIRECTIONS={"LONG","SHORT"}
 MEMORY={"AVAILABLE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"}
 BLOCKED={"ORDER_SUBMISSION","BROKER_ORDER","AUTO_EXECUTE","AUTOMATIC_EXECUTION","CAPITAL_DEPLOYMENT"}
 
@@ -38,10 +37,10 @@ def n(r,*keys):
 
 def sym(r):return s(r,"symbol","ticker","tradingsymbol").upper() or None
 
-def prov(r):return v(r,"provenance","research_provenance") not in (None,"",{},[])
+def prov(r):return v(r,"provenance","research_provenance","stage13_provenance") not in (None,"",{},[])
 
 def ts(r):
-    x=s(r,"timestamp","generated_at","as_of","data_timestamp")
+    x=s(r,"live_data_timestamp","timestamp","generated_at","as_of","data_timestamp")
     if not x:return None
     if x.endswith("Z"):x=x[:-1]+"+00:00"
     try:d=datetime.fromisoformat(x)
@@ -86,38 +85,49 @@ def scan(x,path="root"):
         for i,z in enumerate(x):hit+=scan(z,f"{path}[{i}]")
     return hit
 
-def sid(symbol,direction,entry,stamp):
-    return "PSY20-"+hashlib.sha256(f"{symbol}|{direction}|{entry}|{stamp}".encode()).hexdigest()[:16].upper()
+def direction(scenario,regime,structure):
+    q=" ".join((str(scenario),str(regime),str(structure))).upper()
+    if "BREAKDOWN" in q or "BEAR" in q or "TRENDING_DOWN" in q or "DOWN" in q:return "SHORT"
+    if "BREAKOUT" in q or "BULL" in q or "TRENDING_UP" in q or "UP" in q:return "LONG"
+    return None
+
+def signal_id(symbol,direction,scenario,stage19,stamp):
+    raw=f"{symbol}|{direction}|{scenario}|{stage19}|{stamp}".encode()
+    return "PSY20-"+hashlib.sha256(raw).hexdigest()[:16].upper()
 
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--contract",required=True,type=Path);p.add_argument("--universe",required=True,type=Path)
-    p.add_argument("--stage19",required=True,type=Path);p.add_argument("--memory",type=Path);p.add_argument("--output",required=True,type=Path)
+    p.add_argument("--stage13",required=True,type=Path);p.add_argument("--stage19",required=True,type=Path)
+    p.add_argument("--memory",required=True,type=Path);p.add_argument("--output",required=True,type=Path)
     a=p.parse_args();c=load(a.contract)
     if c.get("stage")!=20 or c.get("version")!="1.0" or c.get("status")!="LOCKED":raise ValueError("Stage 20 contract invalid")
     if c.get("signal_policy",{}).get("daily_signal_cap",0) is not None:raise ValueError("daily signal cap must be null")
-    syms=universe(a.universe);expected=set(syms);up=index(a.stage19,expected,"Stage 19");memory=mem(a.memory)
+    syms=universe(a.universe);expected=set(syms);s13=index(a.stage13,expected,"Stage 13");s19=index(a.stage19,expected,"Stage 19");memory=mem(a.memory)
     now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z");signals=[];suppressed=[]
     for rank,z in enumerate(syms,1):
-        r=up[z]
-        if not prov(r):raise ValueError(f"provenance failure: {z}")
-        t=ts(r)
+        r13,r19=s13[z],s19[z]
+        if not prov(r13) or not prov(r19):raise ValueError(f"provenance failure: {z}")
+        t=ts(r13) or ts(r19)
         if t is None:raise ValueError(f"invalid timestamp: {z}")
-        direction=s(r,"direction","signal_direction").upper();score=n(r,"final_score","score","quality_score")
-        entry=n(r,"entry","entry_price");stop=n(r,"stop_loss","stop");target=n(r,"target","take_profit");rr=n(r,"risk_reward","rr")
-        eligible=s(r,"stage20_eligible","signal_eligible","eligible").upper()
-        if eligible in {"FALSE","NO","0"}:continue
-        if direction not in DIRECTIONS:continue
-        if score is None or entry is None or stop is None or target is None or rr is None:raise ValueError(f"qualifying candidate missing required trade fields: {z}")
+        state=s(r13,"stage13_state","state").upper();scenario=s(r13,"dominant_scenario","scenario","scenario_classification").upper();transition=s(r19,"stage19_state","state").upper()
+        conf=n(r13,"scenario_confidence","confidence","confidence_score")
+        regime=s(r13,"stage6_regime","regime");structure=s(r13,"structure_state","stage11_structure_state")
+        if state in {"DATA_STALE","DATA_INVALID","UPSTREAM_INVALID","SCENARIO_CONFLICTED","SCENARIO_UNCONFIRMED"}:continue
+        if scenario in {"REVERSAL_RISK","RANGE","TRANSITION","UNCLEAR",""}:continue
+        if transition in {"CHANGE_POINT_UNSTABLE","INSUFFICIENT_TRANSITION_EVIDENCE","PROVENANCE_FAIL"}:continue
+        d=direction(scenario,regime,structure)
+        if d is None:continue
+        if conf is None:raise ValueError(f"qualifying candidate missing scenario confidence: {z}")
+        score=min(0.99,max(0.0,conf + (0.08 if transition in {"CONFIRMED_CHANGE_POINT","TRANSITION_PERSISTING"} else 0.0) + (0.04 if state=="SCENARIO_CONFIRMED" else 0.0)))
         if score<float(c["minimum_score"]):continue
-        if min(entry,stop,target,rr)<=0:raise ValueError(f"invalid trade geometry: {z}")
-        state=s(memory.get(z,{}),"memory_state","state").upper() if z in memory else "AVAILABLE"
-        if state not in MEMORY:raise ValueError(f"invalid memory state: {z}")
-        if state in {"ACTIVE_SIGNAL","TRADED"}:
-            suppressed.append({"symbol":z,"reason":"DUPLICATE_OR_ALREADY_TRADED","memory_state":state});continue
-        signals.append({"symbol":z,"universe_rank":rank,"direction":direction,"entry":entry,"stop_loss":stop,"target":target,"risk_reward":rr,"final_score":score,"confluence_score":n(r,"confluence_score","confluence") or 0,"freshness_score":n(r,"freshness_score","freshness") or 0,"memory_state":state,"provenance_complete":True,"source_timestamp":t.isoformat()})
-    signals.sort(key=lambda r:(-r["final_score"],-r["confluence_score"],-r["freshness_score"],r["symbol"]))
-    for r in signals:r.update(status="SIGNAL",signal_id=sid(r["symbol"],r["direction"],r["entry"],r["source_timestamp"]),generated_at=now)
+        mstate=s(memory.get(z,{}),"memory_state","state").upper() if z in memory else "AVAILABLE"
+        if mstate not in MEMORY:raise ValueError(f"invalid memory state: {z}")
+        if mstate in {"ACTIVE_SIGNAL","TRADED"}:
+            suppressed.append({"symbol":z,"reason":"DUPLICATE_OR_ALREADY_TRADED","memory_state":mstate});continue
+        signals.append({"symbol":z,"universe_rank":rank,"direction":d,"scenario":scenario,"stage13_state":state,"stage19_state":transition,"final_score":round(score,4),"scenario_confidence":conf,"memory_state":mstate,"provenance_complete":True,"source_timestamp":t.isoformat()})
+    signals.sort(key=lambda r:(-r["final_score"],-float(r["scenario_confidence"]),r["symbol"]))
+    for r in signals:r.update(status="SIGNAL",signal_id=signal_id(r["symbol"],r["direction"],r["scenario"],r["stage19_state"],r["source_timestamp"]),generated_at=now)
     status="SIGNAL" if signals else "NO_TRADE"
     payload={"stage":20,"version":"1.0","status":status,"generated_at":now,"coverage":{"expected":29,"actual":29,"unique":29},"signals":signals,"signal_count":len(signals),"suppressed":suppressed,"policy":{"multiple_signals_allowed":True,"daily_signal_cap":None,"forced_trade":False,"broker_execution":False},"provenance_complete":True}
     hit=scan(payload)
