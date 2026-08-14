@@ -57,6 +57,17 @@ def main() -> None:
         "--output", OUT,
         "--mode", mode,
     ])
+
+    if mode == "live":
+        run([
+            ROOT / "scripts/psy29_stage6_live_orchestrator.py",
+            "--manifest", OUT / "live_pipeline_input_validation.json",
+            "--snapshot", OUT / "live_pipeline_input.csv",
+            "--output", OUT / "stage6",
+        ])
+    else:
+        print("PSY29 STAGE 6: SKIPPED (fixture/off-market mode; no live signal state permitted)", flush=True)
+
     print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})", flush=True)
 
 
