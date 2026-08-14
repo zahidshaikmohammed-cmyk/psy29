@@ -31,7 +31,13 @@ def main() -> None:
     a = p.parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    for name in ("live_snapshot.csv", "live_acquisition_validation.json", "live_pipeline_input.csv", "live_pipeline_input_validation.json"):
+    for name in (
+        "live_snapshot.csv",
+        "execution_snapshot.csv",
+        "live_acquisition_validation.json",
+        "live_pipeline_input.csv",
+        "live_pipeline_input_validation.json",
+    ):
         path = OUT / name
         if path.exists():
             path.unlink()
@@ -45,7 +51,7 @@ def main() -> None:
 
     run([
         ROOT / "scripts/psy29_live_pipeline_bridge.py",
-        "--snapshot", OUT / "live_snapshot.csv",
+        "--snapshot", OUT / "execution_snapshot.csv",
         "--validation", OUT / "live_acquisition_validation.json",
         "--universe", UNIVERSE,
         "--output", OUT,
