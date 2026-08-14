@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: .
+
 jobs:
   tests:
     runs-on: ubuntu-latest
