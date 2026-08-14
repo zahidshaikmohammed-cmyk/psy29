@@ -3,9 +3,10 @@
   "version": "1.0",
   "status": "LOCKED",
   "name": "PSY29 Final Trading Signal Engine",
-  "purpose": "Continuously evaluate all 29 canonical stocks, retain every genuinely qualifying opportunity, suppress duplicate active opportunities using trade memory, and emit every new qualifying signal without an artificial daily signal cap.",
+  "purpose": "Continuously evaluate all 29 canonical stocks, synthesize verified Stage 13 scenario evidence with Stage 19 transition state, retain every genuinely qualifying directional opportunity, suppress duplicate active opportunities using trade memory, and emit every new qualifying signal without an artificial daily signal cap.",
   "universe": {"expected": 29, "unique_required": true, "partial_coverage": false},
   "upstream_stages": [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],
+  "required_terminal_inputs": ["stage13","stage19","trade_memory"],
   "allowed_final_status": ["SIGNAL", "NO_TRADE", "FAIL_CLOSED"],
   "allowed_directions": ["LONG", "SHORT"],
   "signal_policy": {
@@ -20,9 +21,16 @@
     "fear_based_suppression": false,
     "rank_before_release": true
   },
-  "minimum_score": 70,
-  "tie_break_order": ["final_score", "confluence_score", "freshness_score", "symbol"],
-  "required_signal_fields": ["symbol","direction","entry","stop_loss","target","risk_reward","final_score","status","signal_id","provenance_complete"],
+  "direction_policy": {
+    "breakout_requires_bullish_or_up_evidence": true,
+    "breakdown_requires_bearish_or_down_evidence": true,
+    "continuation_requires_directional_regime_evidence": true,
+    "reversal_risk_without_confirmed_reversal_is_not_signal": true,
+    "range_without_break_direction_is_not_signal": true,
+    "transition_without_direction_is_not_signal": true
+  },
+  "minimum_score": 0.70,
+  "required_signal_fields": ["symbol","direction","scenario","final_score","status","signal_id","provenance_complete"],
   "memory_states": ["AVAILABLE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"],
   "safety_boundaries": {
     "broker_order_submission": false,
