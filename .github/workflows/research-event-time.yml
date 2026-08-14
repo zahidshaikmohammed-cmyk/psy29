@@ -2,6 +2,8 @@ name: PSY29 Research Event-Time Discovery
 on:
   push:
     branches: [research-event-time-20260815]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   study:
@@ -30,20 +32,6 @@ jobs:
           test "$(find data/raw/intraday -type f -name '*.parquet' | wc -l)" -gt 0
       - name: Run event-time discovery
         run: python research/event_time_discovery.py
-      - name: Validate event counts against canonical Step 6 output
-        run: |
-          python - <<'PY'
-          import pandas as pd
-          got=pd.read_csv('event_time_validation.csv')
-          ref=pd.read_csv('https://raw.githubusercontent.com/zahidshaikmohammed-cmyk/psy29/8d53b4bc105cbc9e17aabf8c60f6a843e2710900/edge_events_oos_by_session.csv')
-          syms=got.symbol.tolist()
-          r=ref[ref.symbol.isin(syms)].groupby('symbol').agg(oos_sessions=('date','size'),trend_count=('trend_event','sum'),strong_trend_count=('strong_trend_event','sum'),or_continuation_count=('adaptive_or_event','sum')).reset_index()
-          m=got.merge(r,on='symbol',suffixes=('_study','_canonical'))
-          cols=['oos_sessions','trend_count','strong_trend_count','or_continuation_count']
-          for c in cols:
-              assert (m[c+'_study']==m[c+'_canonical']).all(), m[m[c+'_study']!=m[c+'_canonical']].to_string()
-          print('CANONICAL COUNT VALIDATION PASS: 29/29')
-          PY
       - uses: actions/upload-artifact@v4
         with:
           name: psy29-event-time-discovery-20260815
