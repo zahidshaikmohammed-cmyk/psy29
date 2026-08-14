@@ -32,30 +32,46 @@ PSY29 is event-driven, not fixed-time-driven. The system continuously monitors e
 
 Each of the 29 instruments retains its own historical timing profile for Trend, Strong Trend, and OR Continuation.
 
-- Q25–Q75: **soft historical priority window**.
+- Q25–Q75: **soft historical priority window only**.
 - Q75–P90: **late but historically valid**.
 - P90 to the hard cutoff: **extreme-late but still eligible**; no validation relaxation is permitted.
-- These windows prioritize observation/telemetry and must never act as hard signal gates.
+- These windows may affect Control Tower ranking/telemetry only. They must **never** reduce polling frequency, defer event evaluation, delay detection, suppress an event, or act as a hard signal gate.
 
 ### 4. Proposed final hard new-signal cutoff
 
-**15:00 IST.**
+**15:00:00 IST inclusive.**
 
-- New signal emission is permitted through the 15:00 decision boundary.
-- After 15:00 IST, no new Stage 20 signal may be emitted for that NSE session.
-- Existing monitoring/telemetry may continue for research and state tracking, but it cannot create a new trade signal.
+- If the objectively detected event timestamp is **<= 15:00:00 IST**, the event remains eligible for the existing Stage 6–20 chain and, if Stage 20 authorizes it, the emission layer may emit the signal subject to the daily emission lock.
+- If the objectively detected event timestamp is **> 15:00:00 IST**, no new Stage 20-authorized signal may be emitted for that NSE session.
+- Existing monitoring/telemetry may continue for research and state tracking, but it cannot create a new trade signal after the cutoff.
 
-### 5. One-signal-per-instrument-per-day
+### 5. Stage 20 authority versus emission gate
+
+The policy does **not** alter, reinterpret, downgrade, or replace Stage 20 authority.
+
+The sequence is strictly:
+
+**Existing upstream stages → Stage 20 authorization → emission gate → emitted signal.**
+
+- Stage 20 remains the sole authority that determines whether a trade is authorized.
+- The emission gate only determines whether an already-authorized signal may be emitted under this policy's timing and daily-lock constraints.
+- The emission gate must never convert a Stage 20 rejection into an approval or modify the content/meaning of a Stage 20 authorization.
+
+### 6. One-signal-per-instrument-per-day
 
 The emission layer shall enforce:
 
-**Maximum 1 emitted signal per instrument per NSE trading day.**
+**Maximum 1 emitted signal per instrument per NSE trading session-date.**
+
+The lock key is explicitly:
+
+**`instrument + NSE trading-session-date`**
 
 Once a genuine Stage 20-authorized signal is emitted for an instrument:
 
-- the instrument enters a daily emission lock;
-- later qualifying events may be observed internally but cannot produce a second signal that day;
-- the daily emission lock resets at the next NSE trading session.
+- that instrument/session key enters a daily emission lock;
+- later qualifying events may be observed internally but cannot produce a second emitted signal for that same instrument/session-date;
+- the lock resets only when a new valid NSE trading session-date begins, including correct handling of weekends and exchange holidays.
 
 This is an emission-layer rule and does not alter Stage 20's internal authority or contract.
 
@@ -89,6 +105,10 @@ Aggregate observations:
 
 The missing 30/60-minute values in late buckets are structurally unavailable where insufficient session time remained.
 
+### Evidence qualification
+
+The overall post-15:00 bucket contains **85 events**, but its event-type subsets are uneven and some are small; in particular, the post-15:00 OR Continuation subset contains only **9 events**. Therefore the evidence supports an operational cutoff based on distribution degradation and execution runway, but does **not** establish that every individual post-15:00 event type is intrinsically unprofitable or worthless.
+
 ### Distribution comparison
 
 - Before 14:30 vs 14:30–15:00 close-return distributions: **p = 5.49 × 10⁻⁶**.
@@ -99,7 +119,7 @@ The missing 30/60-minute values in late buckets are structurally unavailable whe
 
 ## Research conclusion
 
-15:00 is recommended as the final hard cutoff because post-15:00 events retain positive expectancy but show materially compressed execution runway and degraded close-return distribution relative to earlier detections. The evidence does **not** support the claim that post-15:00 events are worthless; it supports the operational conclusion that their remaining-session economics are no longer attractive enough to permit new live signal emission.
+15:00 is recommended as the final hard cutoff because post-15:00 events retain positive expectancy but show materially compressed execution runway and degraded close-return distribution relative to earlier detections. The evidence does **not** support the claim that post-15:00 events are worthless; it supports the operational conclusion that their remaining-session economics are no longer attractive enough to permit new live signal emission, while acknowledging the smaller late-event samples.
 
 ## Implementation status
 
