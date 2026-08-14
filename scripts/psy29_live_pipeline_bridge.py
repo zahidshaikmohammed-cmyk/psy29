@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """PSY29-only pipeline bridge.
 
-Live mode consumes the validated DHAN snapshot. Fixture mode consumes an
-explicit deterministic off-market fixture. Neither mode generates orders or
-executes trades.
+Live mode consumes the validated DHAN execution snapshot. Fixture mode consumes
+an explicit deterministic off-market execution fixture. Neither mode generates
+signals or executes trades.
 """
 from __future__ import annotations
 
@@ -14,9 +14,12 @@ from pathlib import Path
 
 import pandas as pd
 
-REQUIRED = {
-    "symbol", "timestamp", "last_price", "vwap", "ema9", "ema20",
-    "first15_high", "first15_low", "security_id", "exchange_segment"
+REQUIRED_STAGE11_LIVE = {
+    "symbol", "timestamp",
+    "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m", "avg_volume_20_1m",
+    "open_5m", "high_5m", "low_5m", "close_5m", "volume_5m", "avg_volume_20_5m",
+    "vwap_5m", "ema9_5m", "ema20_5m",
+    "first15_high", "first15_low", "swing_high", "swing_low",
 }
 
 
@@ -49,22 +52,26 @@ def main() -> None:
         raise ValueError("canonical universe must be exactly 29 unique symbols")
 
     df = pd.read_csv(a.snapshot)
-    if set(df.columns) < REQUIRED:
-        raise ValueError("pipeline snapshot missing required fields")
+    missing = REQUIRED_STAGE11_LIVE - set(df.columns)
+    if missing:
+        raise ValueError(f"pipeline snapshot missing Stage 11 live fields: {sorted(missing)}")
+
     actual = df["symbol"].astype(str).str.upper().tolist()
     if len(actual) != 29 or len(set(actual)) != 29 or set(actual) != set(symbols):
         raise ValueError("pipeline snapshot 29/29 coverage mismatch")
 
-    freshness = df["freshness_status"].astype(str).str.upper()
+    freshness = df.get("freshness_status", pd.Series(dtype=str)).astype(str).str.upper()
     if a.mode == "live":
-        if not (freshness == "FRESH").all():
-            raise ValueError("live snapshot contains non-fresh rows")
+        if len(freshness) != 29 or not (freshness == "FRESH").all():
+            raise ValueError("live execution snapshot contains non-fresh rows")
     else:
-        if not (freshness == "FIXTURE").all():
-            raise ValueError("fixture snapshot must contain explicit FIXTURE freshness status")
+        if len(freshness) != 29 or not (freshness == "FIXTURE").all():
+            raise ValueError("fixture execution snapshot must contain explicit FIXTURE freshness status")
 
-    if df["security_id"].astype(str).eq("").any():
-        raise ValueError("missing security id")
+    for field in REQUIRED_STAGE11_LIVE - {"symbol", "timestamp"}:
+        numeric = pd.to_numeric(df[field], errors="coerce")
+        if numeric.isna().any():
+            raise ValueError(f"pipeline snapshot contains non-numeric values in {field}")
 
     out = a.output
     out.mkdir(parents=True, exist_ok=True)
@@ -78,8 +85,10 @@ def main() -> None:
         "mode": a.mode,
         "live_data": a.mode == "live",
         "generated_at": generated,
-        "source": "PSY29 live_snapshot.csv" if a.mode == "live" else "PSY29 deterministic pipeline fixture",
+        "source": "PSY29 execution_snapshot.csv" if a.mode == "live" else "PSY29 deterministic execution fixture",
         "coverage": {"expected": 29, "actual": 29, "unique": 29},
+        "stage11_live_compatibility": True,
+        "stage11_required_fields": sorted(REQUIRED_STAGE11_LIVE),
         "fresh_count": 29 if a.mode == "live" else 0,
         "fixture_count": 0 if a.mode == "live" else 29,
         "signal_generation": False,
