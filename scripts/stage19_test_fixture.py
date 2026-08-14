@@ -12,17 +12,18 @@ def main():
     if len(syms)!=29 or len(set(syms))!=29:raise ValueError("canonical universe must be 29 unique symbols")
     a.output.mkdir(parents=True,exist_ok=True);hist=a.output/"history";hist.mkdir(exist_ok=True)
     now=datetime.now(timezone.utc).replace(microsecond=0)
+    # snapshot1, snapshot2, snapshot3, current Stage 17 state.
     patterns=[
-        ("STABLE","STABLE","STABLE","STABLE"),
-        ("STABLE","EMERGING","CHANGED","INVALIDATED"),
-        ("EMERGING","EMERGING","EMERGING","EMERGING"),
-        ("EMERGING","EMERGING","EMERGING","STABLE"),
-        ("STABLE","STABLE","STABLE","CHANGED"),
-        ("STABLE","CHANGED","STABLE","STABLE"),
-        ("STABLE","CHANGED","CHANGED","CHANGED"),
-        ("STABLE","STABLE","STABLE","UNSTABLE"),
-        ("STABLE","STABLE","STABLE","UNSTABLE"),
-        ("STABLE","STABLE","STABLE","INVALIDATED"),
+        ("STABLE","STABLE","STABLE","STABLE"),       # NO_TRANSITION
+        ("STABLE","STABLE","STABLE","CHANGED"),      # TRANSITION_DETECTED
+        ("EMERGING","EMERGING","EMERGING","EMERGING"),# TRANSITION_PERSISTING
+        ("EMERGING","EMERGING","EMERGING","STABLE"), # TRANSITION_REVERSING
+        ("CHANGED","CHANGED","STABLE","STABLE"),    # NO_CHANGE_POINT
+        ("STABLE","STABLE","CHANGED","STABLE"),     # EMERGING_CHANGE_POINT
+        ("STABLE","STABLE","STABLE","CHANGED"),     # CONFIRMED_CHANGE_POINT
+        ("STABLE","STABLE","STABLE","UNSTABLE"),    # CHANGE_POINT_UNSTABLE
+        ("STABLE","STABLE","STABLE","CHANGED"),     # INSUFFICIENT_TRANSITION_EVIDENCE
+        ("STABLE","STABLE","STABLE","INVALIDATED"), # PROVENANCE_FAIL
     ]
     current=[]
     for i,s in enumerate(syms):
@@ -33,8 +34,7 @@ def main():
         with path.open("w",encoding="utf-8",newline="") as f:
             w=csv.DictWriter(f,fieldnames=list(records[0]));w.writeheader();w.writerows(records)
     write(a.output/"stage17.csv",current)
-    # Keep the seventh pattern free to produce NO_CHANGE_POINT; inject insufficient evidence separately.
-    r18_states=["CONTINUOUS","CHANGED","NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION","RECOVERED","CHANGED","HISTORY_UNAVAILABLE","CHANGED","PROVENANCE_FAIL"]
+    r18_states=["CONTINUOUS","CHANGED","PERSISTENT_DETERIORATION","RECOVERED","CHANGED","CHANGED","NEW_STATE","CHANGED","HISTORY_UNAVAILABLE","PROVENANCE_FAIL"]
     r18=[{"symbol":s,"stage18_state":r18_states[i%len(r18_states)],"timestamp":now.isoformat(),"provenance":"fixture-stage18"} for i,s in enumerate(syms)]
     write(a.output/"stage18.csv",r18)
     for n in range(5,17):
