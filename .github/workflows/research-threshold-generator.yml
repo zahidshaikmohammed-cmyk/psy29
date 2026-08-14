@@ -1,0 +1,105 @@
+name: PSY29 Research Threshold Generator
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas pyarrow numpy pytest
+
+      - name: Run deterministic generator tests
+        run: pytest -q tests/test_threshold_generator.py
+
+      - name: Download canonical Step 2 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/psy29_step2
+          mkdir -p /tmp/psy29_step2
+          gh run download 31702235542 --repo "${GITHUB_REPOSITORY}" \
+            --name "psy29-step2-intraday-2026-01-01-2026-08-13" \
+            --dir /tmp/psy29_step2
+
+      - name: Locate canonical 29-stock parquet directory
+        id: locate
+        run: |
+          FILE="$(find /tmp/psy29_step2 -type f -name 'NESTLEIND.parquet' | head -n 1)"
+          test -n "$FILE"
+          DATA_DIR="$(dirname "$FILE")"
+          for s in NESTLEIND VEDL ICICIPRULI KALYANKJIL KOTAKBANK BANDHANBNK BANKBARODA TITAN INFY DLF TCS MAXHEALTH KFINTECH PRESTIGE BHEL RBLBANK HCLTECH ICICIGI HDFCLIFE MARICO LUPIN COFORGE TECHM SWIGGY PERSISTENT OBEROIRLTY SUPREMEIND LAURUSLABS AMBUJACEM; do test -f "$DATA_DIR/$s.parquet" || { echo "missing $s"; exit 1; }; done
+          echo "data_dir=$DATA_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Build canonical dataset manifest hash
+        id: dataset
+        run: |
+          DATA_DIR="${{ steps.locate.outputs.data_dir }}"
+          python - "$DATA_DIR" <<'PY'
+          import hashlib, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          rows=[]
+          for p in sorted(root.glob('*.parquet')):
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              rows.append(f"{h}  {p.name}")
+          digest=hashlib.sha256(("\n".join(rows)+"\n").encode()).hexdigest()
+          print(digest)
+          pathlib.Path("/tmp/dataset_sha256").write_text(digest)
+          PY
+          echo "sha256=$(cat /tmp/dataset_sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate V2 threshold artifact
+        run: |
+          mkdir -p artifacts
+          python research/threshold_generator.py \
+            --data-dir "${{ steps.locate.outputs.data_dir }}" \
+            --out artifacts/PSY29_EVENT_DETECTOR_THRESHOLDS_V2.json \
+            --validation artifacts/threshold_generation_validation.json \
+            --dataset-sha256 "${{ steps.dataset.outputs.sha256 }}" \
+            --generator-commit "${GITHUB_SHA}"
+
+      - name: Structural artifact validation
+        run: |
+          python - <<'PY'
+          import json, math
+          from pathlib import Path
+          a=json.loads(Path('artifacts/PSY29_EVENT_DETECTOR_THRESHOLDS_V2.json').read_text())
+          assert a['schema']=='PSY29_EVENT_DETECTOR_THRESHOLDS_V2'
+          assert a['methodology']=={'train_sessions':60,'test_sessions':20,'step_sessions':20,'timezone':'Asia/Kolkata'}
+          assert a['universe']['count']==29 and len(a['universe']['symbols'])==29
+          assert a['threshold_set_count']==len(a['threshold_sets'])
+          assert a['threshold_set_count']>0
+          for x in a['threshold_sets']:
+              assert x['training_window']['session_count']==60
+              assert x['oos_window']['session_count']==20
+              assert x['training_window']['end'] < x['effective_nse_session_date']
+              assert x['oos_window']['start']==x['effective_nse_session_date']
+              assert x['hard_earliest_offset']=={'Trend':0,'Strong Trend':0,'OR Continuation':15}
+              assert set(x['thresholds'])=={'r75','r85','e60','e75','or75','ext60'}
+              assert all(math.isfinite(float(v)) for v in x['thresholds'].values())
+          print('V2 STRUCTURAL VALIDATION: PASS')
+          print('threshold_set_count=', a['threshold_set_count'])
+          print('dataset_sha256=', a['dataset_provenance']['dataset_sha256'])
+          print('generator_commit=', a['generator_provenance']['generator_commit'])
+          PY
+
+      - name: Upload complete research artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-event-detector-thresholds-v2-20260815
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 90
