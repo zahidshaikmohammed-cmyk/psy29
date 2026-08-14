@@ -16,17 +16,14 @@ jobs:
     steps:
       - name: Checkout research branch
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install research dependencies
         run: |
           python -m pip install --upgrade pip
           pip install 'pandas>=2.2,<3' 'numpy>=2.0,<3' 'pyarrow>=17,<20'
-
       - name: Download canonical Step 2 dataset
         uses: actions/download-artifact@v4
         with:
@@ -35,7 +32,6 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: 31702235542
-
       - name: Download completed event-time research artifact
         uses: actions/download-artifact@v4
         with:
@@ -44,21 +40,17 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: 31835341401
-
       - name: Verify source artifacts
         run: |
           test -d input/data/raw/intraday
           test -f event_time/event_time_summary.csv
           echo "Canonical Step 2 parquet files: $(find input/data/raw/intraday -name '*.parquet' | wc -l)"
           echo "Event-time summary rows: $(wc -l < event_time/event_time_summary.csv)"
-
       - name: Run post-detection expectancy study
         run: |
-          python scripts/research_post_detection_expectancy.py \
-            --input input/data/raw/intraday \
-            --summary event_time/event_time_summary.csv \
-            --output output/post_detection_expectancy
-
+          sed -i "s/,'close')/,'close']/g" scripts/research_post_detection_expectancy.py
+          python -m py_compile scripts/research_post_detection_expectancy.py
+          python scripts/research_post_detection_expectancy.py --input input/data/raw/intraday --summary event_time/event_time_summary.csv --output output/post_detection_expectancy
       - name: Upload complete research artifact
         uses: actions/upload-artifact@v4
         with:
