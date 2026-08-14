@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/psy29_integrated_service.py'
+      - 'scripts/psy29_recent_dhan_snapshot.py'
+      - 'scripts/test_psy29_recent_dhan_snapshot.py'
       - '.github/workflows/psy29-signal-terminal.yml'
   workflow_dispatch:
 permissions:
@@ -19,8 +21,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Compile signal terminal
-        run: python -m py_compile scripts/psy29_integrated_service.py
+      - name: Compile signal terminal and recent-data path
+        run: python -m py_compile scripts/psy29_integrated_service.py scripts/psy29_recent_dhan_snapshot.py scripts/test_psy29_recent_dhan_snapshot.py
+      - name: Run deterministic recent-data tests
+        run: pytest -q scripts/test_psy29_recent_dhan_snapshot.py
       - name: Verify canonical universe
         run: |
           python - <<'PY'
@@ -42,4 +46,15 @@ jobs:
           assert c['strategy_authority']['stop_loss_owner']=='selected_strategy'
           assert c['strategy_authority']['take_profit_owner']=='selected_strategy'
           print('STAGE 20 AUTHORITY: PASS')
+          PY
+      - name: Verify recent-data path is explicitly non-live and DHAN-backed
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('scripts/psy29_recent_dhan_snapshot.py').read_text(encoding='utf-8')
+          assert 'PSY29_RECENT_DHAN_MARKET_DATA' in text
+          assert 'provider' in text and 'DHAN' in text
+          assert 'live_data' in text and 'False' in text
+          assert 'config/psy29_live_universe_contract.json' not in text
+          print('RECENT DHAN DISPLAY PATH: PASS')
           PY
