@@ -1,0 +1,126 @@
+name: PSY29 Stage 19 - Forward State Transition Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage19:
+    name: PSY29 Stage 19 Hard Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify Stage 19 files
+        run: |
+          set -e
+          test -f config/psy29_stage19_forward_state_transition_contract.json
+          test -f scripts/stage19_forward_transition.py
+          test -f scripts/stage19_test_fixture.py
+          test -f scripts/stage19_check.py
+          echo "STAGE 19 FILES: PASS"
+
+      - name: Validate Stage 19 contract
+        run: |
+          python - <<'PY'
+          import json
+          p='config/psy29_stage19_forward_state_transition_contract.json'
+          c=json.load(open(p,encoding='utf-8'))
+          assert c['stage']==19 and c['version']=='1.0' and c['status']=='LOCKED'
+          assert c['coverage']=={'expected':29,'required':True,'partial_pass':False}
+          assert len(c['allowed_states'])==10
+          assert c['fail_closed'] is True
+          assert c['provenance_required'] is True
+          assert c['cross_stage_consistency_required'] is True
+          assert all(v is True for v in c['safety_boundaries'].values())
+          print('STAGE 19 CONTRACT: PASS')
+          PY
+
+      - name: Compile Stage 19 Python
+        run: |
+          set -e
+          python -m py_compile scripts/stage19_forward_transition.py
+          python -m py_compile scripts/stage19_test_fixture.py
+          python -m py_compile scripts/stage19_check.py
+          echo "STAGE 19 PYTHON SYNTAX: PASS"
+
+      - name: Verify canonical 29
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))
+          u=d['universe']
+          s=[str(x['symbol']).strip().upper() for x in u]
+          assert len(s)==29 and len(set(s))==29
+          print('CANONICAL 29: PASS')
+          PY
+
+      - name: Create deterministic Stage 19 fixture
+        run: |
+          set -e
+          rm -rf /tmp/psy29_stage19_fixture /tmp/psy29_stage19_output
+          mkdir -p /tmp/psy29_stage19_fixture /tmp/psy29_stage19_output
+          python scripts/stage19_test_fixture.py \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage19_fixture
+
+      - name: Run Stage 19
+        run: |
+          set -e
+          python scripts/stage19_forward_transition.py \
+            --contract config/psy29_stage19_forward_state_transition_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --stage17 /tmp/psy29_stage19_fixture/stage17.csv \
+            --stage18 /tmp/psy29_stage19_fixture/stage18.csv \
+            --history /tmp/psy29_stage19_fixture/history \
+            --output /tmp/psy29_stage19_output
+
+      - name: Verify Stage 19 outputs
+        run: |
+          set -e
+          test -f /tmp/psy29_stage19_output/PSY29_STAGE19_TRANSITION_BOARD.json
+          test -f /tmp/psy29_stage19_output/PSY29_STAGE19_TRANSITION_BOARD.csv
+          test -f /tmp/psy29_stage19_output/PSY29_STAGE19_VALIDATION.json
+          echo "STAGE 19 OUTPUTS: PASS"
+
+      - name: HARD VERIFY Stage 19
+        run: |
+          set -e
+          python scripts/stage19_check.py \
+            --contract config/psy29_stage19_forward_state_transition_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --output /tmp/psy29_stage19_output
+
+      - name: Verify final Stage 19 status
+        run: |
+          python - <<'PY'
+          import json
+          p='/tmp/psy29_stage19_output/PSY29_STAGE19_VALIDATION.json'
+          v=json.load(open(p,encoding='utf-8'))
+          assert v['validation_status']=='PASS'
+          assert v['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert len(v['output_states_observed'])==10
+          print('PSY29 STAGE 19 FINAL VALIDATION: PASS')
+          print('29/29 coverage: PASS')
+          print('10/10 canonical states: PASS')
+          print('Fail-closed: PASS')
+          print('Provenance gate: PASS')
+          print('Safety boundaries: PASS')
+          PY
+
+      - name: Upload Stage 19 validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-stage19-validation
+          path: /tmp/psy29_stage19_output/
+          if-no-files-found: error
