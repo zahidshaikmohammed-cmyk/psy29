@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -26,5 +28,6 @@ jobs:
         run: pytest -q tests/test_event_detector.py
       - name: Verify protected production boundaries
         run: |
-          git diff --exit-code origin/main -- scripts/step6_edge_events.py scripts/step6_edge_events_v3.py scripts/psy29_live_pipeline_bridge.py || true
+          git fetch origin main --depth=1
+          test "$(git diff --name-only origin/main...HEAD -- scripts/step6_edge_events.py scripts/step6_edge_events_v3.py scripts/psy29_live_pipeline_bridge.py | wc -l)" -eq 0
           test ! -f runtime/live/PSY29_EMISSION_LEDGER.json
