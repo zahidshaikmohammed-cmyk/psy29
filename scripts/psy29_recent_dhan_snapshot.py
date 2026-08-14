@@ -22,12 +22,16 @@ from scripts.psy29_live_dhan_acquisition import add_indicators, build_execution_
 from dhan.client import DhanClient
 
 IST = ZoneInfo("Asia/Kolkata")
+MARKET_CLOSE = dtime(15, 30)
+MARKET_OPEN = dtime(9, 15)
 MAX_LOOKBACK_DAYS = 10
 
 
 def candidate_dates(now: datetime, limit: int = MAX_LOOKBACK_DAYS) -> list:
     dates = []
-    day = now.date() - timedelta(days=1)
+    day = now.date()
+    if not (now.weekday() < 5 and now.time() > MARKET_CLOSE):
+        day -= timedelta(days=1)
     while len(dates) < limit:
         if day.weekday() < 5:
             dates.append(day)
@@ -36,7 +40,7 @@ def candidate_dates(now: datetime, limit: int = MAX_LOOKBACK_DAYS) -> list:
 
 
 def fetch_day(client: DhanClient, security_id: str, session_date):
-    start = datetime.combine(session_date, dtime(9, 15), tzinfo=IST)
+    start = datetime.combine(session_date, MARKET_OPEN, tzinfo=IST)
     end = start + timedelta(days=1)
     payload = {
         "securityId": str(security_id),
