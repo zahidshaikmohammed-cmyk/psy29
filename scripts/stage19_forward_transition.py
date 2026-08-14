@@ -51,7 +51,7 @@ def scan(x,path="root"):
             if str(k).upper() in BLOCKED:out.append(f"{path}.{k}")
             out.extend(scan(v,f"{path}.{k}"))
     elif isinstance(x,list):
-        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]"))
+        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]))")
     return out
 
 def universe(p):
@@ -72,7 +72,6 @@ def index(p,expected,label):
     return out
 
 def transition(current,history):
-    # History contains only prior verified snapshots; current Stage 17 is separate.
     if current in {"DATA_STALE","DATA_INVALID"}:return "INSUFFICIENT_TRANSITION_EVIDENCE"
     if len(history)<2:return "INSUFFICIENT_TRANSITION_EVIDENCE"
     prev,prev2=history[-1],history[-2]
@@ -109,15 +108,16 @@ def main():
         if state not in STAGE17:raise ValueError(f"invalid Stage 17 state for {s}")
         if r18state not in STAGE18:raise ValueError(f"invalid Stage 18 state for {s}")
         ok=prov(r17) and prov(r18)
-        if not ok:final="PROVENANCE_FAIL"
-        else:
-            hs=[]
+        hs=[]
+        if snapshots:
             for snap in snapshots:
                 x=str(val(snap[s],"stage17_state","state") or "").upper()
                 if x not in STAGE17:raise ValueError(f"invalid historical state for {s}")
                 hs.append(x)
-            final=transition(state,hs)
-        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"current_stage17_state":state,"stage18_continuity_state":r18state,"history_depth":len(snapshots),"previous_state":(hs[-1] if ok and snapshots else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
+        if not ok:final="PROVENANCE_FAIL"
+        elif r18state in {"HISTORY_UNAVAILABLE","HISTORY_INVALID"} or len(hs)<2:final="INSUFFICIENT_TRANSITION_EVIDENCE"
+        else:final=transition(state,hs)
+        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"current_stage17_state":state,"stage18_continuity_state":r18state,"history_depth":len(snapshots),"previous_state":(hs[-1] if hs else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
     payload={"stage":19,"version":"1.0","status":"PASS","records":rec,"coverage":{"expected":29,"actual":len(rec),"unique":len({r['symbol'] for r in rec})},"safety":{"trading_decision_forbidden":True,"execution_forbidden":True},"provenance_required":True}
     bad=scan(payload)
     if bad:raise ValueError("blocked fields detected: "+str(bad))
