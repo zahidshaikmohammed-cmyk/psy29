@@ -5,8 +5,6 @@ import argparse,csv,json
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
 
-S18=["CONTINUOUS","CHANGED","NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION","RECOVERED","HISTORY_UNAVAILABLE","HISTORY_INVALID","PROVENANCE_FAIL"]
-
 def main():
     p=argparse.ArgumentParser();p.add_argument("--universe",required=True,type=Path);p.add_argument("--output",required=True,type=Path);a=p.parse_args()
     u=json.loads(a.universe.read_text(encoding="utf-8"))["universe"]
@@ -14,21 +12,18 @@ def main():
     if len(syms)!=29 or len(set(syms))!=29:raise ValueError("canonical universe must be 29 unique symbols")
     a.output.mkdir(parents=True,exist_ok=True);hist=a.output/"history";hist.mkdir(exist_ok=True)
     now=datetime.now(timezone.utc).replace(microsecond=0)
-    # (snapshot1, snapshot2, snapshot3, current Stage 17).
     patterns=[
-        ("STABLE","STABLE","STABLE","STABLE"),       # NO_TRANSITION
-        ("STABLE","EMERGING","CHANGED","UNSTABLE"), # TRANSITION_DETECTED is overridden by UNSTABLE, so see pattern 3 below
-        ("EMERGING","EMERGING","EMERGING","EMERGING"),# TRANSITION_PERSISTING
-        ("EMERGING","EMERGING","EMERGING","STABLE"), # TRANSITION_REVERSING
-        ("STABLE","STABLE","STABLE","CHANGED"),     # CONFIRMED_CHANGE_POINT
-        ("STABLE","CHANGED","STABLE","STABLE"),     # EMERGING_CHANGE_POINT
-        ("STABLE","CHANGED","CHANGED","CHANGED"),   # NO_CHANGE_POINT
-        ("STABLE","STABLE","CHANGED","CHANGED"),    # TRANSITION_DETECTED
-        ("STABLE","STABLE","STABLE","UNSTABLE"),    # CHANGE_POINT_UNSTABLE
-        ("STABLE","STABLE","STABLE","INVALIDATED"), # PROVENANCE_FAIL
+        ("STABLE","STABLE","STABLE","STABLE"),
+        ("STABLE","EMERGING","CHANGED","INVALIDATED"),
+        ("EMERGING","EMERGING","EMERGING","EMERGING"),
+        ("EMERGING","EMERGING","EMERGING","STABLE"),
+        ("STABLE","STABLE","STABLE","CHANGED"),
+        ("STABLE","CHANGED","STABLE","STABLE"),
+        ("STABLE","CHANGED","CHANGED","CHANGED"),
+        ("STABLE","STABLE","STABLE","UNSTABLE"),
+        ("STABLE","STABLE","STABLE","UNSTABLE"),
+        ("STABLE","STABLE","STABLE","INVALIDATED"),
     ]
-    # Pattern 2 above is deliberately changed to produce a true transition-detected case.
-    patterns[1]=("STABLE","EMERGING","CHANGED","INVALIDATED")
     current=[]
     for i,s in enumerate(syms):
         ptn=patterns[i%len(patterns)]
@@ -38,7 +33,9 @@ def main():
         with path.open("w",encoding="utf-8",newline="") as f:
             w=csv.DictWriter(f,fieldnames=list(records[0]));w.writeheader();w.writerows(records)
     write(a.output/"stage17.csv",current)
-    r18=[{"symbol":s,"stage18_state":S18[i%len(S18)],"timestamp":now.isoformat(),"provenance":"fixture-stage18"} for i,s in enumerate(syms)]
+    # Keep the seventh pattern free to produce NO_CHANGE_POINT; inject insufficient evidence separately.
+    r18_states=["CONTINUOUS","CHANGED","NEW_STATE","PERSISTENT_DETERIORATION","PERSISTENT_INVALIDATION","RECOVERED","CHANGED","HISTORY_UNAVAILABLE","CHANGED","PROVENANCE_FAIL"]
+    r18=[{"symbol":s,"stage18_state":r18_states[i%len(r18_states)],"timestamp":now.isoformat(),"provenance":"fixture-stage18"} for i,s in enumerate(syms)]
     write(a.output/"stage18.csv",r18)
     for n in range(5,17):
         rr=[{"symbol":s,"timestamp":now.isoformat(),"provenance":f"fixture-stage{n}"} for s in syms]
