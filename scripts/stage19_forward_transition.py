@@ -51,7 +51,7 @@ def scan(x,path="root"):
             if str(k).upper() in BLOCKED:out.append(f"{path}.{k}")
             out.extend(scan(v,f"{path}.{k}"))
     elif isinstance(x,list):
-        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]))")
+        for i,v in enumerate(x):out.extend(scan(v,f"{path}[{i}]") )
     return out
 
 def universe(p):
