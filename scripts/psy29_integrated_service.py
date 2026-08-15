@@ -1,96 +1,248 @@
 #!/usr/bin/env python3
 """PSY29 free Render service: live acquisition, validation, and read-only signal terminal."""
 from __future__ import annotations
-import csv,json,os,subprocess,sys,threading,time
-from datetime import datetime,timezone
-from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+
+import csv
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
-ROOT=Path(__file__).resolve().parents[1]; OUT=ROOT/"runtime/live"; OUT.mkdir(parents=True,exist_ok=True)
-STATE={"status":"STARTING","error":None,"last_cycle":None}; LOCK=threading.Lock()
-UNIVERSE=ROOT/"config/psy29_live_universe_contract.json"
-PIPELINE=OUT/"live_pipeline_input.csv"; PV=OUT/"live_pipeline_input_validation.json"; AV=OUT/"live_acquisition_validation.json"
-RECENT=OUT/"recent_market_snapshot.csv"; RV=OUT/"recent_market_data_validation.json"
-BOARD=OUT/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json"; SIGNALS=OUT/"PSY29_STAGE20_FINAL_SIGNALS.csv"
+from urllib.parse import unquote, urlparse
 
-def rj(p,d=None):
- try:return json.loads(p.read_text(encoding="utf-8"))
- except Exception:return d
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "runtime/live"
+OUT.mkdir(parents=True, exist_ok=True)
+STATE = {"status": "STARTING", "error": None, "last_cycle": None}
+LOCK = threading.Lock()
+UNIVERSE = ROOT / "config/psy29_live_universe_contract.json"
+PIPELINE = OUT / "live_pipeline_input.csv"
+PV = OUT / "live_pipeline_input_validation.json"
+AV = OUT / "live_acquisition_validation.json"
+RECENT = OUT / "recent_market_snapshot.csv"
+RV = OUT / "recent_market_data_validation.json"
+BOARD = OUT / "PSY29_STAGE20_FINAL_SIGNAL_BOARD.json"
+SIGNALS = OUT / "PSY29_STAGE20_FINAL_SIGNALS.csv"
+PAGE = ROOT / "web/psy29_signals.html"
 
-def rc(p):
- try:
-  with p.open("r",encoding="utf-8",newline="") as f:return list(csv.DictReader(f))
- except Exception:return []
+
+def rj(path: Path, default=None):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def rc(path: Path):
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            return list(csv.DictReader(handle))
+    except Exception:
+        return []
+
 
 def symbols():
- d=rj(UNIVERSE,{}) or {}; return [str(x["symbol"]).strip().upper() for x in d.get("universe",[]) if isinstance(x,dict) and x.get("symbol")]
+    data = rj(UNIVERSE, {}) or {}
+    return [
+        str(item["symbol"]).strip().upper()
+        for item in data.get("universe", [])
+        if isinstance(item, dict) and item.get("symbol")
+    ]
+
 
 def recent_ready():
- v=rj(RV,{}) or {}
- if v.get("status")!="PASS" or v.get("provider")!="DHAN" or v.get("live_data") is not False:return False
- c=v.get("coverage") or {}; rows=rc(RECENT)
- if c.get("expected")!=29 or c.get("actual")!=29 or c.get("unique")!=29 or len(rows)!=29:return False
- if str(v.get("market_data_kind"))!="MOST_RECENT_COMPLETED_NSE_SESSION":return False
- if {str(r.get("market_data_kind")) for r in rows}!={"MOST_RECENT_COMPLETED_NSE_SESSION"}:return False
- if any(str(r.get("freshness_status"))!="RECENT_HISTORICAL" for r in rows):return False
- if len({str(r.get("session_date")) for r in rows})!=1:return False
- return str(rows[0].get("session_date"))==str(v.get("session_date"))
+    validation = rj(RV, {}) or {}
+    if validation.get("status") != "PASS":
+        return False
+    if validation.get("provider") != "DHAN":
+        return False
+    if validation.get("live_data") is not False:
+        return False
+    coverage = validation.get("coverage") or {}
+    rows = rc(RECENT)
+    if coverage.get("expected") != 29 or coverage.get("actual") != 29 or coverage.get("unique") != 29 or len(rows) != 29:
+        return False
+    if str(validation.get("market_data_kind")) != "MOST_RECENT_COMPLETED_NSE_SESSION":
+        return False
+    if {str(row.get("market_data_kind")) for row in rows} != {"MOST_RECENT_COMPLETED_NSE_SESSION"}:
+        return False
+    if any(str(row.get("freshness_status")) != "RECENT_HISTORICAL" for row in rows):
+        return False
+    if len({str(row.get("session_date")) for row in rows}) != 1:
+        return False
+    return str(rows[0].get("session_date")) == str(validation.get("session_date"))
+
 
 def recent_stale(max_age_seconds=600):
- if not recent_ready(): return True
- v=rj(RV,{}) or {}
- try:
-  generated=datetime.fromisoformat(str(v["generated_at"]).replace("Z","+00:00")); return (datetime.now(timezone.utc)-generated).total_seconds()>max_age_seconds
- except Exception:return True
+    if not recent_ready():
+        return True
+    validation = rj(RV, {}) or {}
+    try:
+        generated = datetime.fromisoformat(str(validation["generated_at"]).replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - generated).total_seconds() > max_age_seconds
+    except Exception:
+        return True
+
 
 def signal_data():
- v=rj(PV,{}) or {}; b=rj(BOARD,{}) or {}; rows=rc(SIGNALS); live=v.get("live_data") is True
- recent_v=rj(RV,{}) or {}; recent_ok=recent_ready(); ok=str(b.get("status","")).upper() in {"PASS","VALID","READY"}
- sig=[x for x in rows if str(x.get("signal_status","")).upper() not in {"","NO_SIGNAL","INVALID","REJECTED"}] if live and ok else []
- if live: coverage=v.get("coverage",{"expected":29,"actual":0,"unique":0}); timestamp=b.get("timestamp") or v.get("timestamp"); kind="LIVE_DHAN"; session_date=None
- else: coverage=recent_v.get("coverage",{"expected":29,"actual":0,"unique":0}) if recent_ok else {"expected":29,"actual":0,"unique":0}; timestamp=recent_v.get("generated_at") if recent_ok else None; kind="MOST_RECENT_COMPLETED_NSE_SESSION" if recent_ok else "UNAVAILABLE"; session_date=recent_v.get("session_date") if recent_ok else None
- return {"service":"PSY29 LIVE SIGNAL BOARD","status":"LIVE" if live else "OFF_MARKET","live_data":live,"provider":"DHAN","market_data_kind":kind,"live_session_data":live,"signal_generation":False,"order_execution":False,"coverage":coverage,"timestamp":timestamp,"recent_session_date":session_date,"recent_validation_status":"PASS" if recent_ok else "UNAVAILABLE","signals":sig,"active_signal_count":len(sig),"message":None if sig else "NO ACTIVE PSY29 SIGNAL"}
+    validation = rj(PV, {}) or {}
+    board = rj(BOARD, {}) or {}
+    rows = rc(SIGNALS)
+    live = validation.get("live_data") is True
+    recent_validation = rj(RV, {}) or {}
+    recent_ok = recent_ready()
+    board_ok = str(board.get("status", "")).upper() in {"PASS", "VALID", "READY"}
+    active = (
+        [
+            row for row in rows
+            if str(row.get("signal_status", "")).upper() not in {"", "NO_SIGNAL", "INVALID", "REJECTED"}
+        ]
+        if live and board_ok else []
+    )
+    if live:
+        coverage = validation.get("coverage", {"expected": 29, "actual": 0, "unique": 0})
+        timestamp = board.get("timestamp") or validation.get("timestamp")
+        kind = "LIVE_DHAN"
+        session_date = None
+    else:
+        coverage = recent_validation.get("coverage", {"expected": 29, "actual": 0, "unique": 0}) if recent_ok else {"expected": 29, "actual": 0, "unique": 0}
+        timestamp = recent_validation.get("generated_at") if recent_ok else None
+        kind = "MOST_RECENT_COMPLETED_NSE_SESSION" if recent_ok else "UNAVAILABLE"
+        session_date = recent_validation.get("session_date") if recent_ok else None
+    return {
+        "service": "PSY29 LIVE SIGNAL BOARD",
+        "status": "LIVE" if live else "OFF_MARKET",
+        "live_data": live,
+        "provider": "DHAN",
+        "market_data_kind": kind,
+        "live_session_data": live,
+        "signal_generation": False,
+        "order_execution": False,
+        "coverage": coverage,
+        "timestamp": timestamp,
+        "recent_session_date": session_date,
+        "recent_validation_status": "PASS" if recent_ok else "UNAVAILABLE",
+        "signals": active,
+        "active_signal_count": len(active),
+        "message": None if active else "NO ACTIVE PSY29 SIGNAL",
+    }
+
 
 def instrument(symbol):
- symbol=symbol.strip().upper(); v=rj(PV,{}) or {}; b=rj(BOARD,{}) or {}; sig=next((x for x in rc(SIGNALS) if str(x.get("symbol","")).strip().upper()==symbol),None); live=v.get("live_data") is True
- source_rows=rc(PIPELINE) if live else (rc(RECENT) if recent_ready() else []); row=next((x for x in source_rows if str(x.get("symbol","")).strip().upper()==symbol),None)
- if not row:return {"symbol":symbol,"found":False,"live_data":live,"message":"Recent DHAN market data is not available yet." if not live else "Live instrument data not available yet."}
- keys=["open_1m","high_1m","low_1m","close_1m","volume_1m","open_5m","high_5m","low_5m","close_5m","volume_5m","vwap_5m","ema9_5m","ema20_5m","first15_high","first15_low","swing_high","swing_low","timestamp","freshness_status","session_date","market_data_kind"]
- return {"symbol":symbol,"found":True,"live_data":live,"market_data_kind":"LIVE_DHAN" if live else "MOST_RECENT_COMPLETED_NSE_SESSION","recent_session_date":rj(RV,{}).get("session_date") if not live and recent_ready() else None,"coverage":v.get("coverage") if live else rj(RV,{}).get("coverage"),"data":{k:row.get(k) for k in keys},"signal":sig if live else None,"strategy":(sig or {}).get("strategy") if live else None,"stage20_board_status":b.get("status")}
+    symbol = symbol.strip().upper()
+    validation = rj(PV, {}) or {}
+    board = rj(BOARD, {}) or {}
+    signal = next(
+        (row for row in rc(SIGNALS) if str(row.get("symbol", "")).strip().upper() == symbol),
+        None,
+    )
+    live = validation.get("live_data") is True
+    source_rows = rc(PIPELINE) if live else (rc(RECENT) if recent_ready() else [])
+    row = next((item for item in source_rows if str(item.get("symbol", "")).strip().upper() == symbol), None)
+    if not row:
+        return {
+            "symbol": symbol,
+            "found": False,
+            "live_data": live,
+            "message": "Recent DHAN market data is not available yet." if not live else "Live instrument data not available yet.",
+        }
+    keys = [
+        "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
+        "open_5m", "high_5m", "low_5m", "close_5m", "volume_5m",
+        "vwap_5m", "ema9_5m", "ema20_5m", "first15_high", "first15_low",
+        "swing_high", "swing_low", "timestamp", "freshness_status", "session_date",
+        "market_data_kind",
+    ]
+    return {
+        "symbol": symbol,
+        "found": True,
+        "live_data": live,
+        "market_data_kind": "LIVE_DHAN" if live else "MOST_RECENT_COMPLETED_NSE_SESSION",
+        "recent_session_date": rj(RV, {}).get("session_date") if not live and recent_ready() else None,
+        "coverage": validation.get("coverage") if live else rj(RV, {}).get("coverage"),
+        "data": {key: row.get(key) for key in keys},
+        "signal": signal if live else None,
+        "strategy": (signal or {}).get("strategy") if live else None,
+        "stage20_board_status": board.get("status"),
+    }
 
-PAGE='''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PSY29 Control Tower</title><style>
-:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#101214;color:#edf0f2}*{box-sizing:border-box}body{margin:0;background:#101214}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:#0a0c0e;border-right:1px solid #252a2f;padding:16px;overflow:auto}.brand{font-size:18px;font-weight:800;padding:8px 10px 4px}.brand small{display:block;color:#70777f;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px}.sub{font-size:10px;color:#70777f;letter-spacing:.12em;text-transform:uppercase;padding:18px 10px 8px}.stock{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:transparent;border-radius:8px;padding:8px 10px;margin:1px 0;color:#d9dde1;text-align:left;cursor:pointer}.stock:hover,.stock.active{background:#20252a}.dot{width:6px;height:6px;border-radius:50%;background:#53c982;display:inline-block;margin-right:8px}.rank{color:#697078;font-size:10px}.main{padding:24px;max-width:1500px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.eyebrow{font-size:10px;color:#7d858d;letter-spacing:.16em;text-transform:uppercase}.title{font-size:30px;font-weight:800;margin:4px 0}.muted{color:#858d95}.status{border:1px solid #30363d;background:#1a1f23;border-radius:18px;padding:8px 12px;font-size:11px;font-weight:700}.notice{margin-top:10px;padding:10px 12px;border:1px solid #30363d;border-radius:9px;background:#171b1f;color:#aeb5bb;font-size:11px}.hero{display:grid;grid-template-columns:1.45fr 1fr 1fr 1fr;gap:10px;margin:18px 0}.heroCard,.panel,.metric,.stage,.kv{background:#171b1f;border:1px solid #2a3036;border-radius:12px}.heroCard{padding:16px}.heroLabel{font-size:10px;color:#747c84;text-transform:uppercase;letter-spacing:.12em}.heroValue{font-size:22px;font-weight:800;margin-top:6px}.heroBig{font-size:28px}.section{margin-top:18px}.sectionTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}.sectionTitle h2{font-size:13px;margin:0}.sectionTitle span{font-size:10px;color:#687078;text-transform:uppercase;letter-spacing:.1em}.gate{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}.gate .kv{padding:11px}.gateGood .v{color:#62d392}.gateWarn .v{color:#e2c35c}.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.stage{padding:10px}.stageName{font-size:10px;color:#9da4aa;font-weight:700}.stageState{font-size:11px;margin-top:5px}.pass{color:#62d392}.final{border-color:#6a5d2c;background:#1d1b13}.final .stageState{color:#e2c35c}.opaque{color:#7e868d}.signal{padding:20px;background:#171b1f;border:1px solid #3a4148;border-radius:13px}.signalLive{border-color:#47795c;background:#141d18}.signalHead{display:flex;justify-content:space-between;align-items:center;gap:12px}.signalDir{font-size:26px;font-weight:850}.pill{padding:5px 9px;border-radius:14px;font-size:10px;font-weight:700;background:#22282d;color:#9ca5ad}.signalGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}.metric{padding:12px}.metricLabel{font-size:9px;color:#747c84;text-transform:uppercase;letter-spacing:.1em}.metricValue{font-size:18px;margin-top:5px;font-variant-numeric:tabular-nums}.empty{padding:28px;text-align:center;color:#929aa1;border:1px dashed #394047;border-radius:11px;background:#15191d}.marketGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.kv{padding:10px;border-radius:8px}.k{font-size:9px;color:#747c84;text-transform:uppercase;letter-spacing:.08em}.v{font-size:13px;margin-top:4px;font-variant-numeric:tabular-nums}.audit{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.audit .kv{min-height:55px}.foot{margin:22px 0 6px;color:#60686f;font-size:10px;text-align:center}@media(max-width:1000px){.hero,.gate{grid-template-columns:repeat(2,1fr)}.chain{grid-template-columns:repeat(3,1fr)}.signalGrid{grid-template-columns:repeat(3,1fr)}.marketGrid,.audit{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.app{grid-template-columns:1fr}.side{max-height:220px;border-right:0;border-bottom:1px solid #252a2f}.hero,.gate,.chain,.signalGrid,.marketGrid,.audit{grid-template-columns:1fr 1fr}.main{padding:16px}.title{font-size:25px}}
-</style></head><body><div class="app"><aside class="side"><div class="brand">PSY29 <small>Capital Control Tower</small></div><div class="sub">29 instrument universe</div><div id="stocks"></div></aside><main class="main"><div class="top"><div><div class="eyebrow">Read-only trading control tower</div><div class="title" id="title">Select instrument</div><div class="muted">Stage 20 remains the sole signal authority · no execution controls</div><div class="notice" id="notice">Loading DHAN provenance…</div></div><div class="status" id="status">CONNECTING</div></div><div class="hero"><div class="heroCard"><div class="heroLabel">Final signal authority</div><div class="heroValue heroBig" id="heroSignal">WAITING</div><div class="muted" id="heroSub">Awaiting live Stage 20 output</div></div><div class="heroCard"><div class="heroLabel">Market mode</div><div class="heroValue" id="heroMode">—</div><div class="muted" id="heroSession">—</div></div><div class="heroCard"><div class="heroLabel">Data integrity</div><div class="heroValue" id="heroCoverage">—</div><div class="muted">Canonical universe</div></div><div class="heroCard"><div class="heroLabel">Active signals</div><div class="heroValue" id="heroCount">0</div><div class="muted">Stage 20 output only</div></div></div><div class="section"><div class="sectionTitle"><h2>Data gate</h2><span>observable provenance</span></div><div class="gate" id="gate"></div></div><div class="section"><div class="sectionTitle"><h2>Signal dependency chain</h2><span>UI observability only · backend unchanged</span></div><div class="chain" id="chain"></div></div><div class="section"><div class="sectionTitle"><h2>Stage 20 final signal</h2><span>sole authority</span></div><div id="signal"></div></div><div class="section"><div class="sectionTitle"><h2>Selected market state</h2><span>DHAN source</span></div><div class="marketGrid" id="market"></div></div><div class="section"><div class="sectionTitle"><h2>Provenance & safety</h2><span>read-only</span></div><div class="audit" id="audit"></div></div><div class="foot">PSY29 Control Tower · presentation layer only · no signal logic added</div></main></div><script>
-let selected=null,universe=[];const esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const fmt=x=>{if(x===null||x===undefined||x==='')return '—';let n=Number(x);return Number.isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:2}):String(x)};async function j(u){return(await fetch(u,{cache:'no-store'})).json()}function kv(k,v,cls=''){return `<div class="kv ${cls}"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`}
-function renderGate(s){let c=s.coverage||{},ok=c.expected===29&&c.actual===29&&c.unique===29&&s.provider==='DHAN';document.getElementById('gate').innerHTML=[['DHAN source',s.provider||'—',ok?'gateGood':'gateWarn'],['29/29 universe',`${c.actual||0} / ${c.expected||29}`,ok?'gateGood':'gateWarn'],['Session',s.live_data?'LIVE':(s.recent_session_date||'UNAVAILABLE'),ok?'gateGood':'gateWarn'],['Signal generation',s.signal_generation?'ENABLED':'READ-ONLY / DISABLED',s.signal_generation?'gateWarn':'gateGood']].map(a=>kv(a[0],a[1],a[2])).join('')}
-function renderChain(s){const names=['Stage 6 · Regime','Stage 7 · Edge Activation','Stage 8 · Edge Ranking','Stage 9 · Candidate Quality','Stage 10 · Integrity','Stage 11 · Execution Analysis','Stage 12 · Readiness','Stage 13 · Scenario','Stage 14 · Dashboard','Stage 15 · Event Journal','Stage 16 · Decision Board','Stage 17 · Stability','Stage 18 · Continuity','Stage 19 · Transition','Stage 20 · FINAL AUTHORITY'];document.getElementById('chain').innerHTML=names.map((n,i)=>{let state=i===14?(s.live_data?(s.active_signal_count?'OUTPUT AVAILABLE':'NO ACTIVE SIGNAL'):'MARKET CLOSED'):'ENGINE TELEMETRY NOT EXPOSED';let cls=i===14?'final':'opaque';return `<div class="stage ${cls}"><div class="stageName">${n}</div><div class="stageState ${i===14?'':'opaque'}">${esc(state)}</div></div>`}).join('')}
-async function load(){let s=await j('/api/signals');document.getElementById('status').textContent=s.live_data?'● LIVE · DHAN':'OFF-MARKET · RECENT DHAN';document.getElementById('heroMode').textContent=s.live_data?'LIVE':'CLOSED';document.getElementById('heroSession').textContent=s.live_data?'Current NSE session':'Completed: '+(s.recent_session_date||'—');document.getElementById('heroCoverage').textContent=(s.coverage?.actual||0)+' / '+(s.coverage?.expected||29);document.getElementById('heroCount').textContent=s.active_signal_count||0;document.getElementById('heroSignal').textContent=s.live_data&&s.active_signal_count?'SIGNAL AVAILABLE':s.live_data?'NO ACTIVE SIGNAL':'MARKET CLOSED';document.getElementById('heroSub').textContent=s.live_data?'Stage 20 output only':'Recent DHAN data is display-only';document.getElementById('notice').textContent=s.live_data?'Live DHAN session data.':'Real DHAN historical data from the most recent completed NSE session ('+(s.recent_session_date||'pending')+'). Validation: '+(s.coverage?.actual||0)+'/'+(s.coverage?.expected||29)+'; source DHAN; fixture data is blocked.';renderGate(s);renderChain(s);if(!universe.length){universe=(await j('/api/universe')).symbols||[];document.getElementById('stocks').innerHTML=universe.map((x,i)=>`<button class="stock" data-s="${esc(x)}" onclick="select('${esc(x)}')"><span><i class="dot"></i>${esc(x)}</span><span class="rank">#${i+1}</span></button>`).join('')}if(selected)await select(selected);else if(universe[0])await select(universe[0]);document.getElementById('audit').innerHTML=[['Provider',s.provider],['Market data kind',s.market_data_kind],['Validation',s.recent_validation_status||'—'],['Coverage',`${s.coverage?.actual||0}/${s.coverage?.expected||29}`],['Signal generation',s.signal_generation?'ENABLED':'DISABLED'],['Order execution',s.order_execution?'ENABLED':'DISABLED'],['Refresh',new Date().toLocaleTimeString('en-IN')],['Data boundary',s.live_data?'LIVE DHAN':'RECENT DHAN · FIXTURE BLOCKED']].map(a=>kv(a[0],a[1])).join('')}
-async function select(x){selected=x;document.querySelectorAll('.stock').forEach(b=>b.classList.toggle('active',b.dataset.s===x));let d=await j('/api/instrument/'+encodeURIComponent(x));document.getElementById('title').textContent=x;if(!d.found){document.getElementById('market').innerHTML='';document.getElementById('signal').innerHTML='<div class="empty">'+esc(d.message)+'</div>';return}let q=d.data;document.getElementById('market').innerHTML=[['Last',fmt(q.close_1m)],['1m Open',fmt(q.open_1m)],['1m High',fmt(q.high_1m)],['1m Low',fmt(q.low_1m)],['5m Close',fmt(q.close_5m)],['VWAP',fmt(q.vwap_5m)],['EMA 9',fmt(q.ema9_5m)],['EMA 20',fmt(q.ema20_5m)],['5m Volume',fmt(q.volume_5m)],['15m High',fmt(q.first15_high)],['15m Low',fmt(q.first15_low)],['Swing High',fmt(q.swing_high)],['Swing Low',fmt(q.swing_low)],['Session',q.session_date],['Timestamp',q.timestamp],['Provenance',q.market_data_kind]].map(a=>kv(a[0],a[1])).join('');let sig=d.signal;if(!d.live_data){document.getElementById('signal').innerHTML='<div class="empty"><b>MARKET CLOSED</b><br><br>Real recent DHAN data is displayed for analysis only.<br>Signal generation is not shown as active.<br>Fixture data is blocked.</div>';return}if(!sig){document.getElementById('signal').innerHTML='<div class="empty"><b>NO ACTIVE PSY29 SIGNAL</b><br><br>The existing Stage 20 board has no active signal for this instrument.</div>';return}document.getElementById('signal').innerHTML=`<div class="signal signalLive"><div class="signalHead"><div><div class="signalDir">${esc(sig.direction)} · ${esc(sig.strategy)}</div><div class="muted">${esc(sig.symbol)} · ${esc(sig.signal_id)}</div></div><div class="pill">${esc(sig.signal_status)}</div></div><div class="signalGrid">${[['Entry',fmt(sig.entry)],['Stop Loss',fmt(sig.stop_loss)],['Take Profit',fmt(sig.take_profit)],['R:R',fmt(sig.risk_reward)],['Score',fmt(sig.signal_score)],['Generated',sig.timestamp]].map(a=>`<div class="metric"><div class="metricLabel">${esc(a[0])}</div><div class="metricValue">${esc(a[1])}</div></div>`).join('')}</div></div>`}
-load();setInterval(load,5000);</script></body></html>'''
 
-class H(BaseHTTPRequestHandler):
- def do_GET(self):
-  p=urlparse(self.path).path
-  if p=="/signals":return self._send(PAGE.encode(),"text/html; charset=utf-8")
-  if p=="/api/signals":return self._send(json.dumps(signal_data(),separators=(",",":")).encode())
-  if p=="/api/universe":return self._send(json.dumps({"symbols":symbols()},separators=(",",":")).encode())
-  if p.startswith("/api/instrument/"):return self._send(json.dumps(instrument(p.rsplit('/',1)[-1]),separators=(",",":")).encode())
-  f=AV if p=="/live-validation" else PV if p=="/pipeline-validation" else RV if p=="/recent-market-validation" else None
-  if f and f.exists():return self._send(f.read_bytes())
-  with LOCK: body=json.dumps({"service":"PSY29 Live Market Pipeline","state":STATE,"repository_only":True,"provider":"DHAN","signal_generation":False,"order_execution":False},indent=2).encode()
-  return self._send(body)
- def _send(self,b,ct="application/json; charset=utf-8"):
-  self.send_response(200);self.send_header("Content-Type",ct);self.send_header("Cache-Control","no-store");self.end_headers();self.wfile.write(b)
- def log_message(self,*a):pass
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802
+        path = urlparse(self.path).path
+        if path == "/signals":
+            try:
+                body = PAGE.read_bytes()
+                return self._send(body, "text/html; charset=utf-8")
+            except Exception as exc:
+                return self._send(json.dumps({"error": "signals_ui_unavailable", "detail": str(exc)}).encode(), "application/json; charset=utf-8")
+        if path == "/api/signals":
+            return self._send(json.dumps(signal_data(), separators=(",", ":")).encode())
+        if path == "/api/universe":
+            return self._send(json.dumps({"symbols": symbols()}, separators=(",", ":")).encode())
+        if path.startswith("/api/instrument/"):
+            return self._send(json.dumps(instrument(unquote(path.rsplit("/", 1)[-1])), separators=(",", ":")).encode())
+        source = AV if path == "/live-validation" else PV if path == "/pipeline-validation" else RV if path == "/recent-market-validation" else None
+        if source and source.exists():
+            return self._send(source.read_bytes())
+        with LOCK:
+            payload = {
+                "service": "PSY29 Live Market Pipeline",
+                "state": STATE,
+                "repository_only": True,
+                "provider": "DHAN",
+                "signal_generation": False,
+                "order_execution": False,
+            }
+        return self._send(json.dumps(payload, indent=2).encode())
+
+    def _send(self, body, content_type="application/json; charset=utf-8"):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        return
+
 
 def worker():
- while True:
-  try:
-   with LOCK:STATE["status"]="RUNNING";STATE["error"]=None
-   subprocess.run([sys.executable,str(ROOT/"scripts/psy29_live_pipeline_service_cycle.py")],cwd=ROOT,check=True,timeout=240)
-   if recent_stale(): subprocess.run([sys.executable,str(ROOT/"scripts/psy29_recent_dhan_snapshot.py"),"--universe",UNIVERSE,"--output",OUT],cwd=ROOT,check=True,timeout=240)
-   with LOCK:STATE["status"]="PASS";STATE["last_cycle"]=time.time()
-  except Exception as e:
-   with LOCK:STATE["status"]="FAIL";STATE["error"]=str(e)
-  time.sleep(60)
-threading.Thread(target=worker,daemon=True).start();ThreadingHTTPServer(("0.0.0.0",int(os.environ.get("PORT","10000"))),H).serve_forever()
+    while True:
+        try:
+            with LOCK:
+                STATE["status"] = "RUNNING"
+                STATE["error"] = None
+            subprocess.run(
+                [sys.executable, str(ROOT / "scripts/psy29_live_pipeline_service_cycle.py")],
+                cwd=ROOT,
+                check=True,
+                timeout=240,
+            )
+            if recent_stale():
+                subprocess.run(
+                    [sys.executable, str(ROOT / "scripts/psy29_recent_dhan_snapshot.py"), "--universe", str(UNIVERSE), "--output", str(OUT)],
+                    cwd=ROOT,
+                    check=True,
+                    timeout=240,
+                )
+            with LOCK:
+                STATE["status"] = "PASS"
+                STATE["last_cycle"] = time.time()
+        except Exception as exc:
+            with LOCK:
+                STATE["status"] = "FAIL"
+                STATE["error"] = str(exc)
+        time.sleep(60)
+
+
+if __name__ == "__main__":
+    threading.Thread(target=worker, daemon=True).start()
+    ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "10000"))), Handler).serve_forever()
