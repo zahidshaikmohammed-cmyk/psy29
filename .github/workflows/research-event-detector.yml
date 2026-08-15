@@ -27,10 +27,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest
-      - name: Run isolated Event Detector tests
-        run: pytest -q tests/test_event_detector.py
+      - name: Run complete isolated Event Detector + Stage 6 integration suite
+        run: python -m pytest -q tests/test_event_detector.py tests/test_event_detector_v2_integration.py tests/test_event_threshold_resolver.py tests/test_event_stage6_orchestration.py
       - name: Verify protected production boundaries
         run: |
           git fetch origin main --depth=1
-          test "$(git diff --name-only origin/main...HEAD -- scripts/step6_edge_events.py scripts/step6_edge_events_v3.py scripts/psy29_live_pipeline_bridge.py | wc -l)" -eq 0
+          test "$(git diff --name-only origin/main...HEAD -- scripts/step6_edge_events.py scripts/step6_edge_events_v3.py scripts/psy29_live_pipeline_bridge.py scripts/step9_live_regime_v2.py | wc -l)" -eq 0
           test ! -f runtime/live/PSY29_EMISSION_LEDGER.json
