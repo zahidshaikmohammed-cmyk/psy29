@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,18 +13,55 @@ from scripts.psy29_event_detector import SYMBOLS, process
 IST = ZoneInfo("Asia/Kolkata")
 
 
-def thresholds(priority=(0, 10000)):
+def _weekdays(start: date, count: int):
+    out = []
+    cur = start
+    while len(out) < count:
+        if cur.weekday() < 5:
+            out.append(cur)
+        cur += timedelta(days=1)
+    return out
+
+
+def thresholds():
+    effective_blocks = _weekdays(date(2026, 8, 17), 80)
+    sets = []
+    for symbol in SYMBOLS:
+        for block in range(4):
+            oos_dates = effective_blocks[block * 20:(block + 1) * 20]
+            effective = oos_dates[0]
+            training_end = effective - timedelta(days=1)
+            training_dates = []
+            cur = training_end
+            while len(training_dates) < 60:
+                if cur.weekday() < 5:
+                    training_dates.append(cur)
+                cur -= timedelta(days=1)
+            training_dates.reverse()
+            sets.append({
+                "threshold_set_id": f"TEST_{symbol}_{block + 1}",
+                "stock": symbol,
+                "effective_nse_session_date": effective.isoformat(),
+                "training_window": {"start": training_dates[0].isoformat(), "end": training_dates[-1].isoformat(), "session_count": 60},
+                "oos_window": {"start": oos_dates[0].isoformat(), "end": oos_dates[-1].isoformat(), "session_count": 20},
+                "hard_earliest_offset": 0 if block < 4 else 15,
+                "thresholds": {
+                    "Trend": {"r75": 0.01, "e60": 0.5},
+                    "Strong Trend": {"r85": 0.015, "e75": 0.8},
+                    "OR Continuation": {"or75": 0.02, "ext60": 0.004},
+                },
+            })
+            sets[-1]["hard_earliest_offset"] = 0
+            # OR Continuation has its own canonical earliest offset.
+            sets[-1]["thresholds"]["Trend"]["hard_earliest_offset"] = 0
+            sets[-1]["thresholds"]["Strong Trend"]["hard_earliest_offset"] = 0
+            sets[-1]["thresholds"]["OR Continuation"]["hard_earliest_offset"] = 15
     return {
-        "schema": "PSY29_EVENT_DETECTOR_THRESHOLDS_V1",
-        "research_source_commit": "988472889edfd51046731d72f68f2e96e095a2f1",
-        "stocks": {
-            s: {
-                "Trend": {"r75": 0.01, "e60": 0.5, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
-                "Strong Trend": {"r85": 0.015, "e75": 0.8, "hard_earliest_offset": 0, "q25_offset": priority[0], "q75_offset": priority[1]},
-                "OR Continuation": {"or75": 0.02, "ext60": 0.004, "hard_earliest_offset": 15, "q25_offset": priority[0], "q75_offset": priority[1]},
-            }
-            for s in SYMBOLS
-        },
+        "schema": "PSY29_EVENT_DETECTOR_THRESHOLDS_V2",
+        "research_source": {"commit": "988472889edfd51046731d72f68f2e96e095a2f1"},
+        "methodology": {"train_sessions": 60, "test_sessions": 20, "step_sessions": 20},
+        "threshold_set_count": len(sets),
+        "threshold_sets": sets,
     }
 
 
@@ -104,11 +141,10 @@ def test_cutoff_is_inclusive_and_priority_is_non_blocking(tmp_path):
     state = tmp_path / "state.json"
     run_one(tmp_path, base - timedelta(minutes=1), close=100, state=state)
     snap, validation, threshold_path = write_inputs(tmp_path, base, close=102)
-    threshold_path.write_text(json.dumps(thresholds(priority=(999, 1000))), encoding="utf-8")
     result = process(snap, validation, threshold_path, state, tmp_path / "out", "live")
     evt = next(e for e in result["detected_events"] if e["instrument"] == "NESTLEIND" and e["event_type"] == "Trend")
     assert evt["new_signal_eligible_by_cutoff"] is True
-    assert evt["historical_priority"] == "OUTSIDE_HISTORICAL_PRIORITY"
+    assert evt["historical_priority"] == "UNAVAILABLE_Q25_Q75_NOT_IN_V2"
 
 
 def test_fixture_and_invalid_provenance_fail_closed(tmp_path):
