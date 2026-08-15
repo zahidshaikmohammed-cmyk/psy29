@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from datetime import datetime, time as dtime
@@ -12,9 +13,10 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "runtime/live"
 UNIVERSE = ROOT / "config/psy29_live_universe_contract.json"
-THRESHOLDS = ROOT / "runtime/live/psy29_event_thresholds.json"
+THRESHOLDS = ROOT / "research/PSY29_EVENT_DETECTOR_THRESHOLDS_V2.json"
 EVENT_STATE = ROOT / "runtime/live/PSY29_EVENT_DETECTOR_STATE.json"
 EVENT_OUT = OUT / "event_detector"
+STAGE6 = ROOT / "scripts/psy29_stage6_live_orchestrator.py"
 IST = ZoneInfo("Asia/Kolkata")
 
 
@@ -26,6 +28,33 @@ def market_session() -> bool:
 def run(cmd: list[object]) -> None:
     print("PSY29 PIPELINE CYCLE:", " ".join(map(str, cmd)), flush=True)
     subprocess.run([sys.executable, *map(str, cmd)], cwd=ROOT, check=True, timeout=240)
+
+
+def run_stage6_on_new_events() -> int:
+    result_path = EVENT_OUT / "PSY29_EVENT_DETECTOR_RESULT.json"
+    if not result_path.is_file():
+        raise RuntimeError("event detector result missing; fail closed before Stage 6")
+    try:
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid event detector result; fail closed before Stage 6: {exc}") from exc
+    if result.get("status") != "PASS" or result.get("mode") != "live":
+        raise RuntimeError("event detector did not return PASS/live; fail closed before Stage 6")
+    events = result.get("detected_events")
+    if not isinstance(events, list):
+        raise RuntimeError("event detector detected_events is malformed; fail closed before Stage 6")
+    if not events:
+        print("PSY29 STAGE 6: SKIP — no NEW FIRST_DETECTED events", flush=True)
+        return 0
+    if not STAGE6.is_file():
+        raise RuntimeError(f"existing Stage 6 orchestrator missing: {STAGE6}")
+    run([
+        STAGE6,
+        "--manifest", OUT / "live_pipeline_input_validation.json",
+        "--snapshot", OUT / "live_pipeline_input.csv",
+        "--output", OUT / "stage6",
+    ])
+    return len(events)
 
 
 def main() -> None:
@@ -65,7 +94,7 @@ def main() -> None:
     # is a live-only layer and is never invoked for fixture input.
     if mode == "live":
         if not THRESHOLDS.exists():
-            raise RuntimeError("PSY29 event detector thresholds are missing; fail closed before Stage 6")
+            raise RuntimeError("PSY29 canonical V2 event detector thresholds are missing; fail closed before Stage 6")
         run([
             ROOT / "scripts/psy29_event_detector.py",
             "--snapshot", OUT / "live_pipeline_input.csv",
@@ -75,7 +104,10 @@ def main() -> None:
             "--output", EVENT_OUT,
             "--mode", "live",
         ])
-    print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})", flush=True)
+        new_events = run_stage6_on_new_events()
+        print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS (live, new_events={new_events})", flush=True)
+    else:
+        print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})", flush=True)
 
 
 if __name__ == "__main__":
