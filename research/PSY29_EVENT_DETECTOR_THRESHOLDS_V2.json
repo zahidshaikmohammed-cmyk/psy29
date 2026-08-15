@@ -1,0 +1,3309 @@
+{
+  "artifact_type": "walk_forward_session_keyed",
+  "dataset_provenance": {
+    "dataset_sha256": "88f52279e40f2b686da84c7d10343f35dde8f63f152d97019ae49106f4cce595",
+    "workflow_run_id": "31702235542"
+  },
+  "generator_provenance": {
+    "generator_commit": "e6a2dc0f345d4c0e754867cc464ab1ff5843e5aa"
+  },
+  "methodology": {
+    "step_sessions": 20,
+    "test_sessions": 20,
+    "timezone": "Asia/Kolkata",
+    "train_sessions": 60
+  },
+  "research_source": {
+    "commit": "988472889edfd51046731d72f68f2e96e095a2f1",
+    "path": "research/event_time_discovery.py",
+    "repository": "zahidshaikmohammed-cmyk/psy29"
+  },
+  "schema": "PSY29_EVENT_DETECTOR_THRESHOLDS_V2",
+  "threshold_set_count": 116,
+  "threshold_sets": [
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "NESTLEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|NESTLEIND|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.059579857512085825,
+        "e75": 0.07501204837290994,
+        "ext60": 0.0028464432406554007,
+        "or75": 0.013762508077501734,
+        "r75": 0.012298770224475066,
+        "r85": 0.015532012956481933
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "NESTLEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|NESTLEIND|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06488662506094976,
+        "e75": 0.08589524106892388,
+        "ext60": 0.0045992403128899085,
+        "or75": 0.015077564609597416,
+        "r75": 0.014316999193460972,
+        "r85": 0.017067848373469117
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "NESTLEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|NESTLEIND|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.057443207399316104,
+        "e75": 0.0802550876367622,
+        "ext60": 0.0045992403128899085,
+        "or75": 0.014934028124313924,
+        "r75": 0.014142255054237716,
+        "r85": 0.017031019011929733
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "NESTLEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|NESTLEIND|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0744699122226006,
+        "e75": 0.09071515429582938,
+        "ext60": 0.0056036463536462905,
+        "or75": 0.01399061208172803,
+        "r75": 0.01589904213020605,
+        "r85": 0.018208567228879684
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "VEDL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|VEDL|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05946334282361424,
+        "e75": 0.09425321613978536,
+        "ext60": 0.003929277711470078,
+        "or75": 0.02244921601226385,
+        "r75": 0.022559952038369295,
+        "r85": 0.029614141837137533
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "VEDL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|VEDL|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.07214759222489597,
+        "e75": 0.09561013561992074,
+        "ext60": 0.004001144551837007,
+        "or75": 0.02363877875533063,
+        "r75": 0.023624115405552506,
+        "r85": 0.029493197283536145
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "VEDL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|VEDL|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.08226319689529127,
+        "e75": 0.10976052942591295,
+        "ext60": 0.005837044592777127,
+        "or75": 0.024238121900495905,
+        "r75": 0.028422358096376214,
+        "r85": 0.034982820943190725
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "VEDL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|VEDL|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.08854465273710832,
+        "e75": 0.1237687708081928,
+        "ext60": 0.007188455008489023,
+        "or75": 0.024472579011014163,
+        "r75": 0.02994194670537076,
+        "r85": 0.0378411549862455
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "ICICIPRULI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIPRULI|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.058507248440022294,
+        "e75": 0.07019919689589277,
+        "ext60": 0.003547266207540701,
+        "or75": 0.01748706209749791,
+        "r75": 0.013023440278618102,
+        "r85": 0.020196467315583756
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "ICICIPRULI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIPRULI|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.059360653565900943,
+        "e75": 0.07540415215280585,
+        "ext60": 0.003838793051631912,
+        "or75": 0.018342505330042683,
+        "r75": 0.014561396708423154,
+        "r85": 0.018729869732198805
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "ICICIPRULI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIPRULI|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07275639774461384,
+        "e75": 0.09789628631281648,
+        "ext60": 0.008175447722272,
+        "or75": 0.019614657106409084,
+        "r75": 0.020065594530908257,
+        "r85": 0.025367081585325777
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "ICICIPRULI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIPRULI|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.07259263224725737,
+        "e75": 0.0966422451817496,
+        "ext60": 0.007321687944346807,
+        "or75": 0.016602559092389717,
+        "r75": 0.018261112030881023,
+        "r85": 0.020618827375156523
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "KALYANKJIL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KALYANKJIL|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05718022213514135,
+        "e75": 0.08062203382615983,
+        "ext60": 0.0032410848502225915,
+        "or75": 0.023957097238864425,
+        "r75": 0.02353955875638815,
+        "r85": 0.02609713259681504
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "KALYANKJIL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KALYANKJIL|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.056756929470253,
+        "e75": 0.0766025536528856,
+        "ext60": 0.002739206739206715,
+        "or75": 0.02413812978021185,
+        "r75": 0.02168187097779707,
+        "r85": 0.027642741285642244
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "KALYANKJIL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KALYANKJIL|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06251816592400228,
+        "e75": 0.08419932683294742,
+        "ext60": 0.004038801464685193,
+        "or75": 0.02264573991031391,
+        "r75": 0.021853775471215024,
+        "r85": 0.02810886240963431
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "KALYANKJIL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KALYANKJIL|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0699399117886071,
+        "e75": 0.08594721661918775,
+        "ext60": 0.007903351644657147,
+        "or75": 0.020280095829288483,
+        "r75": 0.02474730677199719,
+        "r85": 0.03140181465256265
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "KOTAKBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KOTAKBANK|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.04835873862802576,
+        "e75": 0.06843849340264035,
+        "ext60": 0.0034135952948844833,
+        "or75": 0.01344520699498333,
+        "r75": 0.012435399358679187,
+        "r85": 0.01600470608559887
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "KOTAKBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KOTAKBANK|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.05613241805108957,
+        "e75": 0.06843849340264035,
+        "ext60": 0.0034135952948844833,
+        "or75": 0.01534335648808963,
+        "r75": 0.01351227411703856,
+        "r85": 0.01724112480098131
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "KOTAKBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KOTAKBANK|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05973130453443523,
+        "e75": 0.07593870605938804,
+        "ext60": 0.004621654449580429,
+        "or75": 0.015045700776579884,
+        "r75": 0.014554154995331458,
+        "r85": 0.016278707068132774
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "KOTAKBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KOTAKBANK|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.060097118901356265,
+        "e75": 0.07738515692926935,
+        "ext60": 0.0045912408010772045,
+        "or75": 0.012776343005764376,
+        "r75": 0.014010739415227956,
+        "r85": 0.01617273247780069
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "BANDHANBNK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANDHANBNK|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.061579767801424774,
+        "e75": 0.0855270153756469,
+        "ext60": 0.006984517229051464,
+        "or75": 0.020098866726610758,
+        "r75": 0.019363519326497273,
+        "r85": 0.025706323557064457
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "BANDHANBNK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANDHANBNK|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.061243331082238575,
+        "e75": 0.08511627533550431,
+        "ext60": 0.004951379435237092,
+        "or75": 0.026809173864586356,
+        "r75": 0.020049788352881896,
+        "r85": 0.034099255305178745
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "BANDHANBNK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANDHANBNK|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05463563573919232,
+        "e75": 0.06881496304413942,
+        "ext60": 0.002730894308943092,
+        "or75": 0.026843482859856625,
+        "r75": 0.01948835650484264,
+        "r85": 0.025585162718544982
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "BANDHANBNK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANDHANBNK|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.05653059779612661,
+        "e75": 0.08239840663147023,
+        "ext60": 0.005510748472319432,
+        "or75": 0.02170340549086111,
+        "r75": 0.020515182741469823,
+        "r85": 0.02556157397074618
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "BANKBARODA",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANKBARODA|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.06035396408705173,
+        "e75": 0.08516934237737585,
+        "ext60": 0.005500056148231299,
+        "or75": 0.018446376922688114,
+        "r75": 0.017587536102926998,
+        "r85": 0.025399676128238177
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "BANKBARODA",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANKBARODA|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.04425809814931331,
+        "e75": 0.07613104178689381,
+        "ext60": 0.003487428813011387,
+        "or75": 0.018549142078216726,
+        "r75": 0.017022209234365867,
+        "r85": 0.025399676128238177
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "BANKBARODA",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANKBARODA|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.053940730395417955,
+        "e75": 0.0786820485272737,
+        "ext60": 0.0047460132556738695,
+        "or75": 0.016459412149965328,
+        "r75": 0.01711861194279177,
+        "r85": 0.02134963408632702
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "BANKBARODA",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BANKBARODA|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.060869670209502555,
+        "e75": 0.08423072218474928,
+        "ext60": 0.0062427497910190225,
+        "or75": 0.013818301776708952,
+        "r75": 0.01766864118454878,
+        "r85": 0.02135538415021662
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "TITAN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TITAN|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.048790029395327845,
+        "e75": 0.06396542952625436,
+        "ext60": 0.0029429378579416145,
+        "or75": 0.014403525127524713,
+        "r75": 0.011129890228371374,
+        "r85": 0.016395169437223397
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "TITAN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TITAN|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.05188014931416206,
+        "e75": 0.07880633221897092,
+        "ext60": 0.003528487815221575,
+        "or75": 0.015400619798818104,
+        "r75": 0.013478820451691709,
+        "r85": 0.01675991316018991
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "TITAN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TITAN|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05274537677861125,
+        "e75": 0.07880633221897092,
+        "ext60": 0.004553243742918586,
+        "or75": 0.014746330243833834,
+        "r75": 0.013429704155666628,
+        "r85": 0.02024979524979525
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "TITAN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TITAN|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0720407186835516,
+        "e75": 0.0880250085301157,
+        "ext60": 0.00566660638411316,
+        "or75": 0.013162719453281528,
+        "r75": 0.015619677472867317,
+        "r85": 0.021729056975362922
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "INFY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|INFY|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.059517753857674695,
+        "e75": 0.09151475820258237,
+        "ext60": 0.0035892373730575223,
+        "or75": 0.01828010207404424,
+        "r75": 0.015720893665102965,
+        "r85": 0.019685270720503578
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "INFY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|INFY|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.061232133403686564,
+        "e75": 0.098546865549954,
+        "ext60": 0.0044997616999830166,
+        "or75": 0.01858468558280478,
+        "r75": 0.017764367043213197,
+        "r85": 0.02065488638488602
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "INFY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|INFY|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07312634638492094,
+        "e75": 0.10167764978991481,
+        "ext60": 0.004291526467418771,
+        "or75": 0.01724744694045495,
+        "r75": 0.018150035205758086,
+        "r85": 0.021701580188178315
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "INFY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|INFY|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.08290321037654906,
+        "e75": 0.10881484608664369,
+        "ext60": 0.004083692932130056,
+        "or75": 0.016977834337208203,
+        "r75": 0.019419842822406004,
+        "r85": 0.022671014762055346
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "DLF",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|DLF|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.07101473163318155,
+        "e75": 0.08123513302071803,
+        "ext60": 0.008631537601550542,
+        "or75": 0.019622785832962696,
+        "r75": 0.02381855092884421,
+        "r85": 0.029046397202166084
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "DLF",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|DLF|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06606206996138585,
+        "e75": 0.0824142841684862,
+        "ext60": 0.00815114759240865,
+        "or75": 0.019147155308268667,
+        "r75": 0.0228093624854801,
+        "r85": 0.02902354392209433
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "DLF",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|DLF|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07321989334088685,
+        "e75": 0.09088477080948465,
+        "ext60": 0.009386821380908215,
+        "or75": 0.018093577740834782,
+        "r75": 0.020960655226583205,
+        "r85": 0.025492116900595992
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "DLF",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|DLF|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0778474281167787,
+        "e75": 0.09711886136586209,
+        "ext60": 0.009785381591627009,
+        "or75": 0.016046415361089618,
+        "r75": 0.02123912966023422,
+        "r85": 0.025192488676255193
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "TCS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TCS|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.06564968058764711,
+        "e75": 0.09267883643780173,
+        "ext60": 0.0027942083096492787,
+        "or75": 0.016001800774790863,
+        "r75": 0.015186234769640847,
+        "r85": 0.019123352117255518
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "TCS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TCS|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06455339276662438,
+        "e75": 0.10085514019568909,
+        "ext60": 0.002581425164535072,
+        "or75": 0.01585820842467543,
+        "r75": 0.017339854783306484,
+        "r85": 0.022476814097793025
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "TCS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TCS|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.055492557783537545,
+        "e75": 0.08709263119726564,
+        "ext60": 0.0015055450404534972,
+        "or75": 0.01479789960668005,
+        "r75": 0.014646952634198074,
+        "r85": 0.01818486891533927
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "TCS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TCS|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0738244943799072,
+        "e75": 0.10001964735179458,
+        "ext60": 0.0024287766786025423,
+        "or75": 0.015028255639587765,
+        "r75": 0.01741160261943994,
+        "r85": 0.02436896522148971
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "MAXHEALTH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MAXHEALTH|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.0576036212659898,
+        "e75": 0.08058432956407725,
+        "ext60": 0.003241519755925325,
+        "or75": 0.017361605216090495,
+        "r75": 0.01654954631800609,
+        "r85": 0.021344733232274947
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "MAXHEALTH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MAXHEALTH|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.0571590917521841,
+        "e75": 0.08053860993189849,
+        "ext60": 0.0029594576157342145,
+        "or75": 0.01959694514248593,
+        "r75": 0.01654954631800609,
+        "r85": 0.021561602374030566
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "MAXHEALTH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MAXHEALTH|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.0631305177418285,
+        "e75": 0.08833355676779814,
+        "ext60": 0.0027619081116853584,
+        "or75": 0.018090369931957763,
+        "r75": 0.019152397047272767,
+        "r85": 0.022764927380311994
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "MAXHEALTH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MAXHEALTH|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06723421932769302,
+        "e75": 0.09324184269581949,
+        "ext60": 0.004962617141455328,
+        "or75": 0.01615511788775601,
+        "r75": 0.020724917490216505,
+        "r85": 0.027261677485045183
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "KFINTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KFINTECH|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05732059664630659,
+        "e75": 0.09325933525148684,
+        "ext60": 0.0023170504285557328,
+        "or75": 0.02058426822456007,
+        "r75": 0.022275957321408742,
+        "r85": 0.028911240357854123
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "KFINTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KFINTECH|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.060703130312603056,
+        "e75": 0.09227412664598922,
+        "ext60": 0.0074644772427962134,
+        "or75": 0.021879583612363182,
+        "r75": 0.022583407610781838,
+        "r85": 0.027540672571001314
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "KFINTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KFINTECH|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05726934208967187,
+        "e75": 0.08297480548970843,
+        "ext60": 0.008370395054740931,
+        "or75": 0.021042529330572747,
+        "r75": 0.021933696239624653,
+        "r85": 0.027540672571001314
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "KFINTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|KFINTECH|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.05743408916380127,
+        "e75": 0.07959134372160909,
+        "ext60": 0.00895180019403944,
+        "or75": 0.01816299165787638,
+        "r75": 0.022116280876184544,
+        "r85": 0.02889949602768272
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "PRESTIGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PRESTIGE|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05956496092485974,
+        "e75": 0.08800261521933278,
+        "ext60": 0.004091711363079056,
+        "or75": 0.0243266782585435,
+        "r75": 0.023850919775166065,
+        "r85": 0.03170988267369359
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "PRESTIGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PRESTIGE|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.05299172588527932,
+        "e75": 0.0757081987859722,
+        "ext60": 0.0022801051282138342,
+        "or75": 0.025837757721003496,
+        "r75": 0.02120611796744554,
+        "r85": 0.02640129985665554
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "PRESTIGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PRESTIGE|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05487342420740704,
+        "e75": 0.08248493013446406,
+        "ext60": 0.006209236851394156,
+        "or75": 0.025510031138805622,
+        "r75": 0.020534447867327922,
+        "r85": 0.02640129985665554
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "PRESTIGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PRESTIGE|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.055321429550295315,
+        "e75": 0.08220816848088665,
+        "ext60": 0.006421343136447238,
+        "or75": 0.021008675982697657,
+        "r75": 0.019541925148956432,
+        "r85": 0.02522210950774776
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "BHEL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BHEL|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.06039670079114618,
+        "e75": 0.09499073341590411,
+        "ext60": 0.009805851603239669,
+        "or75": 0.017745253362787584,
+        "r75": 0.02353917278225786,
+        "r85": 0.028654310677534423
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "BHEL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BHEL|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.07233344070744338,
+        "e75": 0.09252213097821257,
+        "ext60": 0.00990386647456332,
+        "or75": 0.020913007377707855,
+        "r75": 0.02370022145688685,
+        "r85": 0.030492740331882488
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "BHEL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BHEL|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07550730920758328,
+        "e75": 0.09833010693664272,
+        "ext60": 0.010906789619122715,
+        "or75": 0.021823073783401682,
+        "r75": 0.028936106822675448,
+        "r85": 0.03190128646392426
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "BHEL",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|BHEL|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.07914994098698369,
+        "e75": 0.10794421338808599,
+        "ext60": 0.011458593553261183,
+        "or75": 0.019402165682265576,
+        "r75": 0.02908698047858945,
+        "r85": 0.0322518837217845
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "RBLBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|RBLBANK|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.051421599434623905,
+        "e75": 0.082333456186868,
+        "ext60": 0.005851091159492386,
+        "or75": 0.01756045483886979,
+        "r75": 0.019661280870086666,
+        "r85": 0.024010477757092547
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "RBLBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|RBLBANK|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.045924121518908435,
+        "e75": 0.07244933529012032,
+        "ext60": 0.0045717067929216615,
+        "or75": 0.01756045483886979,
+        "r75": 0.01694072180097567,
+        "r85": 0.02286521680868331
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "RBLBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|RBLBANK|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.049917465774094595,
+        "e75": 0.07673126378640666,
+        "ext60": 0.005788242541297813,
+        "or75": 0.016832489123562715,
+        "r75": 0.019585701070437375,
+        "r85": 0.026335880587535568
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "RBLBANK",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|RBLBANK|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.05617469014364694,
+        "e75": 0.07770580677312613,
+        "ext60": 0.006057303278011713,
+        "or75": 0.017488133581963067,
+        "r75": 0.01959768326831491,
+        "r85": 0.026220372954200898
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "HCLTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HCLTECH|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.0641672257837437,
+        "e75": 0.08054293951070599,
+        "ext60": 0.0027802493820989417,
+        "or75": 0.018496808057335237,
+        "r75": 0.015472075607885653,
+        "r85": 0.019414615808443742
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "HCLTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HCLTECH|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06694012094063409,
+        "e75": 0.09590563848731934,
+        "ext60": 0.004560513284500403,
+        "or75": 0.01945411940066059,
+        "r75": 0.017467134012919168,
+        "r85": 0.02626639339607349
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "HCLTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HCLTECH|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06636851233235697,
+        "e75": 0.09034371193096156,
+        "ext60": 0.0015388192426537977,
+        "or75": 0.018399779431895857,
+        "r75": 0.015706742687828273,
+        "r85": 0.023838831908266717
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "HCLTECH",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HCLTECH|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06691411335924606,
+        "e75": 0.09892522663744263,
+        "ext60": 0.0037863048970016733,
+        "or75": 0.016397045454286358,
+        "r75": 0.01687283295238966,
+        "r85": 0.026318957293816156
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "ICICIGI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIGI|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.0639253286197927,
+        "e75": 0.08073182701870914,
+        "ext60": 0.004160975316972583,
+        "or75": 0.013243441358521495,
+        "r75": 0.013000549274031768,
+        "r85": 0.017127755704438183
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "ICICIGI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIGI|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.0540021766471269,
+        "e75": 0.08266906084498843,
+        "ext60": 0.0032002126413695478,
+        "or75": 0.015416447920292703,
+        "r75": 0.015414101136741782,
+        "r85": 0.02218446059419818
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "ICICIGI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIGI|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07402146527003596,
+        "e75": 0.09098528658958828,
+        "ext60": 0.004170940692178665,
+        "or75": 0.015181543737569608,
+        "r75": 0.017090971466254833,
+        "r85": 0.023084700239808145
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "ICICIGI",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|ICICIGI|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.08119571020972344,
+        "e75": 0.09800271619220302,
+        "ext60": 0.005716347643802371,
+        "or75": 0.013827125317669041,
+        "r75": 0.017881517229485236,
+        "r85": 0.023774801522725115
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "HDFCLIFE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HDFCLIFE|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05691382367515163,
+        "e75": 0.08083811275248626,
+        "ext60": 0.0022823300960429027,
+        "or75": 0.01368491385502197,
+        "r75": 0.012992545449023177,
+        "r85": 0.018912423789640705
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "HDFCLIFE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HDFCLIFE|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.05976967648560721,
+        "e75": 0.08960080200014296,
+        "ext60": 0.004799306449603368,
+        "or75": 0.014571672270451202,
+        "r75": 0.017620951115590783,
+        "r85": 0.021533606556059393
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "HDFCLIFE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HDFCLIFE|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.0632857848115177,
+        "e75": 0.08960080200014296,
+        "ext60": 0.005454713381221121,
+        "or75": 0.015392861567678632,
+        "r75": 0.01630549437588617,
+        "r85": 0.025555857704070394
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "HDFCLIFE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|HDFCLIFE|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06764832824551247,
+        "e75": 0.0856644963857304,
+        "ext60": 0.005227191545725033,
+        "or75": 0.014987938385644878,
+        "r75": 0.015663217551402417,
+        "r85": 0.01810709841645021
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "MARICO",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MARICO|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.04939877681084775,
+        "e75": 0.06673310094427203,
+        "ext60": 0.003503429157545278,
+        "or75": 0.013846435361276156,
+        "r75": 0.013022571119462343,
+        "r85": 0.01509068029091117
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "MARICO",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MARICO|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.058450603049981065,
+        "e75": 0.06758664031089744,
+        "ext60": 0.0033147305400083637,
+        "or75": 0.015408851590736718,
+        "r75": 0.013022571119462343,
+        "r85": 0.015630237563008253
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "MARICO",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MARICO|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05939789008372679,
+        "e75": 0.06971518369049694,
+        "ext60": 0.003898654931966177,
+        "or75": 0.015408851590736718,
+        "r75": 0.013022571119462343,
+        "r85": 0.015541118160131134
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "MARICO",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|MARICO|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.05690793871958529,
+        "e75": 0.07363151909470578,
+        "ext60": 0.0033687473057290715,
+        "or75": 0.013547425417656743,
+        "r75": 0.012352869242989686,
+        "r85": 0.01667664200264843
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "LUPIN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LUPIN|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05100186015337447,
+        "e75": 0.07193382041259605,
+        "ext60": 0.002924396797618914,
+        "or75": 0.013837077170013937,
+        "r75": 0.012001579501579472,
+        "r85": 0.014126156900528491
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "LUPIN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LUPIN|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.04148729017790993,
+        "e75": 0.07069387104905903,
+        "ext60": 0.0022534871905305442,
+        "or75": 0.014931072805088624,
+        "r75": 0.011722992279506506,
+        "r85": 0.01574398459005945
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "LUPIN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LUPIN|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.04892538512345561,
+        "e75": 0.06874688398759532,
+        "ext60": 0.0023494601946180355,
+        "or75": 0.014864935238951027,
+        "r75": 0.013616374153334807,
+        "r85": 0.01727980767465563
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "LUPIN",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LUPIN|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.04866301993193368,
+        "e75": 0.07391263656330795,
+        "ext60": 0.003194006684971181,
+        "or75": 0.014527334961418337,
+        "r75": 0.012809357865370241,
+        "r85": 0.01727980767465563
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "COFORGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|COFORGE|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.07251261593368023,
+        "e75": 0.10023883122060417,
+        "ext60": 0.005613411481040593,
+        "or75": 0.026921626737039066,
+        "r75": 0.027338740895317907,
+        "r85": 0.03141311686335499
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "COFORGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|COFORGE|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.0822903234524639,
+        "e75": 0.11246110856989502,
+        "ext60": 0.006684288646943518,
+        "or75": 0.02732065172781749,
+        "r75": 0.028532292996371233,
+        "r85": 0.03587094313752134
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "COFORGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|COFORGE|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.07121979224111812,
+        "e75": 0.1040244518287308,
+        "ext60": 0.005613411481040593,
+        "or75": 0.026852883406168173,
+        "r75": 0.027696197566153026,
+        "r85": 0.03461141916187793
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "COFORGE",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|COFORGE|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06963927161220555,
+        "e75": 0.10322617754450719,
+        "ext60": 0.005120998326408836,
+        "or75": 0.025418770323087883,
+        "r75": 0.02573121506682867,
+        "r85": 0.03630047959677161
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "TECHM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TECHM|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.06678965903486929,
+        "e75": 0.09014603337458488,
+        "ext60": 0.006229909425945552,
+        "or75": 0.018650973554952148,
+        "r75": 0.01831698680788394,
+        "r85": 0.021739999776593657
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "TECHM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TECHM|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.07351420032680996,
+        "e75": 0.09652959120150778,
+        "ext60": 0.006606737681313789,
+        "or75": 0.021252195697871908,
+        "r75": 0.019331229589122794,
+        "r85": 0.026681800401312655
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "TECHM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TECHM|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06567436785392423,
+        "e75": 0.09609649165588008,
+        "ext60": 0.006191394682249361,
+        "or75": 0.020481400648723502,
+        "r75": 0.01885490990843587,
+        "r85": 0.026424678504117796
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "TECHM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|TECHM|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.08026405544852906,
+        "e75": 0.1116752450157957,
+        "ext60": 0.004357689320202713,
+        "or75": 0.02031912367461973,
+        "r75": 0.019974935413950585,
+        "r85": 0.029294045169895745
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "SWIGGY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SWIGGY|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.061441330537385236,
+        "e75": 0.09903613703417476,
+        "ext60": 0.006171623961813353,
+        "or75": 0.023403775396598797,
+        "r75": 0.026243689864952333,
+        "r85": 0.033148502859954014
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "SWIGGY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SWIGGY|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06099934078451707,
+        "e75": 0.08707073080751727,
+        "ext60": 0.006171623961813353,
+        "or75": 0.024441040821192354,
+        "r75": 0.024802330022918283,
+        "r85": 0.03296224114848969
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "SWIGGY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SWIGGY|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06614572360431639,
+        "e75": 0.09252506204606062,
+        "ext60": 0.008875467747548998,
+        "or75": 0.023403775396598797,
+        "r75": 0.02713285479387953,
+        "r85": 0.033579699888364116
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "SWIGGY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SWIGGY|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.0666659183548222,
+        "e75": 0.09112032450160777,
+        "ext60": 0.007224551848139318,
+        "or75": 0.021797820849855386,
+        "r75": 0.024392443296794554,
+        "r85": 0.033142650602409646
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "PERSISTENT",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PERSISTENT|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.06732115796496954,
+        "e75": 0.07841754031741656,
+        "ext60": 0.0014338215795467425,
+        "or75": 0.026367131002653386,
+        "r75": 0.023820362023875254,
+        "r85": 0.03346772829304792
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "PERSISTENT",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PERSISTENT|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06962230605884644,
+        "e75": 0.08307583033104145,
+        "ext60": 0.001560079921433199,
+        "or75": 0.027742403516340247,
+        "r75": 0.024008696393010745,
+        "r85": 0.03346772829304792
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "PERSISTENT",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PERSISTENT|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06988459167192307,
+        "e75": 0.08560870625583561,
+        "ext60": 0.002116530254360001,
+        "or75": 0.023317068510804045,
+        "r75": 0.024008696393010745,
+        "r85": 0.029151423830572124
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "PERSISTENT",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|PERSISTENT|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.07581041068564927,
+        "e75": 0.08610993710730619,
+        "ext60": 0.005134023164300849,
+        "or75": 0.022014531338643176,
+        "r75": 0.022002752094920978,
+        "r85": 0.027797922088301688
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "OBEROIRLTY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|OBEROIRLTY|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.0461890099539299,
+        "e75": 0.05632512895567543,
+        "ext60": 0.004455603256739105,
+        "or75": 0.019463660584666982,
+        "r75": 0.014495759108085399,
+        "r85": 0.018977006770873276
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "OBEROIRLTY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|OBEROIRLTY|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.0461890099539299,
+        "e75": 0.0602098243185704,
+        "ext60": 0.0040535890317389255,
+        "or75": 0.019463660584666982,
+        "r75": 0.014295066594475811,
+        "r85": 0.018737020838332143
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "OBEROIRLTY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|OBEROIRLTY|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.050694536108898736,
+        "e75": 0.07132093290842374,
+        "ext60": 0.005766008163582554,
+        "or75": 0.017857595896016088,
+        "r75": 0.015615830958072004,
+        "r85": 0.022223302432545698
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "OBEROIRLTY",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|OBEROIRLTY|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06141008632027239,
+        "e75": 0.07606004308712482,
+        "ext60": 0.004317729504494626,
+        "or75": 0.0171827051532661,
+        "r75": 0.018447766339382204,
+        "r85": 0.022952926915131507
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "SUPREMEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SUPREMEIND|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.05578696434218832,
+        "e75": 0.07777930352160495,
+        "ext60": 0.0038928626947139426,
+        "or75": 0.018927276003140973,
+        "r75": 0.018217030143649372,
+        "r85": 0.023941404412996345
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "SUPREMEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SUPREMEIND|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06331466092544384,
+        "e75": 0.07777930352160495,
+        "ext60": 0.004319855347252606,
+        "or75": 0.021740580127746698,
+        "r75": 0.018733360977664208,
+        "r85": 0.025922367171940148
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "SUPREMEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SUPREMEIND|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06615148579659186,
+        "e75": 0.08132491521870273,
+        "ext60": 0.005026534080228903,
+        "or75": 0.0213123186292625,
+        "r75": 0.01905981315099111,
+        "r85": 0.022901800277754476
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "SUPREMEIND",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|SUPREMEIND|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.060407700041566925,
+        "e75": 0.08132491521870273,
+        "ext60": 0.00453643422239083,
+        "or75": 0.019912139366314335,
+        "r75": 0.017377878067235977,
+        "r85": 0.022901800277754476
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "LAURUSLABS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LAURUSLABS|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.08031064156813875,
+        "e75": 0.09875161675316571,
+        "ext60": 0.0062579815971156505,
+        "or75": 0.02049167746690049,
+        "r75": 0.026505620906090988,
+        "r85": 0.031647592535312914
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "LAURUSLABS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LAURUSLABS|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06611305560039402,
+        "e75": 0.08828269806579651,
+        "ext60": 0.005292171588161232,
+        "or75": 0.022357631392147553,
+        "r75": 0.023435379958084257,
+        "r85": 0.029559276907830646
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "LAURUSLABS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LAURUSLABS|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.05735210997488601,
+        "e75": 0.07286276676713646,
+        "ext60": 0.0040304304245956,
+        "or75": 0.021982478603587836,
+        "r75": 0.018499168634041753,
+        "r85": 0.023378702694849953
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "LAURUSLABS",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|LAURUSLABS|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06128997019219371,
+        "e75": 0.09066099341010465,
+        "ext60": 0.005109701540247814,
+        "or75": 0.016960053019653448,
+        "r75": 0.018266175128740285,
+        "r85": 0.024954665001113693
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-04-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-04-30",
+        "session_count": 20,
+        "start": "2026-04-01"
+      },
+      "stock": "AMBUJACEM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|AMBUJACEM|2026-01-01|2026-03-30",
+      "thresholds": {
+        "e60": 0.054989308621576354,
+        "e75": 0.08918450477504734,
+        "ext60": 0.005859719830306419,
+        "or75": 0.014780625561086867,
+        "r75": 0.018773444864994188,
+        "r85": 0.02274678061453347
+      },
+      "training_window": {
+        "end": "2026-03-30",
+        "session_count": 60,
+        "start": "2026-01-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-05-04",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-01",
+        "session_count": 20,
+        "start": "2026-05-04"
+      },
+      "stock": "AMBUJACEM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|AMBUJACEM|2026-02-01|2026-04-30",
+      "thresholds": {
+        "e60": 0.06407353847318821,
+        "e75": 0.08191724825921762,
+        "ext60": 0.0048892177063923166,
+        "or75": 0.018374667290911657,
+        "r75": 0.018974914280867967,
+        "r85": 0.022663356766328288
+      },
+      "training_window": {
+        "end": "2026-04-30",
+        "session_count": 60,
+        "start": "2026-02-01"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-06-02",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-06-30",
+        "session_count": 20,
+        "start": "2026-06-02"
+      },
+      "stock": "AMBUJACEM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|AMBUJACEM|2026-02-27|2026-06-01",
+      "thresholds": {
+        "e60": 0.06329895542253823,
+        "e75": 0.08415188977319352,
+        "ext60": 0.005925968797758772,
+        "or75": 0.017959083043373052,
+        "r75": 0.020954652811980057,
+        "r85": 0.023571549479166683
+      },
+      "training_window": {
+        "end": "2026-06-01",
+        "session_count": 60,
+        "start": "2026-02-27"
+      }
+    },
+    {
+      "effective_nse_session_date": "2026-07-01",
+      "hard_earliest_offset": {
+        "OR Continuation": 15,
+        "Strong Trend": 0,
+        "Trend": 0
+      },
+      "oos_window": {
+        "end": "2026-07-28",
+        "session_count": 20,
+        "start": "2026-07-01"
+      },
+      "stock": "AMBUJACEM",
+      "threshold_set_id": "PSY29-EVD-V2|622fc28c9761|AMBUJACEM|2026-04-01|2026-06-30",
+      "thresholds": {
+        "e60": 0.06407353847318821,
+        "e75": 0.08392739111147869,
+        "ext60": 0.00721547646739555,
+        "or75": 0.015951268576930556,
+        "r75": 0.01934169482019319,
+        "r85": 0.02595545575934127
+      },
+      "training_window": {
+        "end": "2026-06-30",
+        "session_count": 60,
+        "start": "2026-04-01"
+      }
+    }
+  ],
+  "universe": {
+    "count": 29,
+    "sha256": "622fc28c9761899faae7abc64b2477ef3e9b699f378ce0a2e96057ffa40256ee",
+    "symbols": [
+      "NESTLEIND",
+      "VEDL",
+      "ICICIPRULI",
+      "KALYANKJIL",
+      "KOTAKBANK",
+      "BANDHANBNK",
+      "BANKBARODA",
+      "TITAN",
+      "INFY",
+      "DLF",
+      "TCS",
+      "MAXHEALTH",
+      "KFINTECH",
+      "PRESTIGE",
+      "BHEL",
+      "RBLBANK",
+      "HCLTECH",
+      "ICICIGI",
+      "HDFCLIFE",
+      "MARICO",
+      "LUPIN",
+      "COFORGE",
+      "TECHM",
+      "SWIGGY",
+      "PERSISTENT",
+      "OBEROIRLTY",
+      "SUPREMEIND",
+      "LAURUSLABS",
+      "AMBUJACEM"
+    ]
+  },
+  "walk_forward_window_count_per_stock": 4
+}
