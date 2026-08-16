@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "scripts/psy29_live_pipeline_*.py"
+      - "scripts/psy29_live_signal_cycle.py"
       - "scripts/psy29_integrated_service.py"
       - "config/psy29_live_universe_contract.json"
       - ".github/workflows/psy29-live-pipeline-verify.yml"
@@ -37,6 +38,7 @@ jobs:
             scripts/psy29_live_pipeline_fixture.py \
             scripts/psy29_live_pipeline_bridge.py \
             scripts/psy29_live_pipeline_service_cycle.py \
+            scripts/psy29_live_signal_cycle.py \
             scripts/psy29_integrated_service.py
 
       - name: Run deterministic off-market pipeline gate
