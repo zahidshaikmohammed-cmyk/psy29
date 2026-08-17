@@ -17,6 +17,14 @@ def add_s11_prov(src:Path,dst:Path):
     if not r:raise RuntimeError("Stage 11 output empty")
     for x in r:x["stage11_provenance"]="PSY29 Stage 11 Live Execution-Analysis Engine v1.0"
     with dst.open("w",encoding="utf-8",newline="") as f:w=csv.DictWriter(f,fieldnames=list(r[0]));w.writeheader();w.writerows(r)
+def add_s15_prov(src:Path,dst:Path):
+    """Live compatibility adapter: preserve Stage 15 journal provenance at the row boundary expected by Stage 16/17."""
+    r=csv_rows(src)
+    if len(r)!=29:raise RuntimeError("Stage 15 output is not 29/29")
+    fields=list(r[0])
+    if "stage15_provenance" not in fields:fields.append("stage15_provenance")
+    for x in r:x["stage15_provenance"]="PSY29 Stage 15 Trade/Event Journal v1.0"
+    with dst.open("w",encoding="utf-8",newline="") as f:w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(r)
 def stage5(out:Path,syms:list[str],stamp:str):
     profiles=json.loads(P.read_text(encoding="utf-8"))["profiles"];b={str(x["symbol"]).upper().strip():x for x in profiles}
     if len(profiles)!=29 or set(b)!=set(syms):raise RuntimeError("Stage 5 profile coverage failure")
@@ -61,12 +69,12 @@ def main():
     s12=d[12]/"PSY29_STAGE12_EXECUTION_READINESS.csv";run([ROOT/"scripts/stage12_execution_readiness.py","--universe",U,"--profiles",P,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--contract",C[12],"--output",d[12]])
     s13=d[13]/"PSY29_STAGE13_SCENARIO_ADJUDICATION.csv";run([ROOT/"scripts/stage13_scenario_adjudication.py","--universe",U,"--profiles",P,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--contract",C[13],"--output",d[13]])
     s14=d[14]/"PSY29_STAGE14_LIVE_DASHBOARD.csv";run([ROOT/"scripts/stage14_live_dashboard.py","--universe",U,"--profiles",P,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--contract",C[14],"--output",d[14]])
-    s15=d[15]/"PSY29_STAGE15_EVENTS.csv";run([ROOT/"scripts/stage15_trade_event_journal.py","--universe",s15u,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--output",d[15]])
-    s16=d[16]/"PSY29_STAGE16_CURRENT_BOARD.csv";run([ROOT/"scripts/stage16_live_decision_consolidation.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--output",d[16]])
+    s15=d[15]/"PSY29_STAGE15_EVENTS.csv";run([ROOT/"scripts/stage15_trade_event_journal.py","--universe",s15u,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--output",d[15]]);s15c=work/"stage15_compat.csv";add_s15_prov(s15,s15c)
+    s16=d[16]/"PSY29_STAGE16_CURRENT_BOARD.csv";run([ROOT/"scripts/stage16_live_decision_consolidation.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15c,"--output",d[16]])
     for n,p in ((6,s6),(7,s7),(8,s8),(9,s9),(10,s10),(11,s11),(12,s12),(13,s13),(14,s14),(15,s15),(16,s16)):verify29(p,exp,f"Stage {n}")
-    s17=d[17]/"PSY29_STAGE17_STABILITY_BOARD.csv";run([ROOT/"scripts/stage17_live_stability.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--stage16",s16,"--output",d[17]]);verify29(s17,exp,"Stage 17")
+    s17=d[17]/"PSY29_STAGE17_STABILITY_BOARD.csv";run([ROOT/"scripts/stage17_live_stability.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15c,"--stage16",s16,"--output",d[17]]);verify29(s17,exp,"Stage 17")
     HISTORY.mkdir(parents=True,exist_ok=True);history_file=HISTORY/f"stage17_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.csv";write_history_snapshot(s17,history_file,stamp)
-    s18=d[18]/"PSY29_STAGE18_HISTORICAL_BOARD.csv";run([ROOT/"scripts/stage18_historical_continuity.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--stage16",s16,"--stage17",s17,"--history",HISTORY,"--output",d[18]]);verify29(s18,exp,"Stage 18")
+    s18=d[18]/"PSY29_STAGE18_HISTORICAL_BOARD.csv";run([ROOT/"scripts/stage18_historical_continuity.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15c,"--stage16",s16,"--stage17",s17,"--history",HISTORY,"--output",d[18]]);verify29(s18,exp,"Stage 18")
     purge_invalid_history();s19=d[19]/"PSY29_STAGE19_TRANSITION_BOARD.csv";run([ROOT/"scripts/stage19_forward_transition.py","--contract",C[19],"--universe",U,"--stage17",s17,"--stage18",s18,"--history",HISTORY,"--output",d[19]]);verify29(s19,exp,"Stage 19")
     memory=out/"PSY29_STAGE20_SIGNAL_MEMORY.json";stage20=out/"stage20";shutil.rmtree(stage20,ignore_errors=True);stage20.mkdir(parents=True)
     run([ROOT/"scripts/stage20_final_trading_signal_engine.py","--contract",ROOT/"config/psy29_stage20_final_trading_signal_contract.json","--universe",U,"--stage11",s11,"--stage16",s16,"--stage19",s19,"--memory",memory,"--output",stage20])
