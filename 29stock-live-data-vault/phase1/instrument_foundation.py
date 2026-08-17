@@ -83,7 +83,9 @@ def verify_credentials() -> dict:
     client_id = os.getenv("DHAN_CLIENT_ID", "").strip()
     if not token or not client_id:
         return {"verified": False, "reason": "DHAN_ACCESS_TOKEN/DHAN_CLIENT_ID not configured"}
-    body = json.dumps({"NSE_EQ": [int(x["security_id"]) for x in json.loads(OUT.read_text())["instruments"]]}).encode()
+    payload = json.loads(OUT.read_text(encoding="utf-8"))
+    expected = {x["security_id"] for x in payload["instruments"]}
+    body = json.dumps({"NSE_EQ": [int(x) for x in expected]}).encode()
     req = urllib.request.Request(
         "https://api.dhan.co/v2/marketfeed/ltp",
         data=body,
@@ -93,7 +95,11 @@ def verify_credentials() -> dict:
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             response = json.loads(r.read().decode())
-        return {"verified": response.get("status") == "success", "response_status": response.get("status")}
+        returned = set(str(k) for k in response.get("data", {}).get("NSE_EQ", {}).keys())
+        missing = sorted(expected - returned)
+        if response.get("status") != "success" or missing:
+            return {"verified": False, "response_status": response.get("status"), "missing_security_ids": missing}
+        return {"verified": True, "response_status": response.get("status"), "verified_security_ids": 29}
     except Exception as e:
         return {"verified": False, "error": type(e).__name__}
 
