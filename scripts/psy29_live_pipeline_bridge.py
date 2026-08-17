@@ -4,6 +4,10 @@
 Live mode consumes the validated DHAN execution snapshot. Fixture mode consumes
 an explicit deterministic off-market execution fixture. Neither mode generates
 signals or executes trades.
+
+Stage 11 session_high/session_low are part of the mandatory bridge contract.
+They must survive acquisition -> bridge -> Stage 11 unchanged; the bridge must
+fail closed if either field is absent or non-numeric.
 """
 from __future__ import annotations
 
@@ -18,7 +22,7 @@ REQUIRED_STAGE11_LIVE = {
     "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m", "avg_volume_20_1m",
     "open_5m", "high_5m", "low_5m", "close_5m", "volume_5m", "avg_volume_20_5m",
     "vwap_5m", "ema9_5m", "ema20_5m",
-    "first15_high", "first15_low", "swing_high", "swing_low",
+    "first15_high", "first15_low", "session_high", "session_low", "swing_high", "swing_low",
 }
 
 NUMERIC_FIELDS = REQUIRED_STAGE11_LIVE - {"symbol", "timestamp"}
@@ -87,6 +91,8 @@ def main() -> None:
                 raise ValueError(f"non-numeric pipeline value in {field}") from exc
             if value != value or value in (float("inf"), float("-inf")):
                 raise ValueError(f"non-finite pipeline value in {field}")
+        if float(row["session_high"]) < float(row["session_low"]):
+            raise ValueError(f"invalid session extremes for {row['symbol']}: session_high < session_low")
 
     out = a.output
     out.mkdir(parents=True, exist_ok=True)
@@ -107,6 +113,7 @@ def main() -> None:
         "coverage": {"expected": 29, "actual": 29, "unique": 29},
         "stage11_live_compatibility": True,
         "stage11_required_fields": sorted(REQUIRED_STAGE11_LIVE),
+        "session_extreme_handoff": "MANDATORY_PRESERVED",
         "fresh_count": 29 if a.mode == "live" else 0,
         "fixture_count": 0 if a.mode == "live" else 29,
         "signal_generation": False,
