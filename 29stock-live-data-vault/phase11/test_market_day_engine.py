@@ -1,16 +1,22 @@
-from datetime import datetime
-
-from full_market_day_engine import AuditTrail, FailureMode, SessionContract, SessionRunner
+from full_market_day_engine import FailureMode, SessionContract, SessionRunner
 
 SYMBOLS = tuple(f"S{i:02d}" for i in range(29))
 
 
 class MemoryStore:
-    def __init__(self):
+    def __init__(self, failures=0):
         self.rows = []
+        self.failures = failures
 
     def commit(self, snapshot):
-        self.rows.append(snapshot)
+        if self.failures:
+            self.failures -= 1
+            raise ConnectionError("simulated database failure")
+        if not self.contains(snapshot["symbol"], snapshot["minute"]):
+            self.rows.append(snapshot)
+
+    def contains(self, symbol, minute):
+        return any(r["symbol"] == symbol and r["minute"] == minute for r in self.rows)
 
     def last_committed_minute(self, symbol, session_date):
         rows = [r for r in self.rows if r["symbol"] == symbol and r["session_date"] == session_date]
@@ -26,7 +32,7 @@ class FakeProvider:
         self.calls += 1
         if self.failures:
             self.failures -= 1
-            raise ConnectionError("simulated transient failure")
+            raise ConnectionError("simulated transient API/network failure")
         return {
             "symbol": symbol,
             "source": "DHAN",
@@ -41,8 +47,7 @@ class FakeProvider:
 def test_engine_collects_complete_simulated_session():
     store = MemoryStore()
     provider = FakeProvider()
-    contract = SessionContract(SYMBOLS)
-    result = SessionRunner(contract, provider, store).run("2026-08-17")
+    result = SessionRunner(SessionContract(SYMBOLS), provider, store).run("2026-08-17")
     assert result == {"session_date": "2026-08-17", "symbols": 29, "minutes": 376, "snapshots": 29 * 376, "fabricated": False}
     assert len(store.rows) == 29 * 376
 
@@ -50,20 +55,23 @@ def test_engine_collects_complete_simulated_session():
 def test_transient_api_network_failures_recover_without_fabrication():
     store = MemoryStore()
     provider = FakeProvider(failures=3)
-    contract = SessionContract(SYMBOLS)
-    result = SessionRunner(contract, provider, store, retry_limit=4).run("2026-08-17")
+    result = SessionRunner(SessionContract(SYMBOLS), provider, store, retry_limit=4).run("2026-08-17")
     assert result["snapshots"] == 29 * 376
     assert all(row["fabricated"] is False for row in store.rows)
 
 
+def test_transient_database_failures_recover_without_duplicates():
+    store = MemoryStore(failures=3)
+    result = SessionRunner(SessionContract(SYMBOLS), FakeProvider(), store, retry_limit=4).run("2026-08-17")
+    assert result["snapshots"] == 29 * 376
+    assert len(store.rows) == len({(r["symbol"], r["minute"]) for r in store.rows})
+
+
 def test_wrong_security_is_rejected():
-    store = MemoryStore()
-    provider = FakeProvider()
-    contract = SessionContract(SYMBOLS)
-    runner = SessionRunner(contract, provider, store)
-    bad = {"symbol": "OTHER", "source": "DHAN", "provider_timestamp": contract.minutes("2026-08-17")[0], "raw": {"x": 1}, "fabricated": False}
+    minute = SessionContract(SYMBOLS).minutes("2026-08-17")[0]
+    bad = {"symbol": "OTHER", "source": "DHAN", "provider_timestamp": minute, "raw": {"x": 1}, "fabricated": False}
     try:
-        runner._validate_real_snapshot(bad, "S00", contract.minutes("2026-08-17")[0])
+        SessionRunner._validate_real_snapshot(bad, "S00", minute)
         assert False
     except ValueError as exc:
         assert "wrong security" in str(exc)
