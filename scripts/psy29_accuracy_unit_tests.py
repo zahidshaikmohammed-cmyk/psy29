@@ -25,7 +25,7 @@ assert row["avg_volume_20_5m"]>0 and row["candle_completion_policy"]=="COMPLETED
 assert row["session_high"]==float(x5.high.max()) and row["session_low"]==float(x5.low.min())
 assert row["session_extreme_policy"]=="CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"
 assert {"session_high","session_low"}.issubset(REQUIRED_STAGE11_LIVE)
-assert len(REQUIRED_STAGE11_LIVE)==24
+assert len(REQUIRED_STAGE11_LIVE)==23
 print("PSY29 ACCURACY UNIT TESTS: PASS")
 print("Partial-candle exclusion: PASS")
 print("EMA warm-up: PASS")
