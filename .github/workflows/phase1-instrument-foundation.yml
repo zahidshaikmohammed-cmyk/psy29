@@ -1,0 +1,41 @@
+name: PSY29 Phase 1 Instrument Foundation
+
+on:
+  push:
+    branches:
+      - phase1/29-stock-dhan-instrument-foundation
+  workflow_dispatch:
+
+jobs:
+  instrument-foundation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 29stock-live-data-vault/phase1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve and persist DHAN instrument master
+        run: python instrument_foundation.py
+      - name: Run deterministic 29/29 tests
+        run: python -m unittest discover -p 'test_*.py'
+      - name: Verify DHAN credentials when repository secrets are configured
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          from instrument_foundation import verify_credentials
+          if not os.getenv('DHAN_ACCESS_TOKEN') or not os.getenv('DHAN_CLIENT_ID'):
+              print('DHAN credentials are not configured as GitHub Actions secrets; mapping-only verification cannot mark the credential gate complete.')
+              sys.exit(2)
+          result = verify_credentials()
+          print(result)
+          if not result.get('verified'):
+              sys.exit(1)
+          PY
+      - name: Upload persisted instrument master
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-dhan-instrument-master
+          path: 29stock-live-data-vault/phase1/instrument_master.json
