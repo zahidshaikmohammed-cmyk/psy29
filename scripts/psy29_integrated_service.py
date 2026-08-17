@@ -2,11 +2,12 @@
 """PSY29 free Render service: live acquisition, validation, and live Stage 6-20 signal terminal."""
 from __future__ import annotations
 import csv,json,os,subprocess,sys,threading,time
-from datetime import datetime,timezone
+from datetime import datetime,timezone,time as dtime
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from urllib.parse import unquote,urlparse
-ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/"runtime/live";OUT.mkdir(parents=True,exist_ok=True);STATE={"status":"STARTING","error":None,"last_cycle":None};LOCK=threading.Lock();UNIVERSE=ROOT/"config/psy29_live_universe_contract.json";PIPELINE=OUT/"live_pipeline_input.csv";PV=OUT/"live_pipeline_input_validation.json";AV=OUT/"live_acquisition_validation.json";RECENT=OUT/"recent_market_snapshot.csv";RV=OUT/"recent_market_data_validation.json";BOARD=OUT/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json";SIGNALS=OUT/"PSY29_STAGE20_FINAL_SIGNALS.csv";PAGE=ROOT/"web/psy29_signals.html"
+ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/"runtime/live";OUT.mkdir(parents=True,exist_ok=True);STATE={"status":"STARTING","error":None,"last_cycle":None};LOCK=threading.Lock();UNIVERSE=ROOT/"config/psy29_live_universe_contract.json";PIPELINE=OUT/"live_pipeline_input.csv";PV=OUT/"live_pipeline_input_validation.json";AV=OUT/"live_acquisition_validation.json";RECENT=OUT/"recent_market_snapshot.csv";RV=OUT/"recent_market_data_validation.json";BOARD=OUT/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json";SIGNALS=OUT/"PSY29_STAGE20_FINAL_SIGNALS.csv";PAGE=ROOT/"web/psy29_signals.html";IST=ZoneInfo("Asia/Kolkata")
 def rj(path:Path,default=None):
     try:return json.loads(path.read_text(encoding="utf-8"))
     except Exception:return default
@@ -16,6 +17,8 @@ def rc(path:Path):
     except Exception:return []
 def symbols():
     data=rj(UNIVERSE,{}) or {};return [str(item["symbol"]).strip().upper() for item in data.get("universe",[]) if isinstance(item,dict) and item.get("symbol")]
+def market_open_now():
+    now=datetime.now(IST);return now.weekday()<5 and dtime(9,15)<=now.time()<=dtime(15,30)
 def recent_ready():
     validation=rj(RV,{}) or {}
     if validation.get("status")!="PASS" or validation.get("provider")!="DHAN" or validation.get("live_data") is not False:return False
@@ -36,19 +39,20 @@ def signal_data():
     validation=rj(PV,{}) or {};board=rj(BOARD,{}) or {};rows=rc(SIGNALS);live=validation.get("live_data") is True;recent_validation=rj(RV,{}) or {};recent_ok=recent_ready();board_ok=str(board.get("status","")).upper() in {"PASS","VALID","READY"}
     active=[row for row in rows if str(row.get("signal_status","")).upper() not in {"","NO_SIGNAL","INVALID","REJECTED"}] if live and board_ok else []
     audit=board.get("audit") if isinstance(board.get("audit"),list) else []
-    # Stage 20 audit is the authoritative per-instrument explanation for both SIGNAL and NO_SIGNAL.
     instruments=[]
     for item in audit:
         if not isinstance(item,dict):continue
         x=dict(item);x["symbol"]=str(x.get("symbol","")).strip().upper();x["signal"] = next((s for s in active if str(s.get("symbol","")).strip().upper()==x["symbol"]),None);instruments.append(x)
     if live:
-        coverage=validation.get("coverage",{"expected":29,"actual":0,"unique":0});timestamp=board.get("generated_at") or validation.get("timestamp");kind="LIVE_DHAN";session_date=None
+        coverage=validation.get("coverage",{"expected":29,"actual":0,"unique":0});timestamp=board.get("generated_at") or validation.get("timestamp");kind="LIVE_DHAN";session_date=None;status="LIVE"
+    elif market_open_now():
+        coverage={"expected":29,"actual":0,"unique":0};timestamp=None;kind="LIVE_DHAN_AWAITING_CYCLE";session_date=None;status="LIVE_AWAITING_DATA"
     else:
-        coverage=recent_validation.get("coverage",{"expected":29,"actual":0,"unique":0}) if recent_ok else {"expected":29,"actual":0,"unique":0};timestamp=recent_validation.get("generated_at") if recent_ok else None;kind="MOST_RECENT_COMPLETED_NSE_SESSION" if recent_ok else "UNAVAILABLE";session_date=recent_validation.get("session_date") if recent_ok else None
-    return {"service":"PSY29 LIVE SIGNAL BOARD","status":"LIVE" if live else "OFF_MARKET","live_data":live,"provider":"DHAN","market_data_kind":kind,"live_session_data":live,"signal_generation":live,"order_execution":False,"coverage":coverage,"timestamp":timestamp,"recent_session_date":session_date,"recent_validation_status":"PASS" if recent_ok else "UNAVAILABLE","signals":active,"active_signal_count":len(active),"instruments":instruments,"stage20":{"status":board.get("status"),"generated_at":board.get("generated_at"),"signal_count":board.get("signal_count",len(active)),"coverage":board.get("coverage")},"message":None if active else "NO ACTIVE PSY29 SIGNAL"}
+        coverage=recent_validation.get("coverage",{"expected":29,"actual":0,"unique":0}) if recent_ok else {"expected":29,"actual":0,"unique":0};timestamp=recent_validation.get("generated_at") if recent_ok else None;kind="MOST_RECENT_COMPLETED_NSE_SESSION" if recent_ok else "UNAVAILABLE";session_date=recent_validation.get("session_date") if recent_ok else None;status="OFF_MARKET"
+    return {"service":"PSY29 LIVE SIGNAL BOARD","status":status,"live_data":live,"provider":"DHAN","market_data_kind":kind,"live_session_data":live,"signal_generation":live,"order_execution":False,"coverage":coverage,"timestamp":timestamp,"recent_session_date":session_date,"recent_validation_status":"PASS" if recent_ok else "UNAVAILABLE","signals":active,"active_signal_count":len(active),"instruments":instruments,"stage20":{"status":board.get("status"),"generated_at":board.get("generated_at"),"signal_count":board.get("signal_count",len(active)),"coverage":board.get("coverage")},"message":None if active else ("WAITING FOR FRESH LIVE DHAN CYCLE" if status=="LIVE_AWAITING_DATA" else "NO ACTIVE PSY29 SIGNAL")}
 def instrument(symbol):
     symbol=symbol.strip().upper();validation=rj(PV,{}) or {};board=rj(BOARD,{}) or {};signal=next((row for row in rc(SIGNALS) if str(row.get("symbol","")).strip().upper()==symbol),None);live=validation.get("live_data") is True;source_rows=rc(PIPELINE) if live else (rc(RECENT) if recent_ready() else []);row=next((item for item in source_rows if str(item.get("symbol","")).strip().upper()==symbol),None);audit=next((x for x in (board.get("audit") or []) if str(x.get("symbol","")).strip().upper()==symbol),None)
-    if not row:return {"symbol":symbol,"found":False,"live_data":live,"message":"Recent DHAN market data is not available yet." if not live else "Live instrument data not available yet.","condition":audit}
+    if not row:return {"symbol":symbol,"found":False,"live_data":live,"message":"Fresh live DHAN cycle is still pending." if market_open_now() and not live else ("Recent DHAN market data is not available yet." if not live else "Live instrument data not available yet."),"condition":audit}
     keys=["open_1m","high_1m","low_1m","close_1m","volume_1m","open_5m","high_5m","low_5m","close_5m","volume_5m","vwap_5m","ema9_5m","ema20_5m","first15_high","first15_low","swing_high","swing_low","timestamp","freshness_status","session_date","market_data_kind"]
     return {"symbol":symbol,"found":True,"live_data":live,"market_data_kind":"LIVE_DHAN" if live else "MOST_RECENT_COMPLETED_NSE_SESSION","recent_session_date":rj(RV,{}).get("session_date") if not live and recent_ready() else None,"coverage":validation.get("coverage") if live else rj(RV,{}).get("coverage"),"data":{key:row.get(key) for key in keys},"signal":signal if live else None,"condition":audit,"strategy":(signal or {}).get("strategy") if live else None,"stage20_board_status":board.get("status")}
 class Handler(BaseHTTPRequestHandler):
