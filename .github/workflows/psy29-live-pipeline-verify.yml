@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   verify:
-    name: PSY29 live pipeline fixture gate
+    name: PSY29 live pipeline deterministic verification
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -47,6 +47,26 @@ jobs:
             scripts/psy29_persistent_store.py \
             scripts/psy29_runtime_state.py \
             scripts/psy29_live_service.py
+
+      - name: Verify market-hours fixture hard stop
+        run: |
+          python - <<'PY'
+          import contextlib
+          import io
+          import sys
+          import scripts.psy29_live_pipeline_service_cycle as m
+
+          m.market_session=lambda: True
+          sys.argv=['psy29_live_pipeline_service_cycle.py','--mode','fixture']
+          try:
+              with contextlib.redirect_stderr(io.StringIO()):
+                  m.main()
+          except SystemExit as exc:
+              assert 'fixture mode is forbidden during NSE market hours' in str(exc), exc
+          else:
+              raise AssertionError('Fixture mode was not blocked during simulated market hours')
+          print('MARKET-HOURS FIXTURE HARD STOP: PASS')
+          PY
 
       - name: Run persistence regression tests
         run: |
