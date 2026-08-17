@@ -1,6 +1,6 @@
 {
   "contract": "PSY29_LIVE_DHAN_DATA_CONTRACT",
-  "version": "1.0",
+  "version": "1.1",
   "status": "LOCKED",
   "scope": {
     "live_universe_contract": "config/psy29_live_universe_contract.json",
@@ -26,17 +26,12 @@
     "ema9",
     "ema20",
     "first15_high",
-    "first15_low"
+    "first15_low",
+    "session_high",
+    "session_low"
   ],
   "required_timeframes": ["1m", "5m"],
-  "bar_schema": [
-    "timestamp",
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume"
-  ],
+  "bar_schema": ["timestamp", "open", "high", "low", "close", "volume"],
   "data_requirements": {
     "one_row_per_symbol_per_snapshot": true,
     "symbol_must_be_in_canonical_29": true,
@@ -45,6 +40,8 @@
     "timestamps_normalized_to": "Asia/Kolkata",
     "ohlc_integrity_required": true,
     "volume_must_be_non_negative": true,
+    "session_extremes_must_be_numeric_and_ordered": true,
+    "session_extremes_source": "CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES",
     "duplicate_symbol_rows": "reject_or_keep_latest_only_before_evaluation",
     "missing_required_field": "NO_TRADE_FOR_SYMBOL"
   },
@@ -58,15 +55,7 @@
   },
   "step9_compatibility": {
     "current_live_regime_consumer": "scripts/step9_live_regime.py",
-    "current_snapshot_inputs": [
-      "symbol",
-      "last_price",
-      "vwap",
-      "ema9",
-      "ema20",
-      "first15_high",
-      "first15_low"
-    ],
+    "current_snapshot_inputs": ["symbol", "last_price", "vwap", "ema9", "ema20", "first15_high", "first15_low"],
     "step9_requires_exactly_29": true,
     "step9_current_outputs_are_not_modified_by_this_contract": true
   },
@@ -76,9 +65,10 @@
     "missing_security_id": "REJECT",
     "stale_data": "NO_TRADE",
     "invalid_ohlc": "REJECT",
+    "invalid_session_extremes": "REJECT",
     "missing_required_indicator": "NO_TRADE_FOR_SYMBOL",
     "provider_failure": "NO_NEW_SIGNAL",
-    "partial_universe_failure": "ISOLATE_FAILED_SYMBOLS; DO_NOT_INFER_MISSING_DATA"
+    "partial_universe_failure": "ISOLATE_FAILED_SYMBOLS; DO NOT INFER MISSING DATA"
   },
   "provenance": {
     "provider": "DHAN",
