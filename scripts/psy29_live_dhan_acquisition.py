@@ -11,7 +11,7 @@ if str(REPO_ROOT) not in sys.path:sys.path.insert(0,str(REPO_ROOT))
 import pandas as pd,requests
 from dhan.client import DhanClient
 IST=ZoneInfo("Asia/Kolkata");MASTER_URL="https://images.dhan.co/api-data/api-scrip-master-detailed.csv";FRESH_MAX_AGE_SECONDS=90;WARMUP_CALENDAR_DAYS=10;SESSION_OPEN=dtime(9,15);SESSION_CLOSE=dtime(15,30);OPENING_RANGE_END=dtime(9,30)
-REQUIRED_SNAPSHOT={"symbol","timestamp","last_price","vwap","ema9","ema20","first15_high","first15_low"}
+REQUIRED_SNAPSHOT={"symbol","timestamp","last_price","vwap","ema9","ema20","first15_high","first15_low","session_high","session_low"}
 def load_universe(path):
  d=json.loads(Path(path).read_text(encoding="utf-8"));u=d.get("universe",[]);s=[str(x["symbol"]).strip().upper() for x in u];r=[int(x.get("rank",0)) for x in u]
  if len(s)!=29 or len(set(s))!=29 or r!=list(range(1,30)):raise RuntimeError("Canonical live universe must contain exactly 29 unique ranked symbols")
@@ -64,11 +64,15 @@ def add_indicators_5m(df,session_date,now):
 def build_execution_row(symbol,security_id,x1,x5,all1,all5,timestamp):
  if x1.empty or x5.empty:raise RuntimeError(f"{symbol}: no completed current-session candles")
  if not bool(x1.iloc[-1]["opening_range_complete"]):raise RuntimeError(f"{symbol}: opening range incomplete before 09:30 IST")
- latest=x1.iloc[-1];latest5=x5.iloc[-1];prior5=x5.iloc[:-1].tail(20)
- if prior5.empty:prior5=x5.tail(1)
+ latest=x1.iloc[-1];latest5=x5.iloc[-1]
+ prior5=x5.iloc[:-1].tail(20)
+ if prior5.empty:prior5=all5[all5.timestamp<int(latest5.timestamp)].tail(20)
+ if prior5.empty:raise RuntimeError(f"{symbol}: no prior completed 5m structural history")
  avg1=all1.volume.tail(20).mean();avg5=all5.volume.tail(20).mean()
  if not math.isfinite(float(avg1)) or not math.isfinite(float(avg5)) or float(avg1)<=0 or float(avg5)<=0:raise RuntimeError(f"{symbol}: insufficient warm-up volume history")
- return {"symbol":symbol,"security_id":security_id,"exchange_segment":"NSE_EQ","timestamp":timestamp,"last_price":float(latest.close),"vwap":float(latest.vwap),"ema9":float(latest.ema9),"ema20":float(latest.ema20),"open_1m":float(latest.open),"high_1m":float(latest.high),"low_1m":float(latest.low),"close_1m":float(latest.close),"volume_1m":float(latest.volume),"avg_volume_20_1m":float(avg1),"open_5m":float(latest5.open),"high_5m":float(latest5.high),"low_5m":float(latest5.low),"close_5m":float(latest5.close),"volume_5m":float(latest5.volume),"avg_volume_20_5m":float(avg5),"vwap_5m":float(latest5.vwap5),"ema9_5m":float(latest5.ema9_5m),"ema20_5m":float(latest5.ema20_5m),"first15_high":float(latest.first15_high),"first15_low":float(latest.first15_low),"swing_high":float(prior5.high.max()),"swing_low":float(prior5.low.min()),"freshness_status":"FRESH","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY"}
+ session_high=float(x5.high.max());session_low=float(x5.low.min())
+ if not math.isfinite(session_high) or not math.isfinite(session_low):raise RuntimeError(f"{symbol}: invalid current-session structural extremes")
+ return {"symbol":symbol,"security_id":security_id,"exchange_segment":"NSE_EQ","timestamp":timestamp,"last_price":float(latest.close),"vwap":float(latest.vwap),"ema9":float(latest.ema9),"ema20":float(latest.ema20),"open_1m":float(latest.open),"high_1m":float(latest.high),"low_1m":float(latest.low),"close_1m":float(latest.close),"volume_1m":float(latest.volume),"avg_volume_20_1m":float(avg1),"open_5m":float(latest5.open),"high_5m":float(latest5.high),"low_5m":float(latest5.low),"close_5m":float(latest5.close),"volume_5m":float(latest5.volume),"avg_volume_20_5m":float(avg5),"vwap_5m":float(latest5.vwap5),"ema9_5m":float(latest5.ema9_5m),"ema20_5m":float(latest5.ema20_5m),"first15_high":float(latest.first15_high),"first15_low":float(latest.first15_low),"session_high":session_high,"session_low":session_low,"swing_high":float(prior5.high.max()),"swing_low":float(prior5.low.min()),"freshness_status":"FRESH","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"}
 def main():
  ap=argparse.ArgumentParser();ap.add_argument("--universe",required=True);ap.add_argument("--output",required=True);a=ap.parse_args();out=Path(a.output);out.mkdir(parents=True,exist_ok=True);symbols=load_universe(a.universe);client=DhanClient();mapping=resolve_security_ids(symbols);now=datetime.now(IST);session_date=now.date();snap=[];exe=[];errors=[]
  for s in symbols:
@@ -80,14 +84,15 @@ def main():
    if age< -5:raise RuntimeError("provider returned a future timestamp")
    if age>FRESH_MAX_AGE_SECONDS:raise RuntimeError(f"live data freshness is STALE: {age:.1f}s")
    ts=datetime.fromtimestamp(candle_end_ts,tz=timezone.utc).isoformat().replace("+00:00","Z")
-   snap.append({"symbol":s,"candle_start_timestamp":datetime.fromtimestamp(latest_ts,tz=timezone.utc).isoformat().replace("+00:00","Z"),"timestamp":ts,"last_price":float(x1.iloc[-1].close),"vwap":float(x1.iloc[-1].vwap),"ema9":float(x1.iloc[-1].ema9),"ema20":float(x1.iloc[-1].ema20),"first15_high":float(x1.iloc[-1].first15_high),"first15_low":float(x1.iloc[-1].first15_low),"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":"FRESH","provider":"DHAN","security_id":mapping[s],"exchange_segment":"NSE_EQ","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","opening_range_complete":True})
+   session_high=float(x5.high.max());session_low=float(x5.low.min())
+   snap.append({"symbol":s,"candle_start_timestamp":datetime.fromtimestamp(latest_ts,tz=timezone.utc).isoformat().replace("+00:00","Z"),"timestamp":ts,"last_price":float(x1.iloc[-1].close),"vwap":float(x1.iloc[-1].vwap),"ema9":float(x1.iloc[-1].ema9),"ema20":float(x1.iloc[-1].ema20),"first15_high":float(x1.iloc[-1].first15_high),"first15_low":float(x1.iloc[-1].first15_low),"session_high":session_high,"session_low":session_low,"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":"FRESH","provider":"DHAN","security_id":mapping[s],"exchange_segment":"NSE_EQ","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","opening_range_complete":True,"session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"})
    exe.append(build_execution_row(s,mapping[s],x1,x5,completed_candles(raw1,1,now),completed_candles(raw5,5,now),ts))
   except Exception as exc:errors.append({"symbol":s,"error":str(exc)})
  snapshot=pd.DataFrame(snap);execution=pd.DataFrame(exe)
  if not snapshot.empty:snapshot.to_csv(out/"live_snapshot.csv",index=False)
  if not execution.empty:execution.to_csv(out/"execution_snapshot.csv",index=False)
  stale=sum("STALE" in e["error"].upper() for e in errors);invalid=len(errors)-stale;status="PASS" if len(snap)==29 and len(exe)==29 and not errors and set(snapshot.columns)>=REQUIRED_SNAPSHOT and (snapshot.freshness_status=="FRESH").all() and (snapshot.opening_range_complete==True).all() else "FAIL"
- validation={"contract":"PSY29_LIVE_DHAN_ACQUISITION_VALIDATION","status":status,"provider":"DHAN","coverage":{"expected":29,"actual":len(snap),"unique":int(snapshot.symbol.nunique()) if not snapshot.empty else 0},"fresh_count":int((snapshot.freshness_status=="FRESH").sum()) if not snapshot.empty else 0,"stale_count":stale,"invalid_count":invalid,"errors":errors,"timestamp":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"source":"PSY29/dhan/client.py + DHAN v2 intraday historical data","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","freshness_timestamp_policy":"CANDLE_END_TIMESTAMP","opening_range_policy":"09:15-09:29 IST, complete before pipeline acceptance","signal_generation":False,"order_execution":False}
+ validation={"contract":"PSY29_LIVE_DHAN_ACQUISITION_VALIDATION","status":status,"provider":"DHAN","coverage":{"expected":29,"actual":len(snap),"unique":int(snapshot.symbol.nunique()) if not snapshot.empty else 0},"fresh_count":int((snapshot.freshness_status=="FRESH").sum()) if not snapshot.empty else 0,"stale_count":stale,"invalid_count":invalid,"errors":errors,"timestamp":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"source":"PSY29/dhan/client.py + DHAN v2 intraday historical data","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","freshness_timestamp_policy":"CANDLE_END_TIMESTAMP","opening_range_policy":"09:15-09:29 IST, complete before pipeline acceptance","session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES","signal_generation":False,"order_execution":False}
  (out/"live_acquisition_validation.json").write_text(json.dumps(validation,indent=2),encoding="utf-8");(out/"security_map.json").write_text(json.dumps({"status":"PASS","canonical_count":29,"resolved_count":29,"unique_security_id_count":29,"mappings":[{"symbol":s,"security_id":mapping[s],"exchange":"NSE","segment":"E","exchange_segment":"NSE_EQ"} for s in symbols]},indent=2),encoding="utf-8");print(json.dumps(validation,indent=2))
  if status!="PASS":raise SystemExit(1)
 if __name__=="__main__":main()
