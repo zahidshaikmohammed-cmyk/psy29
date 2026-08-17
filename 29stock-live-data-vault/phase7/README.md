@@ -1,0 +1,1 @@
+Phase 7 verifies that derivative inputs are not required by the audited 29 equity specialist contracts. The DHAN option-chain adapter is present but intentionally produces an explicit empty persisted contract until a specialist engine is verified to require derivatives. This prevents fabricated expiry/strike requirements and unnecessary market polling.
