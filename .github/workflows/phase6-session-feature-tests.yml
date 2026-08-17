@@ -1,0 +1,39 @@
+name: PSY29 Phase 6 Session Feature Verification
+
+on:
+  push:
+    branches:
+      - phase6/session-market-features
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 29stock-live-data-vault/phase6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Phase 6 session feature tests
+        run: python -m unittest -v test_session_features.py
+      - name: Verify feature contract
+        run: |
+          python - <<'PY'
+          from session_features import build_session_features
+          candles=[]
+          for i in range(30):
+              candles.append({
+                  'timestamp': f'2026-08-17T09:{15+i:02d}:00+05:30',
+                  'open':100+i,'high':101+i,'low':99+i,'close':100.5+i,
+                  'volume':100+i,'complete':True})
+          rows=build_session_features('NESTLEIND', candles)
+          assert len(rows)==30
+          required=['session_open','session_high','session_low','session_close','session_volume',
+                    'first_5m_high','first_5m_low','first_5m_range','first_15m_high','first_15m_low',
+                    'first_15m_range','running_high','running_low','running_volume']
+          assert all(k in rows[-1] for k in required)
+          assert rows[-1]['running_high'] == max(r['high'] for r in candles)
+          assert rows[-1]['running_low'] == min(r['low'] for r in candles)
+          assert rows[-1]['running_volume'] == sum(r['volume'] for r in candles)
+          print('PHASE 6 CONTRACT: PASS')
+          PY
