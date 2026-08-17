@@ -4,6 +4,7 @@ import pandas as pd
 from zoneinfo import ZoneInfo
 sys.path.insert(0,str(__import__('pathlib').Path(__file__).resolve().parents[1]))
 from scripts.psy29_live_dhan_acquisition import completed_candles, add_indicators_1m, add_indicators_5m, build_execution_row
+from scripts.psy29_live_pipeline_bridge import REQUIRED_STAGE11_LIVE
 IST=ZoneInfo("Asia/Kolkata")
 BASE=datetime(2026,8,17,9,15,tzinfo=IST)
 def frame(start,n,minutes,offset=0):
@@ -23,8 +24,11 @@ row=build_execution_row("TEST","1",x1,x5,complete5,complete5,"2026-08-17T03:45:0
 assert row["avg_volume_20_5m"]>0 and row["candle_completion_policy"]=="COMPLETED_CANDLES_ONLY"
 assert row["session_high"]==float(x5.high.max()) and row["session_low"]==float(x5.low.min())
 assert row["session_extreme_policy"]=="CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"
+assert {"session_high","session_low"}.issubset(REQUIRED_STAGE11_LIVE)
+assert len(REQUIRED_STAGE11_LIVE)==24
 print("PSY29 ACCURACY UNIT TESTS: PASS")
 print("Partial-candle exclusion: PASS")
 print("EMA warm-up: PASS")
 print("20-bar volume warm-up: PASS")
-print("Session-extreme handoff: PASS")
+print("Session-extreme acquisition: PASS")
+print("Session-extreme bridge contract: PASS")
