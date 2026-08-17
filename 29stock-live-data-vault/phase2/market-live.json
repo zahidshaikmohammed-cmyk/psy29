@@ -1,7 +1,7 @@
 {
   "schema": "PSY29_RAW_MARKET_DATA_V1",
-  "generated_at": "2026-08-17T13:26:38.016667Z",
-  "provider_response_at": "2026-08-17T13:26:38.320478Z",
+  "generated_at": "2026-08-17T13:26:56.748654Z",
+  "provider_response_at": "2026-08-17T13:26:57.059613Z",
   "provider": "DHAN",
   "endpoint": "https://api.dhan.co/v2/marketfeed/quote",
   "exchange_segment": "NSE_EQ",
