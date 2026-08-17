@@ -1,0 +1,11 @@
+{
+  "phase": 7,
+  "scope": "derivatives / option data",
+  "actual_engine_requirements": {
+    "status": "verified",
+    "required_fields": ["expiry", "strike", "option_type", "last_price", "oi", "volume", "iv", "delta", "gamma", "theta", "vega", "bid_price", "ask_price", "bid_qty", "ask_qty"]
+  },
+  "universe": "only stocks whose specialist engine explicitly requires derivatives data; do not fabricate derivative requirements for stocks that do not",
+  "collection": "DHAN option chain API",
+  "persistence": true
+}

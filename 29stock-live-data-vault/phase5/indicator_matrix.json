@@ -1,0 +1,17 @@
+{
+  "schema": "PSY29_INDICATOR_MATRIX_V1",
+  "locked_indicators": {
+    "VWAP": "intraday_session_vwap_using_typical_price_and_cumulative_volume",
+    "EMA9": "standard_ema_alpha_2_divided_by_period_plus_1_seeded_by_9_close_sma",
+    "EMA20": "standard_ema_alpha_2_divided_by_period_plus_1_seeded_by_20_close_sma"
+  },
+  "additional_named_indicators": [],
+  "additional_feature_note": "Volatility, range expansion, momentum, opening range and structural events are derived features, not named indicators, and are handled outside Phase 5.",
+  "completed_candle_rule": "Only canonical Phase 4 candles with complete=true may produce indicator records.",
+  "timestamp_rule": "Indicator timestamp equals source canonical candle timestamp and is timezone-aware.",
+  "stocks": [
+    "NESTLEIND","VEDL","ICICIPRULI","KALYANKJIL","KOTAKBANK","BANDHANBNK","BANKBARODA","TITAN","INFY","DLF","TCS","MAXHEALTH","KFINTECH","PRESTIGE","BHEL","RBLBANK","HCLTECH","ICICIGI","HDFCLIFE","MARICO","LUPIN","COFORGE","TECHM","SWIGGY","PERSISTENT","OBEROIRLTY","SUPREMEIND","LAURUSLABS","AMBUJACEM"
+  ],
+  "timeframes": ["1m","5m","15m","1h","1D","1W"],
+  "required_per_stock": ["VWAP","EMA9","EMA20"]
+}
