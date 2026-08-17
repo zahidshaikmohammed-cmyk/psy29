@@ -1,0 +1,17 @@
+{
+  "phase": 10,
+  "required_layers": ["mapping","raw","candles","indicators","features","persistence","provenance","minute_continuity"],
+  "minimum_symbol_coverage": 29,
+  "symbol_coverage_required": {
+    "mapping": 29,
+    "raw": 29,
+    "candles": 29,
+    "indicators": 29,
+    "features": 29,
+    "persistence": 29,
+    "provenance": 29,
+    "minute_continuity": 29
+  },
+  "closed_market_policy": "do_not_fabricate_live_session_data",
+  "live_session_gate": "requires_one_genuine_market_session_before_29_stock_minute_continuity_can_be_claimed"
+}
