@@ -3,13 +3,42 @@
 from __future__ import annotations
 
 import os
+import random
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import requests
 
 
 BASE_URL = "https://api.dhan.co/v2"
+MAX_RETRY_AFTER_SECONDS = 30.0
+
+
+def _retry_after_seconds(response: requests.Response | None) -> float | None:
+    """Return a bounded Retry-After delay when the provider supplies one."""
+    if response is None:
+        return None
+    value = response.headers.get("Retry-After")
+    if not value:
+        return None
+    try:
+        return max(0.0, min(float(value), MAX_RETRY_AFTER_SECONDS))
+    except ValueError:
+        try:
+            target = parsedate_to_datetime(value)
+            if target.tzinfo is None:
+                target = target.replace(tzinfo=timezone.utc)
+            delay = (target - datetime.now(timezone.utc)).total_seconds()
+            return max(0.0, min(delay, MAX_RETRY_AFTER_SECONDS))
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+
+def _backoff(attempt: int, base: float) -> float:
+    """Bounded exponential backoff with small jitter to avoid retry synchronization."""
+    return base * (2**attempt) + random.uniform(0.0, min(0.25, base))
 
 
 class DhanClient:
@@ -40,9 +69,11 @@ class DhanClient:
     ) -> dict[str, Any]:
         """POST to Dhan with bounded retry/backoff for transient failures.
 
-        Non-transient 4xx errors are raised immediately. Network timeouts,
-        429 rate-limit responses, 5xx responses, and Dhan transient server/network
-        error codes are retried at most ``retries`` times.
+        429 rate limits honor the provider's Retry-After header when present.
+        Network failures, 429s, 5xx responses, and Dhan transient server/network
+        codes are retried only a bounded number of times. Non-transient 4xx
+        responses fail immediately. A retry never turns partial data into a valid
+        response: the caller must still enforce its own completeness contract.
         """
         last_error: Exception | None = None
 
@@ -65,9 +96,11 @@ class DhanClient:
                     text = str(data)
                     transient = any(code in text for code in ("805", "908", "909"))
                     if transient and attempt < retries:
-                        delay = backoff_seconds * (2**attempt)
+                        delay = _retry_after_seconds(response)
+                        if delay is None:
+                            delay = _backoff(attempt, backoff_seconds)
                         print(
-                            f"Dhan transient failure; retrying in {delay:.1f}s "
+                            f"Dhan transient failure; retrying in {delay:.2f}s "
                             f"(attempt {attempt + 1}/{retries})",
                             flush=True,
                         )
@@ -81,9 +114,9 @@ class DhanClient:
                 last_error = exc
                 if attempt >= retries:
                     raise
-                delay = backoff_seconds * (2**attempt)
+                delay = _backoff(attempt, backoff_seconds)
                 print(
-                    f"Dhan network timeout/connection error; retrying in {delay:.1f}s "
+                    f"Dhan network timeout/connection error; retrying in {delay:.2f}s "
                     f"(attempt {attempt + 1}/{retries})",
                     flush=True,
                 )
@@ -95,9 +128,11 @@ class DhanClient:
                 if status == 429 or (status is not None and status >= 500):
                     if attempt >= retries:
                         raise
-                    delay = backoff_seconds * (2**attempt)
+                    delay = _retry_after_seconds(exc.response)
+                    if delay is None:
+                        delay = _backoff(attempt, backoff_seconds)
                     print(
-                        f"Dhan HTTP {status}; retrying in {delay:.1f}s "
+                        f"Dhan HTTP {status}; retrying in {delay:.2f}s "
                         f"(attempt {attempt + 1}/{retries})",
                         flush=True,
                     )
