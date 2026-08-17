@@ -1,0 +1,48 @@
+name: PSY29 Health Surface Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/psy29_integrated_service.py
+      - scripts/psy29_health_surface_service.py
+      - .github/workflows/psy29-health-surface-fix.yml
+
+jobs:
+  verify-health-surface:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify truthful health telemetry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/psy29_integrated_service.py')
+          text = p.read_text(encoding='utf-8')
+          bad = '"durable_external_state":False'
+          good = '"durable_external_state":runtime.get("persistence") == "NEON_POSTGRES"'
+          if bad in text:
+              text = text.replace(bad, good, 1)
+              p.write_text(text, encoding='utf-8')
+              print('Corrected legacy hardcoded persistence health field.')
+          elif good in text:
+              print('Health persistence field already correct.')
+          else:
+              raise SystemExit('Expected health persistence field was not found.')
+          PY
+
+      - name: Commit corrected health surface
+        run: |
+          if git diff --quiet -- scripts/psy29_integrated_service.py; then
+            echo 'No health-surface change required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/psy29_integrated_service.py
+          git commit -m 'PSY29 Fix 7: truthful persistence health telemetry'
+          git push
