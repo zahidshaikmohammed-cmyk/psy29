@@ -12,6 +12,8 @@ on:
       - "scripts/psy29_live_dhan_acquisition.py"
       - "scripts/psy29_recent_dhan_snapshot.py"
       - "scripts/test_psy29_live_indicator_contract.py"
+      - "scripts/test_psy29_dhan_resilience.py"
+      - "dhan/client.py"
       - "requirements-live.txt"
       - "config/psy29_live_universe_contract.json"
       - ".github/workflows/psy29-live-pipeline-verify.yml"
@@ -42,9 +44,11 @@ jobs:
       - name: Compile live pipeline and persistence modules
         run: |
           python -m py_compile \
+            dhan/client.py \
             scripts/psy29_live_dhan_acquisition.py \
             scripts/psy29_recent_dhan_snapshot.py \
             scripts/test_psy29_live_indicator_contract.py \
+            scripts/test_psy29_dhan_resilience.py \
             scripts/psy29_live_pipeline_fixture.py \
             scripts/psy29_live_pipeline_bridge.py \
             scripts/psy29_live_pipeline_service_cycle.py \
@@ -57,6 +61,10 @@ jobs:
       - name: Verify production 1M indicator contract
         run: |
           python scripts/test_psy29_live_indicator_contract.py
+
+      - name: Verify DHAN retry and completeness contract
+        run: |
+          python scripts/test_psy29_dhan_resilience.py
 
       - name: Verify production add_indicators_1m API signature
         run: |
@@ -131,5 +139,6 @@ jobs:
           print('29/29 fixture rows: PASS')
           print('Persistence regression: PASS')
           print('1M indicator contract: PASS')
+          print('DHAN resilience + completeness: PASS')
           print('Explicitly non-live: PASS')
           PY
