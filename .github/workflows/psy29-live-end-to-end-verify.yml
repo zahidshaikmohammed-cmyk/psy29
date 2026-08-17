@@ -122,17 +122,40 @@ jobs:
         run: |
           rm -rf /tmp/psy29-live-e2e
           python scripts/psy29_live_end_to_end_gate.py --mode "$GATE_MODE" --output /tmp/psy29-live-e2e
+      - name: Execute Stage 20 against end-to-end pipeline outputs
+        run: |
+          rm -rf /tmp/psy29-stage20-live-out
+          python scripts/stage20_final_trading_signal_engine.py \
+            --contract config/psy29_stage20_final_trading_signal_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --stage11 /tmp/psy29-live-e2e/execution_snapshot.csv \
+            --stage16 /tmp/psy29-live-e2e/stage16/PSY29_STAGE16_CURRENT_BOARD.csv \
+            --stage19 /tmp/psy29-live-e2e/stage19/PSY29_STAGE19_TRANSITION_BOARD.csv \
+            --memory /tmp/psy29-live-e2e/no-memory.csv \
+            --output /tmp/psy29-stage20-live-out
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/psy29-stage20-live-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert isinstance(p['signals'],list) and isinstance(p['audit'],list) and len(p['audit'])==29
+          assert p['daily_signal_cap'] is None
+          print('STAGE 20 LIVE E2E INVOCATION: PASS')
+          print('Stage 20 received 29/29 validated pipeline records: PASS')
+          print(f"Stage 20 live/fixture pipeline signals: {p['signal_count']}")
+          PY
       - name: HARD VERIFY gate result
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           m=json.loads(Path('/tmp/psy29-live-e2e/PSY29_LIVE_END_TO_END_GATE.json').read_text())
+          p=json.loads(Path('/tmp/psy29-stage20-live-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json').read_text())
           assert m['status']=='PASS' and m['coverage']=={'expected':29,'actual':29,'unique':29}
           assert m['live_snapshot_to_stage16'] and m['stage17_live_derived'] and m['stage18_live_derived'] and m['stage20_input_compatibility']
-          assert m['signal_generation'] is False and m['order_execution'] is False and m['stage20_invoked'] is False
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29} and len(p['audit'])==29
+          assert p['daily_signal_cap'] is None
           print('PSY29 LIVE END-TO-END SIGNAL PIPELINE GATE: HARD VERIFY PASS')
-          print('29/29: PASS'); print('Stage 6-16 live/fixture chain: PASS'); print('Stage 17-18 downstream chain: PASS'); print('Stage 19 deterministic contract: PASS'); print('Stage 20 input compatibility only: PASS')
+          print('29/29: PASS'); print('Stage 6-16 live/fixture chain: PASS'); print('Stage 17-18 downstream chain: PASS'); print('Stage 19 deterministic contract: PASS'); print('Stage 20 execution: PASS')
           PY
       - name: Upload verification artifact
         uses: actions/upload-artifact@v4
@@ -140,3 +163,4 @@ jobs:
           name: psy29-live-end-to-end-gate
           path: /tmp/psy29-live-e2e/
           if-no-files-found: error
+          include-hidden-files: true
