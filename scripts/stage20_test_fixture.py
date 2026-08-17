@@ -20,6 +20,8 @@ def main():
     def write(path,records):
         with path.open('w',encoding='utf-8',newline='') as f:w=csv.DictWriter(f,fieldnames=list(records[0]));w.writeheader();w.writerows(records)
     write(a.output/'stage11.csv',r11);write(a.output/'stage16.csv',r16);write(a.output/'stage19.csv',r19)
-    write(a.output/'memory.csv',[{'symbol':syms[0],'state':'TRADED'},{'symbol':syms[1],'state':'ACTIVE_SIGNAL'}])
+    # Suppress the two continuation candidates so the blocker-1 gate can prove that
+    # breakout and breakdown candidates survive memory suppression correctly.
+    write(a.output/'memory.csv',[{'symbol':syms[2],'state':'TRADED'},{'symbol':syms[3],'state':'ACTIVE_SIGNAL'}])
     print('STAGE 20 FIXTURE: PASS');print('29/29 coverage: PASS');print('4 qualifying opportunities: PASS');print('2 memory-suppressed candidates: PASS');print('breakout/breakdown target geometry: PASS');print('multiple-signal behavior: PASS')
 if __name__=='__main__':main()
