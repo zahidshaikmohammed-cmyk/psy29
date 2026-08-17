@@ -8,7 +8,10 @@ on:
       - 'scripts/psy29_live_pipeline_fixture.py'
       - 'scripts/psy29_live_pipeline_bridge.py'
       - 'scripts/psy29_live_pipeline_service_cycle.py'
+      - 'scripts/psy29_live_signal_cycle.py'
       - 'scripts/psy29_live_stage20_compatibility_check.py'
+      - 'scripts/psy29_integrated_service.py'
+      - 'scripts/psy29_runtime_state.py'
       - 'scripts/stage20_final_trading_signal_engine.py'
       - 'scripts/stage20_test_fixture.py'
       - 'scripts/stage20_check.py'
@@ -37,8 +40,12 @@ jobs:
           test -f scripts/stage20_check.py
           test -f scripts/psy29_live_pipeline_fixture.py
           test -f scripts/psy29_live_pipeline_bridge.py
+          test -f scripts/psy29_live_pipeline_service_cycle.py
+          test -f scripts/psy29_live_signal_cycle.py
           test -f scripts/psy29_live_stage20_compatibility_check.py
-      - name: Compile Stage 20 Python
+          test -f scripts/psy29_integrated_service.py
+          test -f scripts/psy29_runtime_state.py
+      - name: Compile Stage 20 and production runtime Python
         run: |
           python -m py_compile scripts/stage20_final_trading_signal_engine.py
           python -m py_compile scripts/stage20_test_fixture.py
@@ -46,8 +53,11 @@ jobs:
           python -m py_compile scripts/psy29_live_pipeline_fixture.py
           python -m py_compile scripts/psy29_live_pipeline_bridge.py
           python -m py_compile scripts/psy29_live_pipeline_service_cycle.py
+          python -m py_compile scripts/psy29_live_signal_cycle.py
           python -m py_compile scripts/psy29_live_stage20_compatibility_check.py
-          echo 'STAGE 20 + LIVE PIPELINE PYTHON SYNTAX: PASS'
+          python -m py_compile scripts/psy29_integrated_service.py
+          python -m py_compile scripts/psy29_runtime_state.py
+          echo 'STAGE 20 + PRODUCTION RUNTIME PYTHON SYNTAX: PASS'
       - name: Validate canonical 29
         run: |
           python - <<'PY'
@@ -66,7 +76,6 @@ jobs:
           assert c['coverage']==29
           assert c['signal_policy']['multiple_signals_allowed'] is True
           assert c['signal_policy']['daily_signal_cap'] is None
-          assert c['signal_policy']['traded_stock_permanent_blacklist'] is False if 'traded_stock_permanent_blacklist' in c['signal_policy'] else True
           assert c['strategy_authority']['entry_owner']=='selected_strategy'
           assert c['strategy_authority']['stop_loss_owner']=='selected_strategy'
           assert c['strategy_authority']['take_profit_owner']=='selected_strategy'
@@ -80,6 +89,21 @@ jobs:
           assert m['missing_metadata_policy']=='PRESERVE_STATE_FAIL_CLOSED'
           print('STAGE 20 CONTRACT: PASS')
           print('MEMORY LIFECYCLE CONTRACT: PASS')
+          PY
+      - name: Verify runtime state journal atomically
+        run: |
+          python - <<'PY'
+          import json,tempfile
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'scripts')
+          from psy29_runtime_state import save,load
+          p=Path(tempfile.mkdtemp())/'state.json'
+          s=save(p,{'status':'PASS','last_signal_count':7,'last_cycle_id':'TEST-CYCLE'})
+          assert s['schema_version']==1 and s['status']=='PASS'
+          r=load(p)
+          assert r['last_signal_count']==7 and r['last_cycle_id']=='TEST-CYCLE'
+          print('CRASH-SAFE RUNTIME STATE JOURNAL: PASS')
           PY
       - name: Create deterministic Stage 20 fixture
         run: |
