@@ -4,12 +4,7 @@ from __future__ import annotations
 import argparse,csv,hashlib,json,math,sys
 from datetime import datetime,timezone
 from pathlib import Path
-
-SCENARIOS={"BREAKOUT","BREAKDOWN","CONTINUATION","RETEST"}
-BLOCKED={"ORDER","BROKER_ORDER","EXECUTE","EXECUTION","CAPITAL_ALLOCATION","POSITION_SIZE"}
-FRESH_MAX_AGE_SECONDS=90
-MEMORY_STATES={"NONE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"}
-TERMINAL_MEMORY={"INVALIDATED","COMPLETED"}
+SCENARIOS={"BREAKOUT","BREAKDOWN","CONTINUATION","RETEST"};BLOCKED={"ORDER","BROKER_ORDER","EXECUTE","EXECUTION","CAPITAL_ALLOCATION","POSITION_SIZE"};FRESH_MAX_AGE_SECONDS=90;MEMORY_STATES={"NONE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"};TERMINAL_MEMORY={"INVALIDATED","COMPLETED"}
 
 def load(p):
  text=p.read_text(encoding="utf-8").strip()
@@ -138,28 +133,24 @@ def scan_blocked(x,p="root"):
  return bad
 
 def lifecycle(rec,r11):
- """Resolve observable outcome of an existing signal before suppression.
-
-    A state is released only by objective price evidence stored with the signal:
-    LONG target hit -> COMPLETED; LONG stop hit -> INVALIDATED; inverse for SHORT.
-    With missing lifecycle metadata we fail closed and retain the existing state.
-    INVALIDATED/COMPLETED are immediately reusable states and never blacklist a symbol.
-    """
  state=rec.get("state","NONE")
  if state in TERMINAL_MEMORY:return "AVAILABLE",state,"terminal prior state released for new setup"
  if state not in {"ACTIVE_SIGNAL","TRADED"}:return state,None,"no active memory"
- direction=str(rec.get("direction") or "").upper()
- stop=num(rec,"stop_loss");target=num(rec,"take_profit");price=num(r11,"close_5m")
- if direction not in {"LONG","SHORT"} or stop is None or target is None or price is None:
-  return state,None,"lifecycle metadata incomplete; preserve memory fail-closed"
- if not all(math.isfinite(x) for x in (stop,target,price)):
-  return state,None,"lifecycle metadata non-finite; preserve memory fail-closed"
+ direction=str(rec.get("direction") or "").upper();stop=num(rec,"stop_loss");target=num(rec,"take_profit");close=num(r11,"close_5m");high=num(r11,"high_5m");low=num(r11,"low_5m")
+ if high is None:high=close
+ if low is None:low=close
+ if direction not in {"LONG","SHORT"} or stop is None or target is None or high is None or low is None:return state,None,"lifecycle metadata incomplete; preserve memory fail-closed"
+ if not all(math.isfinite(x) for x in (stop,target,high,low)) or high<low:return state,None,"lifecycle OHLC invalid; preserve memory fail-closed"
  if direction=="LONG":
-  if price>=target:return "AVAILABLE","COMPLETED","target reached; prior signal completed"
-  if price<=stop:return "AVAILABLE","INVALIDATED","stop/invalidation reached; prior signal invalidated"
+  hit_target=high>=target;hit_stop=low<=stop
+  if hit_target and hit_stop:return state,None,"target and stop both touched in same candle; outcome ambiguous, preserve state"
+  if hit_target:return "AVAILABLE","COMPLETED","target reached; prior signal completed"
+  if hit_stop:return "AVAILABLE","INVALIDATED","stop/invalidation reached; prior signal invalidated"
  else:
-  if price<=target:return "AVAILABLE","COMPLETED","target reached; prior signal completed"
-  if price>=stop:return "AVAILABLE","INVALIDATED","stop/invalidation reached; prior signal invalidated"
+  hit_target=low<=target;hit_stop=high>=stop
+  if hit_target and hit_stop:return state,None,"target and stop both touched in same candle; outcome ambiguous, preserve state"
+  if hit_target:return "AVAILABLE","COMPLETED","target reached; prior signal completed"
+  if hit_stop:return "AVAILABLE","INVALIDATED","stop/invalidation reached; prior signal invalidated"
  return state,None,"active/traded signal remains live"
 
 def main():
@@ -173,8 +164,7 @@ def main():
  if lifecycle_policy.get("enabled") is not True or lifecycle_policy.get("terminal_states")!=["INVALIDATED","COMPLETED"] or lifecycle_policy.get("active_states")!=["ACTIVE_SIGNAL","TRADED"] or lifecycle_policy.get("missing_metadata_policy")!="PRESERVE_STATE_FAIL_CLOSED":raise ValueError("Stage 20 memory lifecycle contract invalid")
  syms=universe(a.universe);expected=set(syms);s11=index(a.stage11,expected,"Stage 11");s16=index(a.stage16,expected,"Stage 16");s19=index(a.stage19,expected,"Stage 19");mem=memory(a.memory,expected);now=datetime.now(timezone.utc);stamp=now.replace(microsecond=0).isoformat().replace("+00:00","Z");signals=[];audit=[];resolved_memory={}
  for rank,s in enumerate(syms,1):
-  r11,r16,r19=s11[s],s16[s],s19[s];rec=mem[s];effective,transition,transition_reason=lifecycle(rec,r11);resolved_memory[s]={**rec,"effective_state":effective}
-  sc=scenario(r16);state=str(val(r16,"system_state","stage16_state") or "").upper();trans=str(val(r19,"stage19_state","state") or "").upper();evidence=str(val(r19,"transition_evidence_status") or ("UNAVAILABLE" if trans=="INSUFFICIENT_TRANSITION_EVIDENCE" else "INVALID" if trans=="PROVENANCE_FAIL" else "AVAILABLE")).upper();m=effective;reason="";decision="NO_SIGNAL";ok11,_,why11=fresh(r11,now);ok16,_,why16=fresh(r16,now);ok19,_,why19=fresh(r19,now);prov11=bool(val(r11,"stage11_provenance","provenance","research_provenance"));prov16=bool(val(r16,"stage16_provenance","provenance"));prov19=bool(val(r19,"stage19_provenance","provenance"))
+  r11,r16,r19=s11[s],s16[s],s19[s];rec=mem[s];effective,transition,transition_reason=lifecycle(rec,r11);resolved_memory[s]={**rec,"effective_state":effective};sc=scenario(r16);state=str(val(r16,"system_state","stage16_state") or "").upper();trans=str(val(r19,"stage19_state","state") or "").upper();evidence=str(val(r19,"transition_evidence_status") or ("UNAVAILABLE" if trans=="INSUFFICIENT_TRANSITION_EVIDENCE" else "INVALID" if trans=="PROVENANCE_FAIL" else "AVAILABLE")).upper();m=effective;reason="";decision="NO_SIGNAL";ok11,_,why11=fresh(r11,now);ok16,_,why16=fresh(r16,now);ok19,_,why19=fresh(r19,now);prov11=bool(val(r11,"stage11_provenance","provenance","research_provenance"));prov16=bool(val(r16,"stage16_provenance","provenance"));prov19=bool(val(r19,"stage19_provenance","provenance"))
   if not (ok11 and ok16 and ok19):reason=f"freshness: S11={why11}; S16={why16}; S19={why19}"
   elif not (prov11 and prov16 and prov19):reason="required Stage 11/16/19 provenance missing"
   elif m in {"ACTIVE_SIGNAL","TRADED"}:reason=f"memory={m}"
@@ -189,24 +179,18 @@ def main():
    else:
     entry,stop,target,rr=levels;score=round(conf*100.0,4);seed=f"{s}|{sc}|{entry:.6f}|{stop:.6f}|{target:.6f}|{stamp}";sid="PSY29-"+hashlib.sha256(seed.encode()).hexdigest()[:16].upper();signals.append({"signal_id":sid,"symbol":s,"canonical_rank":rank,"direction":d,"strategy":sc,"entry":entry,"stop_loss":stop,"take_profit":target,"risk_reward":round(rr,4),"signal_score":score,"signal_status":"NEW_SIGNAL","timestamp":stamp,"memory_state":m,"stage16_state":state,"stage19_state":trans,"transition_evidence_status":evidence,"provenance":"PSY29 Stage 20 strategy-owned signal; Stage 11 live levels + Stage 16 candidate + Stage 19 transition evidence"});reason="qualifying new strategy-owned opportunity" if evidence=="AVAILABLE" else "qualifying independent opportunity; Stage 19 transition evidence unavailable";decision="SIGNAL"
   audit.append({"symbol":s,"stage16_state":state,"stage19_state":trans,"transition_evidence_status":evidence,"scenario":sc,"memory_state":rec.get("state","NONE"),"effective_memory_state":m,"memory_transition":transition,"memory_transition_reason":transition_reason,"decision":decision,"reason":reason})
- # New signals become ACTIVE_SIGNAL in the persisted memory. Existing active/traded records
- # are carried forward unless objective lifecycle evidence resolved them this cycle.
  records=[]
  for s in syms:
-  rec=mem[s];effective=resolved_memory[s]["effective_state"]
-  sig=next((x for x in signals if x["symbol"]==s),None)
-  if sig:
-   records.append({"symbol":s,"state":"ACTIVE_SIGNAL","signal_id":sig["signal_id"],"direction":sig["direction"],"strategy":sig["strategy"],"entry":sig["entry"],"stop_loss":sig["stop_loss"],"take_profit":sig["take_profit"],"timestamp":sig["timestamp"],"updated_at":stamp,"reason":"new Stage 20 signal"})
-  elif effective=="AVAILABLE":
-   records.append({"symbol":s,"state":"NONE","updated_at":stamp,"reason":resolved_memory[s].get("effective_state") and next((x["memory_transition_reason"] for x in audit if x["symbol"]==s),"released")})
+  rec=mem[s];effective=resolved_memory[s]["effective_state"];sig=next((x for x in signals if x["symbol"]==s),None)
+  if sig:records.append({"symbol":s,"state":"ACTIVE_SIGNAL","signal_id":sig["signal_id"],"direction":sig["direction"],"strategy":sig["strategy"],"entry":sig["entry"],"stop_loss":sig["stop_loss"],"take_profit":sig["take_profit"],"timestamp":sig["timestamp"],"updated_at":stamp,"reason":"new Stage 20 signal"})
+  elif effective=="AVAILABLE":records.append({"symbol":s,"state":"NONE","updated_at":stamp,"reason":next((x["memory_transition_reason"] for x in audit if x["symbol"]==s),"released")})
   else:
-   records.append({k:v for k,v in rec.items() if k!="effective_state"})
-   records[-1]["symbol"]=s;records[-1]["updated_at"]=stamp
- payload={"stage":20,"version":"1.0","status":"PASS","generated_at":stamp,"coverage":{"expected":29,"actual":29,"unique":29},"signal_count":len(signals),"signals":signals,"audit":audit,"daily_signal_cap":None,"provenance":"PSY29 Stage 20 Final Trading Signal & Strategy Engine v1.0","stage19_startup_policy":{"insufficient_transition_state":"INSUFFICIENT_TRANSITION_EVIDENCE","transition_evidence_status":"UNAVAILABLE","independent_setup_may_proceed":True,"fabrication_forbidden":True},"memory_lifecycle":{"enabled":True,"active_states":["ACTIVE_SIGNAL","TRADED"],"terminal_states":["INVALIDATED","COMPLETED"],"observable_price_field":"stage11.close_5m","missing_metadata_policy":"PRESERVE_STATE_FAIL_CLOSED"}};bad=scan_blocked(payload)
+   records.append({k:v for k,v in rec.items() if k!="effective_state"});records[-1]["symbol"]=s;records[-1]["updated_at"]=stamp
+ payload={"stage":20,"version":"1.0","status":"PASS","generated_at":stamp,"coverage":{"expected":29,"actual":29,"unique":29},"signal_count":len(signals),"signals":signals,"audit":audit,"daily_signal_cap":None,"provenance":"PSY29 Stage 20 Final Trading Signal & Strategy Engine v1.0","stage19_startup_policy":{"insufficient_transition_state":"INSUFFICIENT_TRANSITION_EVIDENCE","transition_evidence_status":"UNAVAILABLE","independent_setup_may_proceed":True,"fabrication_forbidden":True},"memory_lifecycle":{"enabled":True,"active_states":["ACTIVE_SIGNAL","TRADED"],"terminal_states":["INVALIDATED","COMPLETED"],"observable_price_fields":["high_5m","low_5m","close_5m"],"ambiguous_same_candle_policy":"PRESERVE_STATE_FAIL_CLOSED","missing_metadata_policy":"PRESERVE_STATE_FAIL_CLOSED"}};bad=scan_blocked(payload)
  if bad:raise ValueError("blocked execution fields: "+str(bad))
  a.output.mkdir(parents=True,exist_ok=True);(a.output/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json").write_text(json.dumps(payload,indent=2),encoding="utf-8");fields=list(signals[0]) if signals else ["signal_id","symbol","direction","strategy","entry","stop_loss","take_profit","risk_reward","signal_score","signal_status","timestamp","provenance"]
  with (a.output/"PSY29_STAGE20_FINAL_SIGNALS.csv").open("w",encoding="utf-8",newline="") as f:w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(signals)
- (a.output/"PSY29_STAGE20_SIGNAL_MEMORY.json").write_text(json.dumps({"stage":20,"updated_at":stamp,"records":records},indent=2),encoding="utf-8");validation={"stage":20,"version":"1.0","validation_status":"PASS","canonical_29":True,"multiple_signals_allowed":True,"signal_count":len(signals),"daily_cap":None,"strategy_owned_levels":all(all(k in x for k in ("entry","stop_loss","take_profit","strategy")) for x in signals),"no_generic_fallback":True,"freshness_gate":True,"provenance_gate":True,"breakout_target_policy":"STAGE11_SESSION_HIGH_AFTER_CONFIRMED_BREAKOUT","breakdown_target_policy":"STAGE11_SESSION_LOW_AFTER_CONFIRMED_BREAKDOWN","stage19_startup_policy":"INSUFFICIENT_TRANSITION_EVIDENCE_IS_UNAVAILABLE_NOT_INVALID","memory_lifecycle":"ACTIVE_OR_TRADED_RELEASES_ONLY_ON_OBSERVABLE_TARGET_OR_STOP; INVALIDATED_OR_COMPLETED_IS_REUSABLE","blocked_execution_fields":[],"fail_closed":True};(a.output/"PSY29_STAGE20_VALIDATION.json").write_text(json.dumps(validation,indent=2),encoding="utf-8");print("PSY29 STAGE 20: PASS");print("Canonical 29/29: PASS");print(f"Signals emitted: {len(signals)}");print("Strategy-owned Entry/SL/TP: PASS");print("Freshness + provenance gates: PASS");print("Stage 19 insufficient-history is non-blocking: PASS");print("Breakout target geometry: PASS");print("Breakdown target geometry: PASS");print("Signal memory lifecycle: PASS");print("No daily signal cap: PASS")
+ (a.output/"PSY29_STAGE20_SIGNAL_MEMORY.json").write_text(json.dumps({"stage":20,"updated_at":stamp,"records":records},indent=2),encoding="utf-8");validation={"stage":20,"version":"1.0","validation_status":"PASS","canonical_29":True,"multiple_signals_allowed":True,"signal_count":len(signals),"daily_cap":None,"strategy_owned_levels":all(all(k in x for k in ("entry","stop_loss","take_profit","strategy")) for x in signals),"no_generic_fallback":True,"freshness_gate":True,"provenance_gate":True,"breakout_target_policy":"STAGE11_SESSION_HIGH_AFTER_CONFIRMED_BREAKOUT","breakdown_target_policy":"STAGE11_SESSION_LOW_AFTER_CONFIRMED_BREAKDOWN","stage19_startup_policy":"INSUFFICIENT_TRANSITION_EVIDENCE_IS_UNAVAILABLE_NOT_INVALID","memory_lifecycle":"ACTIVE_OR_TRADED_RELEASES_ONLY_ON_OBSERVABLE_TARGET_OR_STOP; AMBIGUOUS_OR_MISSING EVIDENCE FAILS CLOSED","blocked_execution_fields":[],"fail_closed":True};(a.output/"PSY29_STAGE20_VALIDATION.json").write_text(json.dumps(validation,indent=2),encoding="utf-8");print("PSY29 STAGE 20: PASS");print("Canonical 29/29: PASS");print(f"Signals emitted: {len(signals)}");print("Strategy-owned Entry/SL/TP: PASS");print("Freshness + provenance gates: PASS");print("Stage 19 insufficient-history is non-blocking: PASS");print("Breakout target geometry: PASS");print("Breakdown target geometry: PASS");print("Signal memory lifecycle: PASS");print("No daily signal cap: PASS")
 if __name__=="__main__":
  try:main()
  except Exception as e:print(f"PSY29 STAGE 20 FAIL-CLOSED: {e}",file=sys.stderr);raise
