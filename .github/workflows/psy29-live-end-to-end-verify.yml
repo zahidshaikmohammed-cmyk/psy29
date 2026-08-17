@@ -84,6 +84,66 @@ jobs:
         run: python scripts/psy29_temporal_integrity_unit_tests.py
       - name: Run pinpoint acquisition accuracy unit tests
         run: python scripts/psy29_accuracy_unit_tests.py
+      - name: Verify Stage 19 startup contract
+        run: |
+          python - <<'PY'
+          import json
+          c=json.load(open('config/psy29_stage19_forward_state_transition_contract.json',encoding='utf-8'))
+          p=c['startup_policy']
+          assert p['insufficient_history_state']=='INSUFFICIENT_TRANSITION_EVIDENCE'
+          assert p['evidence_status']=='UNAVAILABLE'
+          assert p['does_not_invalidate_independent_setup'] is True
+          assert p['fabricate_transition_evidence'] is False
+          c20=json.load(open('config/psy29_stage20_final_trading_signal_contract.json',encoding='utf-8'))
+          p20=c20['stage19_startup_policy']
+          assert p20['insufficient_transition_state']=='INSUFFICIENT_TRANSITION_EVIDENCE'
+          assert p20['transition_evidence_status']=='UNAVAILABLE'
+          assert p20['independent_setup_may_proceed'] is True
+          assert p20['fabrication_forbidden'] is True
+          print('STAGE 19 STARTUP CONTRACT: PASS')
+          print('Stage 19 unavailable != invalid: PASS')
+          print('Stage 20 independent setup may proceed: PASS')
+          PY
+      - name: Run deterministic Stage 20 startup-policy regression
+        run: |
+          rm -rf /tmp/psy29-stage20-startup
+          mkdir -p /tmp/psy29-stage20-startup
+          python - <<'PY'
+          import csv,json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          u=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))['universe']
+          syms=[str(x['symbol']).strip().upper() for x in u]
+          now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
+          root=Path('/tmp/psy29-stage20-startup')
+          def write(name,rows):
+              with (root/name).open('w',encoding='utf-8',newline='') as f:
+                  w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+          s11=[];s16=[];s19=[]
+          for i,s in enumerate(syms):
+              candidate=i==0
+              s11.append({'symbol':s,'structure_state':'BREAKOUT_STRUCTURE' if candidate else 'NONE','close_5m':'101','first15_high':'100','first15_low':'95','swing_high':'108','swing_low':'95','session_high':'110','session_low':'90','timestamp':now,'stage11_provenance':'test-stage11'})
+              s16.append({'symbol':s,'system_state':'PRIMARY_CANDIDATE' if candidate else 'NO_SIGNAL','stage13_scenario':'BREAKOUT' if candidate else 'NONE','stage13_confidence':'0.80' if candidate else '0.0','timestamp':now,'stage16_provenance':'test-stage16'})
+              s19.append({'symbol':s,'stage19_state':'INSUFFICIENT_TRANSITION_EVIDENCE','transition_evidence_status':'UNAVAILABLE','timestamp':now,'stage19_provenance':'test-stage19'})
+          write('stage11.csv',s11);write('stage16.csv',s16);write('stage19.csv',s19)
+          (root/'memory.json').write_text(json.dumps({'records':[]}),encoding='utf-8')
+          PY
+          python scripts/stage20_final_trading_signal_engine.py --contract config/psy29_stage20_final_trading_signal_contract.json --universe config/psy29_live_universe_contract.json --stage11 /tmp/psy29-stage20-startup/stage11.csv --stage16 /tmp/psy29-stage20-startup/stage16.csv --stage19 /tmp/psy29-stage20-startup/stage19.csv --memory /tmp/psy29-stage20-startup/memory.json --output /tmp/psy29-stage20-startup/out
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/psy29-stage20-startup/out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert p['signal_count']==1
+          s=p['signals'][0]
+          assert s['stage19_state']=='INSUFFICIENT_TRANSITION_EVIDENCE'
+          assert s['transition_evidence_status']=='UNAVAILABLE'
+          assert s['take_profit']==110.0
+          assert any(x['decision']=='SIGNAL' and 'unavailable' in x['reason'].lower() for x in p['audit'])
+          print('STAGE 20 STARTUP POLICY: PASS')
+          print('INSUFFICIENT_TRANSITION_EVIDENCE is non-blocking: PASS')
+          print('Independent valid setup survives missing transition depth: PASS')
+          print('No transition evidence fabricated: PASS')
+          PY
       - name: Verify canonical universe and locked safety boundary
         run: |
           python - <<'PY'
