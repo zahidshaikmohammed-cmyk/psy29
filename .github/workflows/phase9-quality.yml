@@ -1,0 +1,24 @@
+name: PSY29 Phase 9 Data Quality & Safety
+on:
+  push:
+    branches: [phase9/data-quality-safety]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Run Phase 9 quality tests
+        working-directory: 29stock-live-data-vault/phase9
+        run: |
+          python -m pip install --upgrade pytest
+          pytest -q
+      - name: Require full quality gate
+        run: |
+          test -f 29stock-live-data-vault/phase9/data_quality.py
+          test -f 29stock-live-data-vault/phase9/failure_policy.py
+          test -f 29stock-live-data-vault/phase9/test_data_quality.py
+          test -f 29stock-live-data-vault/phase9/test_failure_policy.py
+          echo PHASE9_QUALITY_VERIFICATION=PASS

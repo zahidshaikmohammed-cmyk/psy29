@@ -1,0 +1,39 @@
+name: PSY29 Phase 2 Raw Market Data Acquisition
+
+on:
+  push:
+    branches:
+      - phase2/raw-market-data-acquisition
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 29stock-live-data-vault/phase2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Acquire DHAN quote and market depth for all 29 stocks
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: python acquire_raw_market_data.py
+
+      - name: Run 29/29 acquisition tests
+        run: python -m unittest discover -s . -p 'test_*.py'
+
+      - name: Persist raw market data
+        working-directory: .
+        run: |
+          git config user.name "PSY29 Phase 2 Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add 29stock-live-data-vault/phase2/market-live.json
+          git diff --cached --quiet && echo "No raw-data change to commit" || git commit -m "phase2: persist verified DHAN raw market data"
+          git push origin HEAD:${GITHUB_REF_NAME}

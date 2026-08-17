@@ -1,0 +1,30 @@
+name: PSY29 Phase 8 Permanent Storage
+
+on:
+  push:
+    branches:
+      - phase8/permanent-data-storage
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    defaults:
+      run:
+        working-directory: 29stock-live-data-vault/phase8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PostgreSQL driver
+        run: pip install 'psycopg[binary]>=3.2,<4'
+      - name: Run complete Phase 8 storage verification
+        run: python verify_phase8.py
+      - name: Require live database verification
+        if: ${{ env.DATABASE_URL == '' }}
+        run: |
+          echo "DATABASE_URL is not configured; permanent database deployment cannot be verified."
+          exit 1

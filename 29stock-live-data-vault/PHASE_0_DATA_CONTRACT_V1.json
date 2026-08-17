@@ -1,0 +1,57 @@
+{
+  "contract": "PSY29_29STOCK_LIVE_DATA_VAULT",
+  "version": "1.0",
+  "status": "PHASE_0_FROZEN",
+  "system_role": "pure_market_data_acquisition_and_persistence",
+  "runtime_boundary": {
+    "universe_size": 29,
+    "session_timezone": "Asia/Kolkata",
+    "session_start": "09:15",
+    "session_end": "15:30",
+    "official_collection_frequency_seconds": 60,
+    "one_official_snapshot_per_minute": true,
+    "no_three_second_collection_loop": true,
+    "no_signal_generation": true,
+    "no_market_interpretation": true,
+    "no_trade_execution": true,
+    "no_specialist_engine_execution": true
+  },
+  "universe": ["NESTLEIND","VEDL","ICICIPRULI","KALYANKJIL","KOTAKBANK","BANDHANBNK","BANKBARODA","TITAN","INFY","DLF","TCS","MAXHEALTH","KFINTECH","PRESTIGE","BHEL","RBLBANK","HCLTECH","ICICIGI","HDFCLIFE","MARICO","LUPIN","COFORGE","TECHM","SWIGGY","PERSISTENT","OBEROIRLTY","SUPREMEIND","LAURUSLABS","AMBUJACEM"],
+  "dhann_direct": {
+    "instrument_identity": ["security_id","symbol","exchange_segment","instrument_type"],
+    "live_quote": ["ltp","last_traded_quantity","last_trade_time","average_traded_price","volume","total_buy_quantity","total_sell_quantity","day_open","day_high","day_low","day_close"],
+    "historical_candles": ["1m_ohlcv","5m_ohlcv","15m_ohlcv","60m_ohlcv","daily_ohlcv"],
+    "market_depth": "store_when_enabled_by_contract; not a required engine input unless audit proves otherwise",
+    "derivatives": "not required by the verified 29-stock equity specialist contracts audited for Phase 0; do not collect option-chain data by default"
+  },
+  "psy29_derived": {
+    "canonical_intraday_series": ["1m_ohlcv"],
+    "aggregated_series": ["5m_ohlcv","15m_ohlcv","60m_ohlcv"],
+    "calendar_series": ["daily_ohlcv","weekly_ohlcv_from_daily"],
+    "indicators": ["session_vwap","ema9","ema20"],
+    "session_features": ["session_open","session_high","session_low","session_volume","previous_session_high","previous_session_low","previous_session_close","opening_range_high","opening_range_low"],
+    "deterministic_measurements": ["range","true_range_like_intraday_range_measurements","range_expansion_measurements","volume_change_measurements"],
+    "provenance": ["source_timestamp","collection_timestamp","candle_timestamp","candle_completion_status","calculation_timestamp","calculation_version"]
+  },
+  "explicit_non_requirements": ["signals","trend_classification","edge_activation","breakout_classification","retest_classification","rejection_classification","momentum_classification","trade_direction","entry","stop_loss","target","risk_reward","research_event_rates_as_live_fields"],
+  "indicator_rule": {
+    "source": "canonical_stored_candles",
+    "no_screenshot_values": true,
+    "no_external_charting_platform_dependency": true,
+    "completed_candle_required_for_closed_candle_indicator": true
+  },
+  "data_integrity": {
+    "no_fabrication": true,
+    "reject_future_timestamps": true,
+    "detect_duplicates": true,
+    "detect_missing_minutes": true,
+    "preserve_raw_provider_timestamp": true,
+    "preserve_collector_timestamp": true
+  },
+  "phase_0_basis": {
+    "verified_specialist_contract": ["NESTLEIND","COFORGE","PERSISTENT","OBEROIRLTY","SUPREMEIND","SWIGGY","LAURUSLABS","AMBUJACEM"],
+    "common_minimum_live_inputs": ["1m_price_data","5m_price_data","volume","VWAP","EMA9","EMA20","opening_range_structure","current_day_high_low","previous_session_reference_levels","volatility_range_expansion","breakout_retest_context","rejection_context","momentum_persistence"],
+    "classification_note": "The collector supplies raw data and deterministic measurements. Behavioral classifications remain the responsibility of specialist engines and are not stored as collector-generated decisions.",
+    "unknown_stock_specific_requirements": "No additional stock-specific raw input requirement was established from the available specialist-contract material; the contract deliberately uses a superset of the verified common raw/indicator requirements. Any later discovered engine-specific requirement requires a versioned contract change, not a silent modification."
+  }
+}

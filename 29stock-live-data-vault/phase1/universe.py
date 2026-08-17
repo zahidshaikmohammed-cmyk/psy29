@@ -1,0 +1,13 @@
+from __future__ import annotations
+
+STOCKS = (
+    "NESTLEIND", "VEDL", "ICICIPRULI", "KALYANKJIL", "KOTAKBANK",
+    "BANDHANBNK", "BANKBARODA", "TITAN", "INFY", "DLF", "TCS",
+    "MAXHEALTH", "KFINTECH", "PRESTIGE", "BHEL", "RBLBANK", "HCLTECH",
+    "ICICIGI", "HDFCLIFE", "MARICO", "LUPIN", "COFORGE", "TECHM",
+    "SWIGGY", "PERSISTENT", "OBEROIRLTY", "SUPREMEIND", "LAURUSLABS",
+    "AMBUJACEM",
+)
+
+assert len(STOCKS) == 29
+assert len(set(STOCKS)) == 29

@@ -1,0 +1,36 @@
+name: PSY29 Phase 12 Production Lock
+
+on:
+  push:
+    branches: [phase12/production-lock]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  production-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run production contract tests
+        working-directory: 29stock-live-data-vault/phase12
+        run: python -m pytest -q test_production_lock.py
+      - name: Verify production contract files
+        run: |
+          test -f 29stock-live-data-vault/phase1/instrument_master.json
+          test -f 29stock-live-data-vault/phase3/one_minute_collector.py
+          test -f 29stock-live-data-vault/phase4/canonical_candle_engine.py
+          test -d 29stock-live-data-vault/phase5
+          test -d 29stock-live-data-vault/phase6
+          test -d 29stock-live-data-vault/phase7
+          test -d 29stock-live-data-vault/phase8
+          test -d 29stock-live-data-vault/phase9
+          test -d 29stock-live-data-vault/phase10
+          test -d 29stock-live-data-vault/phase11
+      - name: Production lock gate
+        run: echo 'PSY29 Phase 12 production contract verified.'
