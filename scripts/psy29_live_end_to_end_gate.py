@@ -21,14 +21,14 @@ def verify29(p,exp,label):
    if str(x.get(k,"false")).lower() in {"true","1","yes"}:raise RuntimeError(f"{label}: safety flag {k}=true")
 def refresh(src,dst,stamp):
  r=csv_rows(src)
- if not r or "timestamp" not in r[0]:raise RuntimeError(f"fixture snapshot missing timestamp: {src}")
+ if not r or "timestamp" not in r[0]:raise RuntimeError(f"live snapshot missing timestamp: {src}")
  for x in r:x["timestamp"]=stamp
  with Path(dst).open("w",encoding="utf-8",newline="") as f:w=csv.DictWriter(f,fieldnames=list(r[0]));w.writeheader();w.writerows(r)
 def security_map(exe,out,exp):
  r=csv_rows(exe);b={x["symbol"].upper().strip():x for x in r}
- if set(b)!=set(exp) or len(b)!=29:raise RuntimeError("fixture security map coverage failure")
+ if set(b)!=set(exp) or len(b)!=29:raise RuntimeError("security map coverage failure")
  m=[{"symbol":s,"security_id":str(b[s].get("security_id","")).strip(),"exchange":"NSE","segment":"E"} for s in exp]
- if any(not x["security_id"] for x in m):raise RuntimeError("fixture security map missing security_id")
+ if any(not x["security_id"] for x in m):raise RuntimeError("security map missing security_id")
  Path(out).write_text(json.dumps({"status":"PASS","canonical_count":29,"resolved_count":29,"unique_security_id_count":29,"mappings":m},indent=2),encoding="utf-8")
 def stage5(out,exp,stamp):
  r=json.loads(P.read_text(encoding="utf-8"))["profiles"];b={str(x["symbol"]).upper().strip():x for x in r}
@@ -62,13 +62,18 @@ def main():
  for n,p in ((6,s6),(7,s7),(8,s8),(9,s9),(10,s10),(11,s11),(12,s12),(13,s13),(14,s14),(15,s15),(16,s16)):verify29(p,exp,f"Stage {n}")
  verify29(s11c,exp,"Stage 11 compatibility")
  s17=d[17]/"PSY29_STAGE17_STABILITY_BOARD.csv";run([ROOT/"scripts/stage17_live_stability.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--stage16",s16,"--output",d[17]]);verify29(s17,exp,"Stage 17")
- fixture=out/"stage19_fixture";run([ROOT/"scripts/stage19_test_fixture.py","--universe",U,"--output",fixture]);run([ROOT/"scripts/stage18_historical_continuity.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--stage16",s16,"--stage17",s17,"--history",fixture/"history","--output",d[18]]);s18=d[18]/"PSY29_STAGE18_HISTORICAL_BOARD.csv";verify29(s18,exp,"Stage 18")
- s19=d[19]/"PSY29_STAGE19_TRANSITION_BOARD.csv";run([ROOT/"scripts/stage19_forward_transition.py","--contract",C[19],"--universe",U,"--stage17",fixture/"stage17.csv","--stage18",fixture/"stage18.csv","--history",fixture/"history","--output",d[19]]);verify29(s19,exp,"Stage 19 deterministic contract")
- # Stage 20 consumes the validated live execution snapshot as its Stage-11 market-data input, plus actual Stage 16 and deterministic Stage 19 for this non-signal gate.
+ history=out/"history";history.mkdir(parents=True,exist_ok=True)
+ if a.mode=="fixture":
+  fixture=out/"stage19_fixture";run([ROOT/"scripts/stage19_test_fixture.py","--universe",U,"--output",fixture]);history=fixture/"history"
+ # Stage 18 is always derived from the actual current Stage 5-17 chain. In live mode history is intentionally empty rather than synthetic.
+ run([ROOT/"scripts/stage18_historical_continuity.py","--universe",U,"--stage5",s5,"--stage6",s6,"--stage7",s7,"--stage8",s8,"--stage9",s9,"--stage10",s10,"--stage11",s11c,"--stage12",s12,"--stage13",s13,"--stage14",s14,"--stage15",s15,"--stage16",s16,"--stage17",s17,"--history",history,"--output",d[18]])
+ s18=d[18]/"PSY29_STAGE18_HISTORICAL_BOARD.csv";verify29(s18,exp,"Stage 18")
+ # CRITICAL BLOCKER-3 FIX: Stage 19 consumes the real current Stage 17 and Stage 18 outputs. No fixture Stage 17/18 is ever fed into live mode.
+ s19=d[19]/"PSY29_STAGE19_TRANSITION_BOARD.csv";run([ROOT/"scripts/stage19_forward_transition.py","--contract",C[19],"--universe",U,"--stage17",s17,"--stage18",s18,"--history",history,"--output",d[19]]);verify29(s19,exp,"Stage 19 live-derived")
  r11=csv_rows(exe)[0];r16=csv_rows(s16)[0];r19=csv_rows(s19)[0]
  req11={"symbol","timestamp","open_1m","high_1m","low_1m","close_1m","volume_1m","avg_volume_20_1m","open_5m","high_5m","low_5m","close_5m","volume_5m","avg_volume_20_5m","vwap_5m","ema9_5m","ema20_5m","first15_high","first15_low","swing_high","swing_low"}
  if not req11.issubset(r11):raise RuntimeError("Stage 20 live Stage-11 market-data interface failed")
  if not {"symbol","system_state","stage13_scenario"}.issubset(r16):raise RuntimeError("Stage 20 Stage 16 interface failed")
  if "stage19_state" not in r19:raise RuntimeError("Stage 20 Stage 19 interface failed")
- m={"gate":"PSY29_LIVE_END_TO_END_SIGNAL_PIPELINE","status":"PASS","mode":a.mode,"canonical_universe":"config/psy29_live_universe_contract.json","coverage":{"expected":29,"actual":29,"unique":29},"live_snapshot_to_stage16":True,"stage17_live_derived":True,"stage18_live_derived":True,"stage19_validation":"EXPLICIT_DETERMINISTIC_FIXTURE_CONTRACT","stage20_input_compatibility":True,"signal_generation":False,"order_execution":False,"stage20_invoked":False,"generated_at":stamp};(out/"PSY29_LIVE_END_TO_END_GATE.json").write_text(json.dumps(m,indent=2),encoding="utf-8");print(json.dumps(m,indent=2));print("PSY29 LIVE END-TO-END SIGNAL PIPELINE GATE: PASS")
+ m={"gate":"PSY29_LIVE_END_TO_END_SIGNAL_PIPELINE","status":"PASS","mode":a.mode,"canonical_universe":"config/psy29_live_universe_contract.json","coverage":{"expected":29,"actual":29,"unique":29},"live_snapshot_to_stage16":True,"stage17_live_derived":True,"stage18_live_derived":True,"stage19_live_derived":True,"stage19_history_source":"FIXTURE" if a.mode=="fixture" else "NONE_FAIL_CLOSED","stage20_input_compatibility":True,"signal_generation":False,"order_execution":False,"stage20_invoked":False,"generated_at":stamp};(out/"PSY29_LIVE_END_TO_END_GATE.json").write_text(json.dumps(m,indent=2),encoding="utf-8");print(json.dumps(m,indent=2));print("PSY29 LIVE END-TO-END SIGNAL PIPELINE GATE: PASS")
 if __name__=="__main__":main()
