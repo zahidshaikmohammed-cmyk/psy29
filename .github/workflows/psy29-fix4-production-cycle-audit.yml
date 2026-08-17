@@ -1,0 +1,116 @@
+name: PSY29 Fix 4 Production Cycle Audit
+
+on:
+  push:
+    paths:
+      - "scripts/psy29_production_cycle_audit.py"
+      - "scripts/psy29_live_pipeline_service_cycle.py"
+      - "scripts/psy29_live_dhan_acquisition.py"
+      - "scripts/psy29_live_pipeline_bridge.py"
+      - "scripts/psy29_live_signal_cycle.py"
+      - "scripts/step9_live_regime_v2.py"
+      - "scripts/stage7_edge_activation.py"
+      - "scripts/stage8_edge_ranking.py"
+      - "scripts/stage9_candidate_quality.py"
+      - "scripts/stage10_integrity_gate.py"
+      - "scripts/stage11_execution_analysis.py"
+      - "scripts/stage12_execution_readiness.py"
+      - "scripts/stage13_scenario_adjudication.py"
+      - "scripts/stage14_live_dashboard.py"
+      - "scripts/stage15_trade_event_journal.py"
+      - "scripts/stage16_live_decision_consolidation.py"
+      - "scripts/stage17_live_stability.py"
+      - "scripts/stage18_historical_continuity.py"
+      - "scripts/stage19_forward_transition.py"
+      - "scripts/stage20_final_trading_signal_engine.py"
+      - "dhan/client.py"
+      - "config/psy29_live_universe_contract.json"
+      - "config/psy29_stage20_final_trading_signal_contract.json"
+      - ".github/workflows/psy29-fix4-production-cycle-audit.yml"
+  schedule:
+    # NSE verification window: 09:35-15:30 IST = 04:05-10:00 UTC, Mon-Fri.
+    - cron: "7-59/5 4-9 * * 1-5"
+    - cron: "0 10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Audit mode: fixture off-market or live during NSE session"
+        required: true
+        default: "fixture"
+        type: choice
+        options:
+          - fixture
+          - live
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: PSY29 DHAN to Stage 20 production-cycle audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PSY29 dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Compile audit and production pipeline
+        run: |
+          python -m py_compile \
+            scripts/psy29_production_cycle_audit.py \
+            scripts/psy29_live_pipeline_service_cycle.py \
+            scripts/psy29_live_dhan_acquisition.py \
+            scripts/psy29_live_pipeline_bridge.py \
+            scripts/psy29_live_signal_cycle.py \
+            scripts/stage20_final_trading_signal_engine.py
+          echo "PSY29 FIX 4 AUDIT SYNTAX: PASS"
+      - name: Resolve audit mode
+        id: mode
+        env:
+          DISPATCH_MODE: ${{ inputs.mode }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "mode=live" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${DISPATCH_MODE:-fixture}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=fixture" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run complete production-cycle audit
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+        run: |
+          python scripts/psy29_production_cycle_audit.py --mode "${{ steps.mode.outputs.mode }}"
+      - name: HARD VERIFY Fix 4 report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('runtime/live/PSY29_PRODUCTION_CYCLE_AUDIT.json').read_text(encoding='utf-8'))
+          assert p['status']=='PASS', p
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29}, p
+          assert p['stage20_verified'] is (p['mode']=='live'), p
+          assert p['signal_generation'] is False, p
+          assert p['order_execution'] is False, p
+          assert 'DHAN -> acquisition -> bridge' in p['chain'], p
+          assert 'Stage 20' in p['chain'], p
+          print('PSY29 FIX 4 PRODUCTION CYCLE AUDIT: HARD VERIFY PASS')
+          print(f"Mode: {p['mode']}")
+          print('29/29 chain coverage: PASS')
+          print('DHAN -> Stage 20 chain: PASS')
+          print('No order execution: PASS')
+          PY
+      - name: Upload Fix 4 audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psy29-fix4-production-cycle-audit
+          path: runtime/live/PSY29_PRODUCTION_CYCLE_AUDIT.json
+          if-no-files-found: error
