@@ -3,6 +3,7 @@ name: PSY29 Live End-to-End Signal Pipeline Gate
 on:
   push:
     paths:
+      - "scripts/psy29_accuracy_unit_tests.py"
       - "scripts/psy29_live_end_to_end_gate.py"
       - "scripts/psy29_live_pipeline_service_cycle.py"
       - "scripts/psy29_live_pipeline_fixture.py"
@@ -58,93 +59,49 @@ jobs:
     steps:
       - name: Checkout PSY29
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install PSY29 dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Compile live pipeline and Stage 5-20 verification modules
         run: |
-          python -m py_compile \
-            scripts/psy29_live_end_to_end_gate.py \
-            scripts/psy29_live_pipeline_service_cycle.py \
-            scripts/psy29_live_pipeline_fixture.py \
-            scripts/psy29_live_pipeline_bridge.py \
-            scripts/psy29_live_dhan_acquisition.py \
-            scripts/step9_live_regime_v2.py \
-            scripts/stage7_edge_activation.py \
-            scripts/stage8_edge_ranking.py \
-            scripts/stage9_candidate_quality.py \
-            scripts/stage10_integrity_gate.py \
-            scripts/stage11_execution_analysis.py \
-            scripts/stage12_execution_readiness.py \
-            scripts/stage13_scenario_adjudication.py \
-            scripts/stage14_live_dashboard.py \
-            scripts/stage15_trade_event_journal.py \
-            scripts/stage16_live_decision_consolidation.py \
-            scripts/stage17_live_stability.py \
-            scripts/stage18_historical_continuity.py \
-            scripts/stage19_forward_transition.py \
-            scripts/stage19_test_fixture.py
+          python -m py_compile scripts/psy29_accuracy_unit_tests.py scripts/psy29_live_end_to_end_gate.py scripts/psy29_live_pipeline_service_cycle.py scripts/psy29_live_pipeline_fixture.py scripts/psy29_live_pipeline_bridge.py scripts/psy29_live_dhan_acquisition.py scripts/step9_live_regime_v2.py scripts/stage7_edge_activation.py scripts/stage8_edge_ranking.py scripts/stage9_candidate_quality.py scripts/stage10_integrity_gate.py scripts/stage11_execution_analysis.py scripts/stage12_execution_readiness.py scripts/stage13_scenario_adjudication.py scripts/stage14_live_dashboard.py scripts/stage15_trade_event_journal.py scripts/stage16_live_decision_consolidation.py scripts/stage17_live_stability.py scripts/stage18_historical_continuity.py scripts/stage19_forward_transition.py scripts/stage19_test_fixture.py
           echo "PSY29 LIVE E2E PYTHON SYNTAX: PASS"
-
+      - name: Run pinpoint acquisition accuracy unit tests
+        run: python scripts/psy29_accuracy_unit_tests.py
       - name: Verify canonical universe and locked safety boundary
         run: |
           python - <<'PY'
           import json
           u=json.load(open('config/psy29_live_universe_contract.json',encoding='utf-8'))
-          rows=u['universe']
-          symbols=[str(x['symbol']).strip().upper() for x in rows]
-          ranks=[int(x['rank']) for x in rows]
-          assert len(rows)==29 and len(set(symbols))==29
-          assert ranks==list(range(1,30))
-          assert len([p for p in __import__('pathlib').Path('config').glob('*universe*')]) >= 1
+          rows=u['universe']; symbols=[str(x['symbol']).strip().upper() for x in rows]; ranks=[int(x['rank']) for x in rows]
+          assert len(rows)==29 and len(set(symbols))==29 and ranks==list(range(1,30))
           c=json.load(open('config/psy29_stage20_final_trading_signal_contract.json',encoding='utf-8'))
-          assert c['coverage']==29
-          assert c['signal_policy']['multiple_signals_allowed'] is True
-          assert c['signal_policy']['daily_signal_cap'] is None
-          print('CANONICAL 29: PASS')
-          print('STAGE 20 LOCKED POLICY: PASS')
+          assert c['coverage']==29 and c['signal_policy']['multiple_signals_allowed'] is True and c['signal_policy']['daily_signal_cap'] is None
+          print('CANONICAL 29: PASS'); print('STAGE 20 LOCKED POLICY: PASS')
           PY
-
       - name: Run deterministic live end-to-end gate
         env:
           GATE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'fixture' }}
         run: |
           rm -rf /tmp/psy29-live-e2e
           python scripts/psy29_live_end_to_end_gate.py --mode "$GATE_MODE" --output /tmp/psy29-live-e2e
-
       - name: HARD VERIFY gate result
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           m=json.loads(Path('/tmp/psy29-live-e2e/PSY29_LIVE_END_TO_END_GATE.json').read_text())
-          assert m['status']=='PASS', m
-          assert m['coverage']=={'expected':29,'actual':29,'unique':29}, m
-          assert m['live_snapshot_to_stage16'] is True, m
-          assert m['stage17_live_derived'] is True, m
-          assert m['stage18_live_derived'] is True, m
-          assert m['stage20_input_compatibility'] is True, m
-          assert m['signal_generation'] is False, m
-          assert m['order_execution'] is False, m
-          assert m['stage20_invoked'] is False, m
+          assert m['status']=='PASS' and m['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert m['live_snapshot_to_stage16'] and m['stage17_live_derived'] and m['stage18_live_derived'] and m['stage20_input_compatibility']
+          assert m['signal_generation'] is False and m['order_execution'] is False and m['stage20_invoked'] is False
           print('PSY29 LIVE END-TO-END SIGNAL PIPELINE GATE: HARD VERIFY PASS')
-          print('29/29: PASS')
-          print('Stage 6-16 live/fixture chain: PASS')
-          print('Stage 17-18 downstream chain: PASS')
-          print('Stage 19 deterministic contract: PASS')
-          print('Stage 20 input compatibility only: PASS')
-          print('Signal generation: OFF')
-          print('Order execution: OFF')
+          print('29/29: PASS'); print('Stage 6-16 live/fixture chain: PASS'); print('Stage 17-18 downstream chain: PASS'); print('Stage 19 deterministic contract: PASS'); print('Stage 20 input compatibility only: PASS')
           PY
-
       - name: Upload verification artifact
         uses: actions/upload-artifact@v4
         with:
