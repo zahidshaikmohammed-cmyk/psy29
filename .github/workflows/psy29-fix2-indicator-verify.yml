@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/psy29_live_dhan_acquisition.py"
       - "scripts/test_psy29_live_indicator_contract.py"
+      - "scripts/psy29_recent_dhan_snapshot.py"
       - ".github/workflows/psy29-fix2-indicator-verify.yml"
   workflow_dispatch:
 
@@ -27,15 +28,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install runtime dependencies
+      - name: Install only indicator-test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-live.txt
+          pip install "pandas>=2.2,<3" "requests>=2.32,<3"
 
       - name: Compile production acquisition code
         run: |
           python -m py_compile \
             scripts/psy29_live_dhan_acquisition.py \
+            scripts/psy29_recent_dhan_snapshot.py \
             scripts/test_psy29_live_indicator_contract.py
           echo "PYTHON SYNTAX: PASS"
 
@@ -54,7 +56,7 @@ jobs:
           print("add_indicators_1m(df, session_date, now): PASS")
           PY
 
-      - name: Verify no legacy one-argument call remains in recent-session production path
+      - name: Verify recent-session production call site
         run: |
           python - <<'PY'
           from pathlib import Path
