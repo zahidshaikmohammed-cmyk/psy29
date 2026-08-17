@@ -1,0 +1,68 @@
+name: PSY29 Fix 2 - 1M Indicator Contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/psy29_live_dhan_acquisition.py"
+      - "scripts/test_psy29_live_indicator_contract.py"
+      - ".github/workflows/psy29-fix2-indicator-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify production add_indicators_1m contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout PSY29
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-live.txt
+
+      - name: Compile production acquisition code
+        run: |
+          python -m py_compile \
+            scripts/psy29_live_dhan_acquisition.py \
+            scripts/test_psy29_live_indicator_contract.py
+          echo "PYTHON SYNTAX: PASS"
+
+      - name: Verify 1M indicator contract
+        run: |
+          python scripts/test_psy29_live_indicator_contract.py
+
+      - name: Verify production API signature
+        run: |
+          python - <<'PY'
+          import inspect
+          from scripts.psy29_live_dhan_acquisition import add_indicators_1m
+
+          params = list(inspect.signature(add_indicators_1m).parameters)
+          assert params == ["df", "session_date", "now"], params
+          print("add_indicators_1m(df, session_date, now): PASS")
+          PY
+
+      - name: Verify no legacy one-argument call remains in recent-session production path
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("scripts/psy29_recent_dhan_snapshot.py").read_text(encoding="utf-8")
+          assert "add_indicators_1m(df,session_date,now)" in text or "add_indicators_1m(df, session_date, now)" in text
+          assert "add_indicators_1m(df)" not in text
+          print("RECENT DHAN INDICATOR CALL-SITE: PASS")
+          PY
+
+      - name: Final gate
+        run: echo "PSY29 FIX 2: PASS"
