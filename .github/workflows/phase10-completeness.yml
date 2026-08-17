@@ -1,0 +1,17 @@
+name: PSY29 Phase 10 29-Stock Completeness
+
+on:
+  push:
+    branches: [phase10/29-stock-completeness]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - name: Run structural completeness tests
+        run: python -m pytest -q 29stock-live-data-vault/phase10/test_completeness.py
+      - name: Require structural gate
+        run: echo 'Phase 10 structural completeness gate passed; live-session gate remains pending until genuine market data exists.'
