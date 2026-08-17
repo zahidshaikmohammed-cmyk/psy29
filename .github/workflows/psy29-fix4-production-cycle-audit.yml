@@ -1,5 +1,8 @@
 name: PSY29 Fix 4 Production Cycle Audit
 
+# GitHub Actions is verification only. Render owns the continuous live
+# production cycle. A scheduled full DHAN -> Stage 20 audit every 5 minutes
+# would compete for the same provider quota and can create 429s.
 on:
   push:
     paths:
@@ -27,10 +30,6 @@ on:
       - "config/psy29_live_universe_contract.json"
       - "config/psy29_stage20_final_trading_signal_contract.json"
       - ".github/workflows/psy29-fix4-production-cycle-audit.yml"
-  schedule:
-    # NSE verification window: 09:35-15:30 IST = 04:05-10:00 UTC, Mon-Fri.
-    - cron: "7-59/5 4-9 * * 1-5"
-    - cron: "0 10 * * 1-5"
   workflow_dispatch:
     inputs:
       mode:
@@ -47,7 +46,7 @@ permissions:
 
 jobs:
   audit:
-    name: PSY29 DHAN to Stage 20 production-cycle audit
+    name: PSY29 DHAN to Stage 20 production-cycle audit (Manual)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -70,19 +69,13 @@ jobs:
             scripts/psy29_live_pipeline_bridge.py \
             scripts/psy29_live_signal_cycle.py \
             scripts/stage20_final_trading_signal_engine.py
-          echo "PSY29 FIX 4 AUDIT SYNTAX: PASS"
+          echo "PSY29 FIX 4 AUDIT: SYNTAX PASS"
       - name: Resolve audit mode
         id: mode
         env:
           DISPATCH_MODE: ${{ inputs.mode }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "mode=live" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${DISPATCH_MODE:-fixture}" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=fixture" >> "$GITHUB_OUTPUT"
-          fi
+          echo "mode=${DISPATCH_MODE:-fixture}" >> "$GITHUB_OUTPUT"
       - name: Run complete production-cycle audit
         env:
           DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
