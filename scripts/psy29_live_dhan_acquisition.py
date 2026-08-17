@@ -17,7 +17,7 @@ def load_universe(path):
  if len(s)!=29 or len(set(s))!=29 or r!=list(range(1,30)):raise RuntimeError("Canonical live universe must contain exactly 29 unique ranked symbols")
  return s
 def resolve_security_ids(symbols):
- m=pd.read_csv(StringIO(requests.get(MASTER_URL,timeout=90).text),low_memory=False);sym_col=next((c for c in ("UNDERLYING_SYMBOL","SEM_TRADING_SYMBOL","SYMBOL_NAME","DISPLAY_NAME") if c in m),None);id_col=next((c for c in ("SECURITY_ID","SECURITYID") if c in m),None)
+ response=requests.get(MASTER_URL,timeout=90);response.raise_for_status();m=pd.read_csv(StringIO(response.text),low_memory=False);sym_col=next((c for c in ("UNDERLYING_SYMBOL","SEM_TRADING_SYMBOL","SYMBOL_NAME","DISPLAY_NAME") if c in m),None);id_col=next((c for c in ("SECURITY_ID","SECURITYID") if c in m),None)
  if "EXCH_ID" not in m or "SEGMENT" not in m or not sym_col or not id_col:raise RuntimeError("DHAN instrument master lacks required NSE equity fields")
  eq=m[(m.EXCH_ID=="NSE")&(m.SEGMENT=="E")].copy();eq["_symbol"]=eq[sym_col].astype(str).str.upper().str.strip();eq["_id"]=eq[id_col].astype(str).str.strip();out={};bad=[]
  for s in symbols:
@@ -38,9 +38,7 @@ def parse_rows(obj):
   rows.append(row)
  return pd.DataFrame(rows).sort_values("timestamp").drop_duplicates("timestamp",keep="last").reset_index(drop=True)
 def fetch_bars(client,security_id,now,interval):
- start=(now-timedelta(days=WARMUP_CALENDAR_DAYS)).replace(hour=9,minute=15,second=0,microsecond=0)
- p={"securityId":str(security_id),"exchangeSegment":"NSE_EQ","instrument":"EQUITY","interval":interval,"oi":False,"fromDate":start.strftime("%Y-%m-%d %H:%M:%S"),"toDate":now.strftime("%Y-%m-%d %H:%M:%S")}
- return parse_rows(client.post("/charts/intraday",p,timeout=20,retries=2))
+ start=(now-timedelta(days=WARMUP_CALENDAR_DAYS)).replace(hour=9,minute=15,second=0,microsecond=0);p={"securityId":str(security_id),"exchangeSegment":"NSE_EQ","instrument":"EQUITY","interval":interval,"oi":False,"fromDate":start.strftime("%Y-%m-%d %H:%M:%S"),"toDate":now.strftime("%Y-%m-%d %H:%M:%S")};return parse_rows(client.post("/charts/intraday",p,timeout=20,retries=2))
 def epoch_to_ist(ts):return datetime.fromtimestamp(int(ts),tz=timezone.utc).astimezone(IST)
 def validate_ohlcv(df,name):
  if df.empty:raise RuntimeError(f"{name}: no candles")
@@ -52,8 +50,7 @@ def validate_ohlcv(df,name):
  if (df.low>df[["open","close","high"]].min(axis=1)).any():raise RuntimeError(f"{name}: low above OHLC component")
 def completed_candles(df,minutes,now):
  x=df.copy();x["dt"]=x.timestamp.map(epoch_to_ist);cutoff=now.astimezone(IST);x=x[x.dt.map(lambda d:d+timedelta(minutes=minutes)<=cutoff)].copy();return x.sort_values("timestamp").drop_duplicates("timestamp",keep="last").reset_index(drop=True)
-def current_session(df,session_date):
- return df[(df.dt.dt.date==session_date)&(df.dt.dt.time>=SESSION_OPEN)&(df.dt.dt.time<=SESSION_CLOSE)].sort_values("timestamp").reset_index(drop=True)
+def current_session(df,session_date):return df[(df.dt.dt.date==session_date)&(df.dt.dt.time>=SESSION_OPEN)&(df.dt.dt.time<=SESSION_CLOSE)].sort_values("timestamp").reset_index(drop=True)
 def add_indicators_1m(df,session_date,now):
  x=completed_candles(df,1,now);validate_ohlcv(x,"1m history");x["ema9_all"]=x.close.ewm(span=9,adjust=False).mean();x["ema20_all"]=x.close.ewm(span=20,adjust=False).mean();cur=current_session(x,session_date)
  if cur.empty:return cur
@@ -67,7 +64,9 @@ def add_indicators_5m(df,session_date,now):
 def build_execution_row(symbol,security_id,x1,x5,all1,all5,timestamp):
  if x1.empty or x5.empty:raise RuntimeError(f"{symbol}: no completed current-session candles")
  if not bool(x1.iloc[-1]["opening_range_complete"]):raise RuntimeError(f"{symbol}: opening range incomplete before 09:30 IST")
- latest=x1.iloc[-1];latest5=x5.iloc[-1];prior5=x5.iloc[:-1].tail(20) or x5.tail(1);avg1=all1.volume.tail(20).mean();avg5=all5.volume.tail(20).mean()
+ latest=x1.iloc[-1];latest5=x5.iloc[-1];prior5=x5.iloc[:-1].tail(20)
+ if prior5.empty:prior5=x5.tail(1)
+ avg1=all1.volume.tail(20).mean();avg5=all5.volume.tail(20).mean()
  if not math.isfinite(float(avg1)) or not math.isfinite(float(avg5)) or float(avg1)<=0 or float(avg5)<=0:raise RuntimeError(f"{symbol}: insufficient warm-up volume history")
  return {"symbol":symbol,"security_id":security_id,"exchange_segment":"NSE_EQ","timestamp":timestamp,"last_price":float(latest.close),"vwap":float(latest.vwap),"ema9":float(latest.ema9),"ema20":float(latest.ema20),"open_1m":float(latest.open),"high_1m":float(latest.high),"low_1m":float(latest.low),"close_1m":float(latest.close),"volume_1m":float(latest.volume),"avg_volume_20_1m":float(avg1),"open_5m":float(latest5.open),"high_5m":float(latest5.high),"low_5m":float(latest5.low),"close_5m":float(latest5.close),"volume_5m":float(latest5.volume),"avg_volume_20_5m":float(avg5),"vwap_5m":float(latest5.vwap5),"ema9_5m":float(latest5.ema9_5m),"ema20_5m":float(latest5.ema20_5m),"first15_high":float(latest.first15_high),"first15_low":float(latest.first15_low),"swing_high":float(prior5.high.max()),"swing_low":float(prior5.low.min()),"freshness_status":"FRESH","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY"}
 def main():
