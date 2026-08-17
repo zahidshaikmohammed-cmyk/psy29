@@ -51,7 +51,10 @@ def write_snapshot(out,rows,session_date):
  (out/"recent_market_data_validation.json").write_text(json.dumps(validation,indent=2),encoding="utf-8")
 
 def main():
- parser=argparse.ArgumentParser();parser.add_argument("--universe",required=True,type=Path);parser.add_argument("--output",required=True,type=Path);args=parser.parse_args();symbols=load_universe(str(args.universe));client=DhanClient();mapping=resolve_security_ids(symbols);now=datetime.now(IST)
+ parser=argparse.ArgumentParser();parser.add_argument("--universe",required=True,type=Path);parser.add_argument("--output",required=True,type=Path);args=parser.parse_args();now=datetime.now(IST)
+ if now.weekday()<5 and MARKET_OPEN<=now.time()<=MARKET_CLOSE:
+  print(json.dumps({"status":"SKIPPED","reason":"LIVE_SESSION_ACTIVE","provider":"DHAN","live_data":False},indent=2));return
+ symbols=load_universe(str(args.universe));client=DhanClient();mapping=resolve_security_ids(symbols)
  for session_date in candidate_dates(now):
   rows=[];failures=[]
   for symbol in symbols:
