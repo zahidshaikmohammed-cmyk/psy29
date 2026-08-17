@@ -13,12 +13,13 @@ def main():
     r11=[];r16=[];r19=[]
     for i,s in enumerate(syms):
         sc,st=candidates.get(s,('RANGE','RANGE'));b=100+i
-        r11.append({'symbol':s,'structure_state':st,'close_5m':b+2,'first15_high':b+1,'first15_low':b-1,'swing_high':b+8,'swing_low':b-8,'live_data_timestamp':now,'stage11_provenance':'stage20-fixture'})
+        # Fixture explicitly models a post-breakout/post-breakdown session extreme.
+        r11.append({'symbol':s,'structure_state':st,'close_5m':b+2,'first15_high':b+1,'first15_low':b-1,'session_high':b+4,'session_low':b-4,'swing_high':b+8,'swing_low':b-8,'live_data_timestamp':now,'stage11_provenance':'stage20-fixture'})
         r16.append({'symbol':s,'system_state':'PRIMARY_CANDIDATE' if i<4 else 'WATCHLIST','stage13_scenario':sc,'stage13_confidence':'0.90','timestamp':now,'stage16_provenance':'stage20-fixture'})
         r19.append({'symbol':s,'stage19_state':'NO_TRANSITION','timestamp':now,'stage19_provenance':'stage20-fixture'})
     def write(path,records):
         with path.open('w',encoding='utf-8',newline='') as f:w=csv.DictWriter(f,fieldnames=list(records[0]));w.writeheader();w.writerows(records)
     write(a.output/'stage11.csv',r11);write(a.output/'stage16.csv',r16);write(a.output/'stage19.csv',r19)
     write(a.output/'memory.csv',[{'symbol':syms[0],'state':'TRADED'},{'symbol':syms[1],'state':'ACTIVE_SIGNAL'}])
-    print('STAGE 20 FIXTURE: PASS');print('29/29 coverage: PASS');print('4 qualifying opportunities: PASS');print('2 memory-suppressed candidates: PASS');print('multiple-signal behavior: PASS')
+    print('STAGE 20 FIXTURE: PASS');print('29/29 coverage: PASS');print('4 qualifying opportunities: PASS');print('2 memory-suppressed candidates: PASS');print('breakout/breakdown target geometry: PASS');print('multiple-signal behavior: PASS')
 if __name__=='__main__':main()
