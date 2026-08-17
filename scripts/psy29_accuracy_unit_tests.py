@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+import json
 import sys
+from pathlib import Path
 import pandas as pd
 from zoneinfo import ZoneInfo
-sys.path.insert(0,str(__import__('pathlib').Path(__file__).resolve().parents[1]))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from scripts.psy29_live_dhan_acquisition import completed_candles, add_indicators_1m, add_indicators_5m, build_execution_row
 from scripts.psy29_live_pipeline_bridge import REQUIRED_STAGE11_LIVE
 IST=ZoneInfo("Asia/Kolkata")
@@ -26,9 +28,17 @@ assert row["session_high"]==float(x5.high.max()) and row["session_low"]==float(x
 assert row["session_extreme_policy"]=="CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"
 assert {"session_high","session_low"}.issubset(REQUIRED_STAGE11_LIVE)
 assert len(REQUIRED_STAGE11_LIVE)==23
+root=Path(__file__).resolve().parents[1]
+stage11=json.loads((root/"config/psy29_stage11_execution_analysis_contract.json").read_text(encoding="utf-8"))
+dhan=json.loads((root/"config/psy29_live_dhan_data_contract.json").read_text(encoding="utf-8"))
+assert stage11["version"]=="1.1" and dhan["version"]=="1.1"
+assert set(stage11["live_execution_snapshot_required_fields"])==REQUIRED_STAGE11_LIVE
+assert {"session_high","session_low"}.issubset(set(dhan["required_live_snapshot_fields"]))
+assert stage11["live_data_source"]["contract"]=="config/psy29_live_dhan_data_contract.json"
 print("PSY29 ACCURACY UNIT TESTS: PASS")
 print("Partial-candle exclusion: PASS")
 print("EMA warm-up: PASS")
 print("20-bar volume warm-up: PASS")
 print("Session-extreme acquisition: PASS")
 print("Session-extreme bridge contract: PASS")
+print("Stage 11/DHAN contract parity: PASS")
