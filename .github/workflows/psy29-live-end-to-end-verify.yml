@@ -9,7 +9,6 @@ on:
       - "scripts/psy29_live_pipeline_fixture.py"
       - "scripts/psy29_live_pipeline_bridge.py"
       - "scripts/psy29_live_dhan_acquisition.py"
-      - "scripts/psy29_live_pipeline_service_cycle.py"
       - "scripts/step9_live_regime_v2.py"
       - "scripts/stage7_edge_activation.py"
       - "scripts/stage8_edge_ranking.py"
@@ -42,8 +41,9 @@ on:
       - "config/psy29_stage20_final_trading_signal_contract.json"
       - ".github/workflows/psy29-live-end-to-end-verify.yml"
   schedule:
-    # NSE session: 09:35-16:00 IST, every 5 minutes = 04:05-10:30 UTC.
-    - cron: "*/5 4-10 * * 1-5"
+    # Exact NSE verification window: 09:35-15:30 IST = 04:05-10:00 UTC, Mon-Fri.
+    - cron: "*/5 4-9 * * 1-5"
+    - cron: "0 10 * * 1-5"
   workflow_dispatch:
     inputs:
       mode:
