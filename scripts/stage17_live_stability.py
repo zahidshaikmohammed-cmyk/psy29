@@ -1,964 +1,165 @@
 #!/usr/bin/env python3
+"""PSY29 Stage 17 — Live Decision Stability & Change-Control Engine v2.0.
 
+Stage 17 never creates or authorizes a trade. It validates the evidence chain,
+uses the Stage 6 live market timestamp as the source-of-truth freshness clock,
+and fails closed with explicit diagnostics when evidence is stale/invalid.
 """
-PSY29 STAGE 17
-LIVE DECISION STABILITY & CHANGE-CONTROL ENGINE
-
-Version: 1.0
-Status: LOCKED
-
-Safety:
-- No trade signals
-- No trade authorization
-- No CE/PE selection
-- No entry
-- No stop-loss
-- No target
-- No position sizing
-- No risk calculation
-- No capital allocation
-- No execution
-
-Requires:
-- Canonical 29/29 coverage
-- Stage 5–16 provenance
-- Fresh deterministic/live timestamps
-- Fail-closed validation
-"""
-
 from __future__ import annotations
-
-import argparse
-import csv
-import json
-import sys
-
-from datetime import datetime, timezone
+import argparse,csv,json,sys
+from datetime import datetime,timezone
 from pathlib import Path
 from typing import Any
 
+STAGE=17
+VERSION="2.0"
+MAX_AGE_SECONDS=900
+MAX_FUTURE_SECONDS=30
+ALLOWED_STATES={"STABLE","CHANGED","DETERIORATING","EMERGING","INVALIDATED","UNSTABLE","DATA_STALE","DATA_INVALID","PROVENANCE_FAIL"}
+BLOCKED_FIELDS={"TRADE_READY","TRADE_SIGNAL","TRADE_AUTHORIZED","CE","PE","ENTRY","ENTRY_PRICE","STOP_LOSS","TAKE_PROFIT","TARGET","POSITION_SIZE","RISK","CAPITAL_ALLOCATION","ORDER","EXECUTION"}
 
-STAGE = 17
-VERSION = "1.0"
-
-ALLOWED_STATES = {
-    "STABLE",
-    "CHANGED",
-    "DETERIORATING",
-    "EMERGING",
-    "INVALIDATED",
-    "UNSTABLE",
-    "DATA_STALE",
-    "DATA_INVALID",
-    "PROVENANCE_FAIL",
-}
-
-BLOCKED_FIELDS = {
-    "TRADE_READY",
-    "TRADE_SIGNAL",
-    "TRADE_AUTHORIZED",
-    "CE",
-    "PE",
-    "ENTRY",
-    "ENTRY_PRICE",
-    "STOP_LOSS",
-    "TAKE_PROFIT",
-    "TARGET",
-    "POSITION_SIZE",
-    "RISK",
-    "CAPITAL_ALLOCATION",
-    "ORDER",
-    "EXECUTION",
-}
-
-
-def load_file(path: Path) -> Any:
-    text = path.read_text(
-        encoding="utf-8"
-    ).strip()
-
-    if not text:
-        return []
-
-    if path.suffix.lower() == ".csv":
-        with path.open(
-            "r",
-            encoding="utf-8",
-            newline="",
-        ) as handle:
-            return list(
-                csv.DictReader(handle)
-            )
-
+def load_file(path:Path)->Any:
+    text=path.read_text(encoding="utf-8").strip()
+    if not text:return []
+    if path.suffix.lower()==".csv":
+        with path.open(encoding="utf-8",newline="") as f:return list(csv.DictReader(f))
     return json.loads(text)
 
-
-def get_rows(data: Any) -> list[dict[str, Any]]:
-    if isinstance(data, list):
-        return [
-            item
-            for item in data
-            if isinstance(item, dict)
-        ]
-
-    if isinstance(data, dict):
-
-        for key in (
-            "records",
-            "rows",
-            "data",
-            "items",
-        ):
-            value = data.get(key)
-
-            if isinstance(value, list):
-                return [
-                    item
-                    for item in value
-                    if isinstance(item, dict)
-                ]
-
+def rows(data:Any)->list[dict[str,Any]]:
+    if isinstance(data,list):return [x for x in data if isinstance(x,dict)]
+    if isinstance(data,dict):
+        for k in ("records","rows","data","items"):
+            if isinstance(data.get(k),list):return [x for x in data[k] if isinstance(x,dict)]
         return [data]
-
     return []
 
-
-def get_value(
-    record: dict[str, Any],
-    *keys: str,
-) -> Any:
-
-    lowered = {
-        str(key).lower(): value
-        for key, value in record.items()
-    }
-
-    for key in keys:
-
-        if key.lower() in lowered:
-            return lowered[key.lower()]
-
+def val(r:dict[str,Any],*keys:str)->Any:
+    low={str(k).lower():v for k,v in r.items()}
+    for k in keys:
+        if k.lower() in low:return low[k.lower()]
     return None
 
+def symbol(r:dict[str,Any])->str|None:
+    x=val(r,"symbol","tradingsymbol","ticker","stock","security_symbol")
+    return str(x).strip().upper() if x is not None and str(x).strip() else None
 
-def get_symbol(
-    record: dict[str, Any],
-) -> str | None:
+def parse_ts(x:Any)->datetime|None:
+    if x is None:return None
+    s=str(x).strip()
+    if not s:return None
+    if s.endswith("Z"):s=s[:-1]+"+00:00"
+    try:d=datetime.fromisoformat(s)
+    except ValueError:return None
+    return d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
 
-    value = get_value(
-        record,
-        "symbol",
-        "tradingsymbol",
-        "ticker",
-        "stock",
-        "security_symbol",
-    )
+def record_ts(r:dict[str,Any],prefer_live:bool=False)->datetime|None:
+    keys=("live_data_timestamp","data_timestamp","observation_timestamp","as_of","timestamp","generated_at") if prefer_live else ("generated_at","timestamp","live_data_timestamp","data_timestamp","as_of")
+    for k in keys:
+        d=parse_ts(val(r,k))
+        if d is not None:return d
+    return None
 
-    if value is None:
-        return None
+def universe(path:Path)->list[str]:
+    d=load_file(path)
+    if not isinstance(d,dict) or not isinstance(d.get("universe"),list):raise ValueError("Canonical universe contract invalid")
+    s=[str(x.get("symbol") if isinstance(x,dict) else x).strip().upper() for x in d["universe"]]
+    if len(s)!=29 or len(set(s))!=29:raise ValueError("Canonical universe must contain exactly 29 unique symbols")
+    return s
 
-    value = str(value).strip().upper()
+def index(path:Path,expected:set[str],label:str)->dict[str,dict[str,Any]]:
+    out={}
+    for r in rows(load_file(path)):
+        s=symbol(r)
+        if not s:raise ValueError(f"{label}: missing symbol")
+        if s in out:raise ValueError(f"{label}: duplicate symbol {s}")
+        out[s]=r
+    if set(out)!=expected:raise ValueError(f"{label}: 29/29 coverage failure; missing={sorted(expected-set(out))}; unexpected={sorted(set(out)-expected)}")
+    return out
 
-    return value or None
+def provenance_ok(src:dict[int,dict[str,Any]])->tuple[bool,list[int]]:
+    missing=[]
+    for n,r in src.items():
+        if val(r,f"stage{n}_provenance","provenance","research_provenance") in (None,"",{},[]):missing.append(n)
+    return not missing,missing
 
-
-def parse_timestamp(
-    record: dict[str, Any],
-) -> datetime | None:
-
-    raw = get_value(
-        record,
-        "timestamp",
-        "generated_at",
-        "live_data_timestamp",
-        "data_timestamp",
-        "as_of",
-    )
-
-    if raw is None:
-        return None
-
-    text = str(raw).strip()
-
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-
-    try:
-        parsed = datetime.fromisoformat(
-            text
-        )
-    except ValueError:
-        return None
-
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(
-            tzinfo=timezone.utc
-        )
+def freshness(src:dict[int,dict[str,Any]])->dict[str,Any]:
+    now=datetime.now(timezone.utc)
+    live=record_ts(src[6],prefer_live=True)
+    stage16=record_ts(src[16])
+    problems=[]
+    if live is None:problems.append("stage6_live_timestamp_missing_or_invalid")
     else:
-        parsed = parsed.astimezone(
-            timezone.utc
-        )
-
-    return parsed
-
-
-def load_canonical_universe(
-    path: Path,
-) -> list[str]:
-
-    data = load_file(path)
-
-    if not isinstance(data, dict):
-        raise ValueError(
-            "Canonical universe contract must be JSON object."
-        )
-
-    universe = data.get("universe")
-
-    if not isinstance(universe, list):
-        raise ValueError(
-            "Canonical universe is missing."
-        )
-
-    symbols = []
-
-    for item in universe:
-
-        if isinstance(item, dict):
-            value = item.get("symbol")
-        else:
-            value = item
-
-        if value is None:
-            continue
-
-        symbols.append(
-            str(value).strip().upper()
-        )
-
-    if len(symbols) != 29:
-        raise ValueError(
-            f"Canonical universe must contain 29 symbols; "
-            f"found {len(symbols)}."
-        )
-
-    if len(set(symbols)) != 29:
-        raise ValueError(
-            "Canonical universe contains duplicates."
-        )
-
-    return symbols
-
-
-def index_stage(
-    path: Path,
-    expected: set[str],
-    stage_name: str,
-) -> dict[str, dict[str, Any]]:
-
-    indexed = {}
-
-    for record in get_rows(
-        load_file(path)
-    ):
-
-        symbol = get_symbol(record)
-
-        if not symbol:
-            raise ValueError(
-                f"{stage_name}: record has no symbol."
-            )
-
-        if symbol in indexed:
-            raise ValueError(
-                f"{stage_name}: duplicate symbol {symbol}."
-            )
-
-        indexed[symbol] = record
-
-    observed = set(indexed)
-
-    if observed != expected:
-
-        missing = sorted(
-            expected - observed
-        )
-
-        unexpected = sorted(
-            observed - expected
-        )
-
-        raise ValueError(
-            f"{stage_name}: 29/29 coverage failure; "
-            f"missing={missing}; "
-            f"unexpected={unexpected}."
-        )
-
-    return indexed
-
-
-def provenance_complete(
-    sources: dict[int, dict[str, Any]],
-) -> bool:
-
-    for stage, record in sources.items():
-
-        found = any(
-            get_value(
-                record,
-                f"stage{stage}_provenance",
-                "provenance",
-                "research_provenance",
-            )
-            not in (
-                None,
-                "",
-                {},
-                [],
-            )
-            for _ in [0]
-        )
-
-        if not found:
-            return False
-
-    return True
-
-
-def data_is_fresh(
-    sources: dict[int, dict[str, Any]],
-    max_age_seconds: int = 900,
-) -> bool:
-
-    timestamps = [
-        parse_timestamp(record)
-        for record in sources.values()
-    ]
-
-    if any(
-        timestamp is None
-        for timestamp in timestamps
-    ):
-        return False
-
-    oldest = min(timestamps)
-
-    age = (
-        datetime.now(timezone.utc)
-        - oldest
-    ).total_seconds()
-
-    return (
-        0 <= age <= max_age_seconds
-    )
-
-
-def scan_blocked_fields(
-    value: Any,
-    path: str = "root",
-) -> list[str]:
-
-    violations = []
-
-    if isinstance(value, dict):
-
-        for key, child in value.items():
-
-            if str(key).upper() in BLOCKED_FIELDS:
-
-                violations.append(
-                    f"{path}.{key}"
-                )
-
-            violations.extend(
-                scan_blocked_fields(
-                    child,
-                    f"{path}.{key}",
-                )
-            )
-
-    elif isinstance(value, list):
-
-        for index, child in enumerate(value):
-
-            violations.extend(
-                scan_blocked_fields(
-                    child,
-                    f"{path}[{index}]",
-                )
-            )
-
-    return violations
-
-
-def classify_change(
-    current: dict[int, dict[str, Any]],
-    previous: dict[int, dict[str, Any]] | None,
-) -> tuple[str, str]:
-
-    fixture_state = get_value(
-        current[16],
-        "fixture_expected_state",
-    )
-
-    if fixture_state in ALLOWED_STATES:
-
-        return (
-            fixture_state,
-            "Deterministic Stage 17 fixture state.",
-        )
-
-    current_integrity = str(
-        get_value(
-            current[10],
-            "integrity_status",
-            "integrity_state",
-            "status",
-        )
-        or ""
-    ).upper()
-
-    if (
-        current_integrity
-        and current_integrity != "INTEGRITY_PASS"
-    ):
-
-        return (
-            "INVALIDATED",
-            "Current Stage 10 integrity is not INTEGRITY_PASS.",
-        )
-
-    if previous is None:
-
-        return (
-            "EMERGING",
-            "No previous valid snapshot exists.",
-        )
-
-    current_edge = str(
-        get_value(
-            current[7],
-            "edge_state",
-            "edge_status",
-            "activation_state",
-        )
-        or ""
-    ).upper()
-
-    previous_edge = str(
-        get_value(
-            previous[7],
-            "edge_state",
-            "edge_status",
-            "activation_state",
-        )
-        or ""
-    ).upper()
-
-    if (
-        previous_edge == "EDGE_ACTIVE"
-        and current_edge != "EDGE_ACTIVE"
-    ):
-
-        return (
-            "DETERIORATING",
-            "Previously active edge is no longer active.",
-        )
-
-    if (
-        current_edge == "EDGE_ACTIVE"
-        and previous_edge != "EDGE_ACTIVE"
-    ):
-
-        return (
-            "EMERGING",
-            "Edge became active.",
-        )
-
-    current_regime = str(
-        get_value(
-            current[6],
-            "regime",
-            "regime_state",
-            "classification",
-            "live_regime",
-        )
-        or ""
-    ).upper()
-
-    previous_regime = str(
-        get_value(
-            previous[6],
-            "regime",
-            "regime_state",
-            "classification",
-            "live_regime",
-        )
-        or ""
-    ).upper()
-
-    if (
-        current_regime
-        and previous_regime
-        and current_regime != previous_regime
-    ):
-
-        return (
-            "CHANGED",
-            "Live regime changed.",
-        )
-
+        age=(now-live).total_seconds()
+        if age< -MAX_FUTURE_SECONDS:problems.append("stage6_live_timestamp_in_future")
+        elif age>MAX_AGE_SECONDS:problems.append(f"stage6_live_data_age={int(age)}s")
+    if stage16 is None:problems.append("stage16_generated_timestamp_missing_or_invalid")
+    else:
+        age16=(now-stage16).total_seconds()
+        if age16< -MAX_FUTURE_SECONDS:problems.append("stage16_generated_timestamp_in_future")
+        elif age16>MAX_AGE_SECONDS:problems.append(f"stage16_generated_age={int(age16)}s")
+    return {"ok":not problems,"source_timestamp":live,"stage16_timestamp":stage16,"problems":problems}
+
+def blocked(x:Any,path:str="root")->list[str]:
+    out=[]
+    if isinstance(x,dict):
+        for k,v in x.items():
+            if str(k).upper() in BLOCKED_FIELDS:out.append(f"{path}.{k}")
+            out+=blocked(v,f"{path}.{k}")
+    elif isinstance(x,list):
+        for i,v in enumerate(x):out+=blocked(v,f"{path}[{i}]")
+    return out
+
+def classify(cur:dict[int,dict[str,Any]],prev:dict[int,dict[str,Any]]|None)->tuple[str,str]:
+    fixture=val(cur[16],"fixture_expected_state")
+    if fixture in ALLOWED_STATES:return fixture,"Deterministic Stage 17 fixture state."
+    integrity=str(val(cur[10],"integrity_status","integrity_state","status") or "").upper()
+    if integrity and integrity!="INTEGRITY_PASS":return "INVALIDATED",f"Stage 10 integrity is {integrity}."
+    if prev is None:return "EMERGING","No previous valid snapshot exists."
+    ce=str(val(cur[7],"edge_state","edge_status","activation_state") or "").upper();pe=str(val(prev[7],"edge_state","edge_status","activation_state") or "").upper()
+    if pe=="EDGE_ACTIVE" and ce!="EDGE_ACTIVE":return "DETERIORATING","Previously active edge is no longer active."
+    if ce=="EDGE_ACTIVE" and pe!="EDGE_ACTIVE":return "EMERGING","Edge became active."
+    cr=str(val(cur[6],"regime","regime_state","classification","live_regime") or "").upper();pr=str(val(prev[6],"regime","regime_state","classification","live_regime") or "").upper()
+    if cr and pr and cr!=pr:return "CHANGED","Live regime changed."
     try:
-
-        current_quality = float(
-            get_value(
-                current[9],
-                "quality_score",
-                "confidence_score",
-                "candidate_quality",
-                "score",
-            )
-        )
-
-        previous_quality = float(
-            get_value(
-                previous[9],
-                "quality_score",
-                "confidence_score",
-                "candidate_quality",
-                "score",
-            )
-        )
-
-        if current_quality < previous_quality:
-
-            return (
-                "DETERIORATING",
-                "Candidate quality decreased.",
-            )
-
-        if current_quality > previous_quality:
-
-            return (
-                "CHANGED",
-                "Candidate quality increased.",
-            )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
-        pass
-
-    return (
-        "STABLE",
-        "No material monitored state change detected.",
-    )
-
-
-def main() -> None:
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--universe",
-        required=True,
-        type=Path,
-    )
-
-    for stage in range(5, 17):
-
-        parser.add_argument(
-            f"--stage{stage}",
-            required=True,
-            type=Path,
-        )
-
-    parser.add_argument(
-        "--previous",
-        required=False,
-        type=Path,
-    )
-
-    parser.add_argument(
-        "--output",
-        required=True,
-        type=Path,
-    )
-
-    args = parser.parse_args()
-
-    symbols = load_canonical_universe(
-        args.universe
-    )
-
-    expected = set(symbols)
-
-    current_sources = {}
-
-    for stage in range(5, 17):
-
-        current_sources[stage] = index_stage(
-            getattr(
-                args,
-                f"stage{stage}",
-            ),
-            expected,
-            f"Stage {stage}",
-        )
-
-    previous_sources = None
-
-    if args.previous:
-
-        previous_sources = {}
-
-        for stage in range(5, 17):
-
-            previous_sources[stage] = index_stage(
-                args.previous
-                / f"stage{stage}.csv",
-                expected,
-                f"Previous Stage {stage}",
-            )
-
-    records = []
-
-    for rank, symbol in enumerate(
-        symbols,
-        start=1,
-    ):
-
-        current = {
-            stage:
-                current_sources[stage][symbol]
-            for stage in range(5, 17)
-        }
-
-        previous = None
-
-        if previous_sources is not None:
-
-            previous = {
-                stage:
-                    previous_sources[stage][symbol]
-                for stage in range(5, 17)
-            }
-
-        provenance_ok = (
-            provenance_complete(
-                current
-            )
-        )
-
-        freshness_ok = data_is_fresh(
-            current
-        )
-
-        if not provenance_ok:
-
-            state = "PROVENANCE_FAIL"
-
-            reason = (
-                "Required upstream provenance "
-                "is incomplete."
-            )
-
-        elif not freshness_ok:
-
-            state = "DATA_STALE"
-
-            reason = (
-                "Required upstream timestamps "
-                "are stale or invalid."
-            )
-
-        else:
-
-            state, reason = classify_change(
-                current,
-                previous,
-            )
-
-        timestamps = [
-            parse_timestamp(record)
-            for record in current.values()
-        ]
-
-        valid_timestamps = [
-            timestamp
-            for timestamp in timestamps
-            if timestamp is not None
-        ]
-
-        latest_timestamp = (
-            min(valid_timestamps)
-            if valid_timestamps
-            else None
-        )
-
-        records.append(
-            {
-                "symbol": symbol,
-                "canonical_rank": rank,
-                "stage17_state": state,
-                "change_reason": reason,
-                "stage6_regime": get_value(
-                    current[6],
-                    "regime",
-                    "regime_state",
-                ),
-                "stage7_edge_state": get_value(
-                    current[7],
-                    "edge_state",
-                    "edge_status",
-                ),
-                "stage8_portfolio_rank": get_value(
-                    current[8],
-                    "portfolio_rank",
-                    "rank",
-                ),
-                "stage9_quality_score": get_value(
-                    current[9],
-                    "quality_score",
-                    "confidence_score",
-                ),
-                "stage10_integrity": get_value(
-                    current[10],
-                    "integrity_status",
-                    "integrity_state",
-                ),
-                "stage11_analysis_state": get_value(
-                    current[11],
-                    "analysis_state",
-                ),
-                "stage12_readiness_state": get_value(
-                    current[12],
-                    "readiness_state",
-                ),
-                "stage13_state": get_value(
-                    current[13],
-                    "state",
-                    "scenario_state",
-                ),
-                "stage14_dashboard_state": get_value(
-                    current[14],
-                    "dashboard_state",
-                ),
-                "stage15_event_class": get_value(
-                    current[15],
-                    "event_class",
-                ),
-                "stage16_system_state": get_value(
-                    current[16],
-                    "system_state",
-                    "state",
-                ),
-                "data_status": (
-                    "FRESH"
-                    if freshness_ok
-                    else "STALE"
-                ),
-                "provenance_complete": provenance_ok,
-                "live_data_timestamp": (
-                    latest_timestamp
-                    .replace(
-                        microsecond=0
-                    )
-                    .isoformat()
-                    .replace(
-                        "+00:00",
-                        "Z",
-                    )
-                    if latest_timestamp
-                    else None
-                ),
-                "provenance": {
-                    f"stage{stage}_provenance":
-                        get_value(
-                            current[stage],
-                            f"stage{stage}_provenance",
-                            "provenance",
-                            "research_provenance",
-                        )
-                    for stage in range(5, 17)
-                },
-            }
-        )
-
-    payload = {
-        "stage": STAGE,
-        "version": VERSION,
-        "status": "LOCKED",
-        "generated_at": (
-            datetime.now(
-                timezone.utc
-            )
-            .replace(
-                microsecond=0
-            )
-            .isoformat()
-            .replace(
-                "+00:00",
-                "Z",
-            )
-        ),
-        "coverage": {
-            "expected": 29,
-            "actual": len(records),
-            "unique": len(
-                {
-                    record["symbol"]
-                    for record in records
-                }
-            ),
-        },
-        "allowed_states": sorted(
-            ALLOWED_STATES
-        ),
-        "records": records,
-    }
-
-    if payload["coverage"] != {
-        "expected": 29,
-        "actual": 29,
-        "unique": 29,
-    }:
-
-        raise ValueError(
-            "Stage 17 29/29 coverage failure."
-        )
-
-    blocked = scan_blocked_fields(
-        payload
-    )
-
-    if blocked:
-
-        raise ValueError(
-            "Blocked execution fields detected: "
-            + ", ".join(blocked)
-        )
-
-    args.output.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    board_json = (
-        args.output
-        / "PSY29_STAGE17_STABILITY_BOARD.json"
-    )
-
-    board_json.write_text(
-        json.dumps(
-            payload,
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    board_csv = (
-        args.output
-        / "PSY29_STAGE17_STABILITY_BOARD.csv"
-    )
-
-    csv_fields = [
-        key
-        for key in records[0]
-        if key != "provenance"
-    ]
-
-    with board_csv.open(
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=csv_fields,
-        )
-
-        writer.writeheader()
-
-        for record in records:
-
-            writer.writerow(
-                {
-                    key: record.get(key)
-                    for key in csv_fields
-                }
-            )
-
-    state_counts = {
-        state:
-            sum(
-                record["stage17_state"]
-                == state
-                for record in records
-            )
-        for state in sorted(
-            ALLOWED_STATES
-        )
-    }
-
-    validation = {
-        "stage": STAGE,
-        "version": VERSION,
-        "validation_status": "PASS",
-        "coverage": payload["coverage"],
-        "state_counts": state_counts,
-        "checks": {
-            "canonical_29": True,
-            "29_29_coverage": True,
-            "unique_symbols": True,
-            "allowed_state_enum": True,
-            "provenance_required": True,
-            "fail_closed": True,
-            "blocked_execution_fields_absent": True,
-            "upstream_modification": False,
-        },
-    }
-
-    (
-        args.output
-        / "PSY29_STAGE17_VALIDATION.json"
-    ).write_text(
-        json.dumps(
-            validation,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    print(
-        "PSY29 STAGE 17 ENGINE: PASS"
-    )
-
-    print(
-        "Canonical coverage: 29/29"
-    )
-
-    print(
-        "Fail-closed validation: PASS"
-    )
-
-
-if __name__ == "__main__":
-
-    try:
-
-        main()
-
-    except Exception as exc:
-
-        print(
-            f"PSY29 STAGE 17 ENGINE: FAIL: {exc}",
-            file=sys.stderr,
-        )
-
-        raise
+        cq=float(val(cur[9],"quality_score","confidence_score","candidate_quality","score"));pq=float(val(prev[9],"quality_score","confidence_score","candidate_quality","score"))
+        if cq<pq:return "DETERIORATING","Candidate quality decreased."
+        if cq>pq:return "CHANGED","Candidate quality increased."
+    except (TypeError,ValueError):pass
+    return "STABLE","No material monitored state change detected."
+
+def main()->None:
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--universe",required=True,type=Path)
+    for n in range(5,17):ap.add_argument(f"--stage{n}",required=True,type=Path)
+    ap.add_argument("--previous",type=Path)
+    ap.add_argument("--output",required=True,type=Path)
+    a=ap.parse_args();syms=universe(a.universe);expected=set(syms)
+    src={n:index(getattr(a,f"stage{n}"),expected,f"Stage {n}") for n in range(5,17)}
+    prev_all=None
+    if a.previous:prev_all={n:index(a.previous/f"stage{n}.csv",expected,f"Previous Stage {n}") for n in range(5,17)}
+    records=[]
+    for rank,s in enumerate(syms,1):
+        cur={n:src[n][s] for n in range(5,17)};prev={n:prev_all[n][s] for n in range(5,17)} if prev_all else None
+        prov_ok,missing=provenance_ok(cur);fr=freshness(cur)
+        if not prov_ok:state="PROVENANCE_FAIL";reason=f"Required provenance missing at stages {missing}."
+        elif not fr["ok"]:state="DATA_STALE";reason="; ".join(fr["problems"])
+        else:state,reason=classify(cur,prev)
+        source_ts=fr["source_timestamp"]
+        records.append({"symbol":s,"canonical_rank":rank,"stage17_state":state,"change_reason":reason,"stage6_regime":val(cur[6],"regime","regime_state"),"stage7_edge_state":val(cur[7],"edge_state","edge_status"),"stage8_portfolio_rank":val(cur[8],"portfolio_rank","rank"),"stage9_quality_score":val(cur[9],"quality_score","confidence_score"),"stage10_integrity":val(cur[10],"integrity_status","integrity_state"),"stage11_analysis_state":val(cur[11],"analysis_state"),"stage12_readiness_state":val(cur[12],"readiness_state"),"stage13_state":val(cur[13],"state","scenario_state"),"stage14_dashboard_state":val(cur[14],"dashboard_state"),"stage15_event_class":val(cur[15],"event_class"),"stage16_system_state":val(cur[16],"system_state","state"),"data_status":"FRESH" if fr["ok"] else "STALE","provenance_complete":prov_ok,"freshness_diagnostics":{"source_stage":6,"max_age_seconds":MAX_AGE_SECONDS,"source_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"stage16_timestamp":fr["stage16_timestamp"].isoformat().replace("+00:00","Z") if fr["stage16_timestamp"] else None,"problems":fr["problems"]},"live_data_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"provenance":{f"stage{n}_provenance":val(cur[n],f"stage{n}_provenance","provenance","research_provenance") for n in range(5,17)}})
+    payload={"stage":STAGE,"version":VERSION,"status":"LOCKED","generated_at":datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z"),"freshness_policy":{"source_of_truth":"Stage 6 live_data_timestamp","max_age_seconds":MAX_AGE_SECONDS,"future_clock_tolerance_seconds":MAX_FUTURE_SECONDS},"coverage":{"expected":29,"actual":len(records),"unique":len({r["symbol"] for r in records})},"allowed_states":sorted(ALLOWED_STATES),"records":records}
+    if payload["coverage"]!={"expected":29,"actual":29,"unique":29}:raise ValueError("Stage 17 29/29 coverage failure")
+    bad=blocked(payload)
+    if bad:raise ValueError("Blocked execution fields detected: "+", ".join(bad))
+    a.output.mkdir(parents=True,exist_ok=True)
+    (a.output/"PSY29_STAGE17_STABILITY_BOARD.json").write_text(json.dumps(payload,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+    fields=[k for k in records[0] if k!="provenance"]
+    with (a.output/"PSY29_STAGE17_STABILITY_BOARD.csv").open("w",newline="",encoding="utf-8") as f:
+        w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows([{k:r.get(k) for k in fields} for r in records])
+    counts={s:sum(r["stage17_state"]==s for r in records) for s in sorted(ALLOWED_STATES)}
+    validation={"stage":STAGE,"version":VERSION,"validation_status":"PASS","coverage":payload["coverage"],"state_counts":counts,"checks":{"canonical_29":True,"29_29_coverage":True,"unique_symbols":True,"allowed_state_enum":True,"provenance_required":True,"freshness_source_stage6":True,"fail_closed":True,"blocked_execution_fields_absent":True,"upstream_modification":False}}
+    (a.output/"PSY29_STAGE17_VALIDATION.json").write_text(json.dumps(validation,indent=2)+"\n",encoding="utf-8")
+    print("PSY29 STAGE 17 ENGINE: PASS");print("Canonical coverage: 29/29");print("Freshness source: Stage 6 DHAN live timestamp");print("Fail-closed validation: PASS")
+
+if __name__=="__main__":
+    try:main()
+    except Exception as exc:print(f"PSY29 STAGE 17 ENGINE: FAIL: {exc}",file=sys.stderr);raise
