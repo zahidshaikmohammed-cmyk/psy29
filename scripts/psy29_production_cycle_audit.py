@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """PSY29 Fix 4 production-cycle audit.
 
-Runs the existing production service cycle and independently verifies the
-published DHAN -> Stage 6..20 chain. This is an audit layer only: it does not
-change Stage 6-20 mathematics and never places orders.
+Live mode audits the actual DHAN -> Stage 20 production cycle. Fixture mode
+runs the existing deterministic end-to-end gate only as an off-market CI
+sanity check. No Stage 6-20 mathematics is changed and no orders are placed.
 """
 from __future__ import annotations
 
@@ -27,9 +27,18 @@ def market_session() -> bool:
     return now.weekday() < 5 and dtime(9, 15) <= now.time() <= dtime(15, 30)
 
 
-def run_cycle(mode: str) -> None:
+def run_live_cycle() -> None:
     subprocess.run(
-        [sys.executable, str(ROOT / "scripts/psy29_live_pipeline_service_cycle.py"), "--mode", mode],
+        [sys.executable, str(ROOT / "scripts/psy29_live_pipeline_service_cycle.py"), "--mode", "live"],
+        cwd=ROOT,
+        check=True,
+        timeout=1800,
+    )
+
+
+def run_fixture_gate(out: Path) -> None:
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts/psy29_live_end_to_end_gate.py"), "--mode", "fixture", "--output", str(out)],
         cwd=ROOT,
         check=True,
         timeout=1800,
@@ -61,6 +70,85 @@ def verify_29(path: Path, expected: set[str], label: str) -> None:
         raise RuntimeError(f"{label}: 29/29 coverage failure")
 
 
+def audit_live(expected: set[str]) -> None:
+    validation = read_json(OUT / "live_pipeline_input_validation.json")
+    required = {
+        "status": "PASS",
+        "contract": "PSY29_LIVE_PIPELINE_INPUT",
+        "mode": "live",
+        "coverage": {"expected": 29, "actual": 29, "unique": 29},
+        "signal_generation": False,
+        "order_execution": False,
+        "live_data": True,
+    }
+    for key, value in required.items():
+        if validation.get(key) != value:
+            raise RuntimeError(f"pipeline validation mismatch: {key}={validation.get(key)!r}")
+
+    acquisition = read_json(OUT / "live_acquisition_validation.json")
+    if acquisition.get("status") != "PASS" or acquisition.get("provider") != "DHAN":
+        raise RuntimeError("live acquisition is not a PASS/DHAN result")
+    if acquisition.get("coverage") != {"expected": 29, "actual": 29, "unique": 29}:
+        raise RuntimeError("DHAN acquisition coverage is not 29/29")
+    if acquisition.get("fresh_count") != 29 or acquisition.get("stale_count") != 0 or acquisition.get("invalid_count") != 0:
+        raise RuntimeError("DHAN acquisition freshness/completeness gate failed")
+    if acquisition.get("signal_generation") is not False or acquisition.get("order_execution") is not False:
+        raise RuntimeError("DHAN acquisition safety boundary failed")
+
+    execution_path = OUT / "execution_snapshot.csv"
+    verify_29(execution_path, expected, "execution snapshot")
+    execution = read_csv(execution_path)
+    if any(str(r.get("freshness_status", "")).upper() != "FRESH" for r in execution):
+        raise RuntimeError("execution snapshot contains a non-FRESH row")
+    for r in execution:
+        for field in ("session_high", "session_low"):
+            try:
+                value = float(r[field])
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError(f"{field} is not numeric for {r.get('symbol')}") from exc
+            if value != value or value in (float("inf"), float("-inf")):
+                raise RuntimeError(f"{field} is non-finite for {r.get('symbol')}")
+
+    signal_cycle = OUT / "signal_cycle"
+    for n in range(6, 20):
+        files = list((signal_cycle / f"stage{n}").glob("*.csv"))
+        if not files:
+            raise RuntimeError(f"Stage {n} production-cycle artifact missing")
+        verify_29(files[0], expected, f"Stage {n}")
+
+    board = read_json(OUT / "PSY29_STAGE20_FINAL_SIGNAL_BOARD.json")
+    if board.get("coverage") != {"expected": 29, "actual": 29, "unique": 29}:
+        raise RuntimeError("Stage 20 coverage is not 29/29")
+    if len(board.get("audit", [])) != 29:
+        raise RuntimeError("Stage 20 audit is not 29/29")
+    if board.get("daily_signal_cap") is not None:
+        raise RuntimeError("Stage 20 daily signal cap is not null")
+    production = board.get("production_cycle", {})
+    if production.get("live_data") is not True or production.get("provider") != "DHAN":
+        raise RuntimeError("Stage 20 production provenance is not live DHAN")
+    if production.get("stage6_to_stage20") is not True:
+        raise RuntimeError("Stage 20 production-cycle provenance missing")
+    if production.get("stage17_history_frozen_before_cycle") is not True:
+        raise RuntimeError("Stage 17 temporal freeze not recorded")
+    if production.get("stage17_current_appended_after_cycle_success") is not True:
+        raise RuntimeError("Stage 17 post-success history commit not recorded")
+
+
+def audit_fixture(path: Path, expected: set[str]) -> None:
+    gate = read_json(path / "PSY29_LIVE_END_TO_END_GATE.json")
+    if gate.get("status") != "PASS" or gate.get("mode") != "fixture":
+        raise RuntimeError("fixture end-to-end gate did not PASS")
+    if gate.get("coverage") != {"expected": 29, "actual": 29, "unique": 29}:
+        raise RuntimeError("fixture gate coverage is not 29/29")
+    if gate.get("signal_generation") is not False or gate.get("order_execution") is not False:
+        raise RuntimeError("fixture safety boundary failed")
+    for n in range(6, 20):
+        files = list((path / f"stage{n}").glob("*.csv"))
+        if not files:
+            raise RuntimeError(f"fixture Stage {n} artifact missing")
+        verify_29(files[0], expected, f"Fixture Stage {n}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=("live", "fixture", "auto"), default="auto")
@@ -71,80 +159,21 @@ def main() -> None:
         mode = "live" if market_session() else "fixture"
     else:
         mode = args.mode
-
     if mode == "live" and not market_session():
         raise SystemExit("PSY29 FIX 4 AUDIT: live mode is allowed only during NSE market hours")
     if mode == "fixture" and market_session():
         raise SystemExit("PSY29 FIX 4 AUDIT: fixture mode is forbidden during NSE market hours")
 
     expected = canonical_symbols()
-    run_cycle(mode)
-
-    validation = read_json(OUT / "live_pipeline_input_validation.json")
-    required_validation = {
-        "status": "PASS",
-        "contract": "PSY29_LIVE_PIPELINE_INPUT",
-        "mode": mode,
-        "coverage": {"expected": 29, "actual": 29, "unique": 29},
-        "signal_generation": False,
-        "order_execution": False,
-    }
-    for key, value in required_validation.items():
-        if validation.get(key) != value:
-            raise RuntimeError(f"pipeline validation mismatch: {key}={validation.get(key)!r}")
-    if validation.get("live_data") is not (mode == "live"):
-        raise RuntimeError("live_data provenance mismatch")
-
-    acquisition = read_json(OUT / "live_acquisition_validation.json")
     if mode == "live":
-        if acquisition.get("status") != "PASS" or acquisition.get("provider") != "DHAN":
-            raise RuntimeError("live acquisition is not a PASS/DHAN result")
-        if acquisition.get("coverage") != {"expected": 29, "actual": 29, "unique": 29}:
-            raise RuntimeError("DHAN acquisition coverage is not 29/29")
-        if acquisition.get("fresh_count") != 29 or acquisition.get("stale_count") != 0 or acquisition.get("invalid_count") != 0:
-            raise RuntimeError("DHAN acquisition freshness/completeness gate failed")
-        if acquisition.get("signal_generation") is not False or acquisition.get("order_execution") is not False:
-            raise RuntimeError("DHAN acquisition safety boundary failed")
-
-    verify_29(OUT / "execution_snapshot.csv", expected, "execution snapshot")
-
-    if mode == "live":
-        execution = read_csv(OUT / "execution_snapshot.csv")
-        if any(str(r.get("freshness_status", "")).upper() != "FRESH" for r in execution):
-            raise RuntimeError("execution snapshot contains a non-FRESH row")
-        for r in execution:
-            for field in ("session_high", "session_low"):
-                try:
-                    value = float(r[field])
-                except (TypeError, ValueError) as exc:
-                    raise RuntimeError(f"{field} is not numeric for {r.get('symbol')}") from exc
-                if value != value or value in (float("inf"), float("-inf")):
-                    raise RuntimeError(f"{field} is non-finite for {r.get('symbol')}")
-
-    signal_cycle = OUT / "signal_cycle"
-    for n in range(6, 20):
-        files = list((signal_cycle / f"stage{n}").glob("*.csv"))
-        if not files:
-            raise RuntimeError(f"Stage {n} production-cycle artifact missing")
-        verify_29(files[0], expected, f"Stage {n}")
-
-    if mode == "live":
-        board = read_json(OUT / "PSY29_STAGE20_FINAL_SIGNAL_BOARD.json")
-        if board.get("coverage") != {"expected": 29, "actual": 29, "unique": 29}:
-            raise RuntimeError("Stage 20 coverage is not 29/29")
-        if len(board.get("audit", [])) != 29:
-            raise RuntimeError("Stage 20 audit is not 29/29")
-        if board.get("daily_signal_cap") is not None:
-            raise RuntimeError("Stage 20 daily signal cap is not null")
-        production = board.get("production_cycle", {})
-        if production.get("live_data") is not True or production.get("provider") != "DHAN":
-            raise RuntimeError("Stage 20 production provenance is not live DHAN")
-        if production.get("stage6_to_stage20") is not True:
-            raise RuntimeError("Stage 20 production-cycle provenance missing")
-        if production.get("stage17_history_frozen_before_cycle") is not True:
-            raise RuntimeError("Stage 17 temporal freeze not recorded")
-        if production.get("stage17_current_appended_after_cycle_success") is not True:
-            raise RuntimeError("Stage 17 post-success history commit not recorded")
+        run_live_cycle()
+        audit_live(expected)
+    else:
+        fixture_out = OUT / "fix4_fixture_gate"
+        import shutil
+        shutil.rmtree(fixture_out, ignore_errors=True)
+        run_fixture_gate(fixture_out)
+        audit_fixture(fixture_out, expected)
 
     report = {
         "contract": "PSY29_FIX_4_PRODUCTION_CYCLE_AUDIT",
