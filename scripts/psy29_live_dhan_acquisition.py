@@ -69,7 +69,8 @@ def build_execution_row(symbol,security_id,x1,x5,all1,all5,timestamp):
  # The current session is reserved for today's opening range/session extremes.
  # This prevents the first few morning candles from masquerading as a 20-bar
  # historical swing window and removes the hidden warm-up offset.
- prior5=all5[all5.dt.dt.date < latest5.dt.date].sort_values("timestamp").tail(STRUCTURAL_SWING_BARS)
+ latest_date=latest5["dt"].date()
+ prior5=all5[all5["dt"].map(lambda d:d.date()) < latest_date].sort_values("timestamp").tail(STRUCTURAL_SWING_BARS)
  if len(prior5)<STRUCTURAL_SWING_BARS:
   raise RuntimeError(f"{symbol}: insufficient historical 5m warm-up for structural swing window ({len(prior5)}/{STRUCTURAL_SWING_BARS})")
  avg1=all1.volume.tail(20).mean();avg5=all5.volume.tail(20).mean()
