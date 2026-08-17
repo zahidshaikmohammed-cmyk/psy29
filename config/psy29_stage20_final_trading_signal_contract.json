@@ -29,6 +29,7 @@
     "BREAKOUT": {
       "direction_rule": "LONG when bullish breakout structure; SHORT when bearish breakout structure.",
       "entry_rule": "Use the breakout boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.",
+      "confirmation_buffer_pct": 0.0,
       "stop_rule": "Use the breakout invalidation level defined by the strategy: opposite side of the broken structural boundary.",
       "target_rule": "Use the next strategy-defined structural objective; never substitute a generic risk multiple.",
       "required_levels": ["entry", "stop_loss", "take_profit"]
@@ -36,6 +37,7 @@
     "BREAKDOWN": {
       "direction_rule": "SHORT on verified bearish breakdown structure.",
       "entry_rule": "Use the breakdown boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.",
+      "confirmation_buffer_pct": 0.0,
       "stop_rule": "Use the breakdown invalidation level defined by the strategy.",
       "target_rule": "Use the next strategy-defined structural objective; never substitute a generic risk multiple.",
       "required_levels": ["entry", "stop_loss", "take_profit"]
@@ -55,25 +57,10 @@
       "required_levels": ["entry", "stop_loss", "take_profit"]
     }
   },
-  "required_inputs": [
-    "canonical_universe",
-    "verified_stage16_board",
-    "verified_stage19_transition_board",
-    "verified_stage11_live_execution_analysis",
-    "strategy_memory"
-  ],
-  "required_signal_fields": [
-    "signal_id", "symbol", "direction", "strategy", "entry", "stop_loss", "take_profit", "risk_reward", "signal_score", "signal_status", "timestamp", "provenance"
-  ],
+  "required_inputs": ["canonical_universe", "verified_stage16_board", "verified_stage19_transition_board", "verified_stage11_live_execution_analysis", "strategy_memory"],
+  "required_signal_fields": ["signal_id", "symbol", "direction", "strategy", "entry", "stop_loss", "take_profit", "risk_reward", "signal_score", "signal_status", "timestamp", "provenance"],
   "memory_states": ["NONE", "ACTIVE_SIGNAL", "TRADED", "INVALIDATED", "COMPLETED"],
-  "safety_boundaries": {
-    "broker_order": false,
-    "automatic_execution": false,
-    "capital_allocation": false,
-    "position_sizing": false,
-    "forced_signal": false,
-    "level_invention": false
-  },
+  "safety_boundaries": {"broker_order": false, "automatic_execution": false, "capital_allocation": false, "position_sizing": false, "forced_signal": false, "level_invention": false},
   "fail_closed_rules": [
     "Canonical universe must be exactly 29 unique stocks.",
     "Required upstream evidence must cover all 29 stocks.",
