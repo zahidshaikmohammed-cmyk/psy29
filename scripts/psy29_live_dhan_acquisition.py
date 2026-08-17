@@ -58,20 +58,19 @@ def build_execution_row(symbol:str,x1:pd.DataFrame,x5:pd.DataFrame,timestamp:str
     if len(x1)<20:raise RuntimeError(f"{symbol}: fewer than 20 live 1m candles")
     if len(x5)<20:raise RuntimeError(f"{symbol}: fewer than 20 live 5m candles")
     bars=x1.copy();bars["bucket"]=bars["dt"].dt.floor("5min");bars=bars.groupby("bucket",sort=True).agg(open=("open","first"),high=("high","max"),low=("low","min"),close=("close","last"),volume=("volume","sum")).reset_index();latest=x1.iloc[-1];b5=bars.iloc[-1];recent=bars.tail(20);latest5=x5.iloc[-1]
-    return {"symbol":symbol,"timestamp":timestamp,"open_1m":float(latest["open"]),"high_1m":float(latest["high"]),"low_1m":float(latest["low"]),"close_1m":float(latest["close"]),"volume_1m":float(latest["volume"]),"avg_volume_20_1m":float(x1["volume"].tail(20).mean()),"open_5m":float(b5["open"]),"high_5m":float(b5["high"]),"low_5m":float(b5["low"]),"close_5m":float(b5["close"]),"volume_5m":float(b5["volume"]),"avg_volume_20_5m":float(x5["volume"].tail(20).mean()),"vwap_5m":float(latest5["vwap5"]),"ema9_5m":float(latest5["ema9_5m"]),"ema20_5m":float(latest5["ema20_5m"]),"first15_high":float(latest["first15_high"]),"first15_low":float(latest["first15_low"]),"swing_high":float(recent["high"].max()),"swing_low":float(recent["low"].min())}
+    return {"symbol":symbol,"timestamp":timestamp,"open_1m":float(latest["open"]),"high_1m":float(latest["high"]),"low_1m":float(latest["low"]),"close_1m":float(latest["close"]),"volume_1m":float(latest["volume"]),"avg_volume_20_1m":float(x1["volume"].tail(20).mean()),"open_5m":float(b5["open"]),"high_5m":float(b5["high"]),"low_5m":float(b5["low"]),"close_5m":float(b5["close"]),"volume_5m":float(b5["volume"]),"avg_volume_20_5m":float(x5["volume"].tail(20).mean()),"vwap_5m":float(latest5["vwap5"]),"ema9_5m":float(latest5["ema9_5m"]),"ema20_5m":float(latest5["ema20_5m"]),"first15_high":float(latest["first15_high"]),"first15_low":float(latest["first15_low"]),"swing_high":float(recent["high"].max()),"swing_low":float(recent["low"].min()),"freshness_status":"FRESH"}
 def main():
     parser=argparse.ArgumentParser();parser.add_argument("--universe",required=True);parser.add_argument("--output",required=True);args=parser.parse_args();out=Path(args.output);out.mkdir(parents=True,exist_ok=True);symbols=load_universe(args.universe);client=DhanClient();mapping=resolve_security_ids(symbols);now=datetime.now(IST);snapshot_rows=[];execution_rows=[];errors=[]
     for symbol in symbols:
         try:
             x1=add_indicators_1m(fetch_bars(client,mapping[symbol],now,"1"));x5=add_indicators_5m(fetch_bars(client,mapping[symbol],now,"5"))
             if x1.empty or x5.empty:raise RuntimeError("no current-session candles returned")
-            # Compare provider timestamp with the clock immediately after this symbol's API calls.
-            # The previous implementation compared every symbol to the cycle-start clock, so
-            # later symbols could be falsely rejected as "future" while the cycle was running.
             observed_utc=datetime.now(timezone.utc);latest_ts=int(x1.iloc[-1]["timestamp"]);age=(observed_utc-datetime.fromtimestamp(latest_ts,tz=timezone.utc)).total_seconds()
             if age<-5:raise RuntimeError("provider returned a future timestamp")
             ts=datetime.fromtimestamp(latest_ts,tz=timezone.utc).isoformat().replace("+00:00","Z")
-            snapshot_rows.append({"symbol":symbol,"timestamp":ts,"last_price":float(x1.iloc[-1]["close"]),"vwap":float(x1.iloc[-1]["vwap"]),"ema9":float(x1.iloc[-1]["ema9"]),"ema20":float(x1.iloc[-1]["ema20"]),"first15_high":float(x1.iloc[-1]["first15_high"]),"first15_low":float(x1.iloc[-1]["first15_low"]),"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":"FRESH" if age<=FRESH_MAX_AGE_SECONDS else ("STALE" if age<=STALE_MAX_AGE_SECONDS else "INVALID"),"provider":"DHAN","security_id":mapping[symbol],"exchange_segment":"NSE_EQ"});execution_rows.append(build_execution_row(symbol,x1,x5,ts))
+            freshness="FRESH" if age<=FRESH_MAX_AGE_SECONDS else ("STALE" if age<=STALE_MAX_AGE_SECONDS else "INVALID")
+            if freshness!="FRESH":raise RuntimeError(f"live data freshness is {freshness}")
+            snapshot_rows.append({"symbol":symbol,"timestamp":ts,"last_price":float(x1.iloc[-1]["close"]),"vwap":float(x1.iloc[-1]["vwap"]),"ema9":float(x1.iloc[-1]["ema9"]),"ema20":float(x1.iloc[-1]["ema20"]),"first15_high":float(x1.iloc[-1]["first15_high"]),"first15_low":float(x1.iloc[-1]["first15_low"]),"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":freshness,"provider":"DHAN","security_id":mapping[symbol],"exchange_segment":"NSE_EQ"});execution_rows.append(build_execution_row(symbol,x1,x5,ts))
         except Exception as exc:errors.append({"symbol":symbol,"error":str(exc)})
     snapshot=pd.DataFrame(snapshot_rows);execution=pd.DataFrame(execution_rows)
     if not snapshot.empty:snapshot.to_csv(out/"live_snapshot.csv",index=False)
