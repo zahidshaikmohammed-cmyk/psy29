@@ -8,14 +8,12 @@ for the feature layer rather than silently inventing indicators here.
 Only candles with complete=true are eligible for indicator output.
 """
 import json
-import math
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CANDLE_ROOT = ROOT.parent / "phase4" / "candles"
 OUT = ROOT / "indicators"
-PERIODS = (9, 20)
 INTRADAY_TIMEFRAMES = {"1m", "5m", "15m", "1h"}
 
 
@@ -56,12 +54,13 @@ def load_candles(symbol, timeframe):
 
 
 def calculate(symbol, timeframe, candles):
-    closes = [float(x["close"]) for x in candles]
-    vwaps = vwap(candles) if timeframe in INTRADAY_TIMEFRAMES else [None] * len(candles)
+    eligible = [x for x in candles if x.get("complete") is True]
+    closes = [float(x["close"]) for x in eligible]
+    vwaps = vwap(eligible) if timeframe in INTRADAY_TIMEFRAMES else [None] * len(eligible)
     ema9 = ema(closes, 9)
     ema20 = ema(closes, 20)
     rows = []
-    for i, candle in enumerate(candles):
+    for i, candle in enumerate(eligible):
         rows.append({
             "symbol": symbol,
             "timeframe": timeframe,
