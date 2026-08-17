@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path=urlparse(self.path).path
         if path in {"/health","/healthz"}:
-            runtime=load_runtime_state(RUNTIME_STATE);healthy=runtime.get("status") in {"PASS","RUNNING"} or runtime.get("status")=="STARTING";code=200 if healthy else 503;body=json.dumps({"status":"ok" if healthy else "degraded","service":"PSY29 LIVE MARKET","runtime_state":runtime,"render_ephemeral_storage":True,"durable_external_state":False},separators=(",",":")).encode();return self._send(body,"application/json; charset=utf-8",code)
+            runtime=load_runtime_state(RUNTIME_STATE);healthy=runtime.get("status") in {"PASS","RUNNING"} or runtime.get("status")=="STARTING";code=200 if healthy else 503;body=json.dumps({"status":"ok" if healthy else "degraded","service":"PSY29 LIVE MARKET","runtime_state":runtime,"render_ephemeral_storage":True,"durable_external_state":runtime.get("persistence") == "NEON_POSTGRES"},separators=(",",":")).encode();return self._send(body,"application/json; charset=utf-8",code)
         if path=="/signals":
             try:return self._send(PAGE.read_bytes(),"text/html; charset=utf-8")
             except Exception as exc:return self._send(json.dumps({"error":"signals_ui_unavailable","detail":str(exc)}).encode(),"application/json; charset=utf-8")
