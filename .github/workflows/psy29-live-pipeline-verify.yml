@@ -9,6 +9,9 @@ on:
       - "scripts/psy29_persistent_store.py"
       - "scripts/psy29_runtime_state.py"
       - "scripts/psy29_persistence_unit_tests.py"
+      - "scripts/psy29_live_dhan_acquisition.py"
+      - "scripts/psy29_recent_dhan_snapshot.py"
+      - "scripts/test_psy29_live_indicator_contract.py"
       - "requirements-live.txt"
       - "config/psy29_live_universe_contract.json"
       - ".github/workflows/psy29-live-pipeline-verify.yml"
@@ -21,7 +24,7 @@ jobs:
   verify:
     name: PSY29 live pipeline deterministic verification
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout PSY29
         uses: actions/checkout@v4
@@ -39,6 +42,9 @@ jobs:
       - name: Compile live pipeline and persistence modules
         run: |
           python -m py_compile \
+            scripts/psy29_live_dhan_acquisition.py \
+            scripts/psy29_recent_dhan_snapshot.py \
+            scripts/test_psy29_live_indicator_contract.py \
             scripts/psy29_live_pipeline_fixture.py \
             scripts/psy29_live_pipeline_bridge.py \
             scripts/psy29_live_pipeline_service_cycle.py \
@@ -48,6 +54,30 @@ jobs:
             scripts/psy29_runtime_state.py \
             scripts/psy29_live_service.py
 
+      - name: Verify production 1M indicator contract
+        run: |
+          python scripts/test_psy29_live_indicator_contract.py
+
+      - name: Verify production add_indicators_1m API signature
+        run: |
+          python - <<'PY'
+          import inspect
+          from scripts.psy29_live_dhan_acquisition import add_indicators_1m
+          params=list(inspect.signature(add_indicators_1m).parameters)
+          assert params==['df','session_date','now'], params
+          print('add_indicators_1m(df, session_date, now): PASS')
+          PY
+
+      - name: Verify recent-session production call site
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('scripts/psy29_recent_dhan_snapshot.py').read_text(encoding='utf-8')
+          assert 'add_indicators_1m(df,session_date,now)' in text or 'add_indicators_1m(df, session_date, now)' in text
+          assert 'add_indicators_1m(df)' not in text
+          print('RECENT DHAN INDICATOR CALL-SITE: PASS')
+          PY
+
       - name: Verify market-hours fixture hard stop
         run: |
           python - <<'PY'
@@ -55,7 +85,6 @@ jobs:
           import io
           import sys
           import scripts.psy29_live_pipeline_service_cycle as m
-
           m.market_session=lambda: True
           sys.argv=['psy29_live_pipeline_service_cycle.py','--mode','fixture']
           try:
@@ -84,7 +113,6 @@ jobs:
           python - <<'PY'
           import json
           import pandas as pd
-
           v=json.load(open('runtime/live/live_pipeline_input_validation.json',encoding='utf-8'))
           assert v['status']=='PASS', v
           assert v['contract']=='PSY29_LIVE_PIPELINE_INPUT', v
@@ -94,7 +122,6 @@ jobs:
           assert v['fixture_count']==29, v
           assert v['signal_generation'] is False, v
           assert v['order_execution'] is False, v
-
           s=pd.read_csv('runtime/live/live_pipeline_input.csv')
           assert len(s)==29 and s['symbol'].nunique()==29
           assert (s['freshness_status']=='FIXTURE').all()
@@ -103,5 +130,6 @@ jobs:
           print('PSY29 LIVE PIPELINE DETERMINISTIC GATE: HARD VERIFY PASS')
           print('29/29 fixture rows: PASS')
           print('Persistence regression: PASS')
+          print('1M indicator contract: PASS')
           print('Explicitly non-live: PASS')
           PY
