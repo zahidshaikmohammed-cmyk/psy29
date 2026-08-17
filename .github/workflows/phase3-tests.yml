@@ -1,0 +1,18 @@
+name: PSY29 Phase 3 Verification
+
+on:
+  push:
+    branches:
+      - phase3/one-minute-collection
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 29stock-live-data-vault/phase3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run full-session collection test
+        run: python -m unittest discover -s . -p 'test_*.py'
