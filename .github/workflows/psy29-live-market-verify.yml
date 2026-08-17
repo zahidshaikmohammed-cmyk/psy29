@@ -1,18 +1,17 @@
 name: PSY29 Live Market Verification
 
+# IMPORTANT: GitHub Actions is verification only. The Render production worker
+# owns continuous live acquisition. Scheduled DHAN polling here can overlap
+# with production cycles and create avoidable 429/rate-limit pressure.
 on:
   workflow_dispatch:
-  schedule:
-    # 04:05 UTC = 09:35 IST through 09:55 UTC = 15:25 IST, plus 10:00 UTC = 15:30 IST.
-    - cron: "*/5 4-9 * * 1-5"
-    - cron: "0 10 * * 1-5"
 
 permissions:
   contents: read
 
 jobs:
   live-market:
-    name: PSY29 Live DHAN Acquisition
+    name: PSY29 Live DHAN Acquisition (Manual Verification)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
