@@ -21,18 +21,8 @@ jobs:
           python-version: '3.12'
       - name: Install PostgreSQL driver
         run: pip install 'psycopg[binary]>=3.2,<4'
-      - name: Run local storage integrity tests
-        run: python -m unittest test_storage_engine.py
-      - name: Verify Neon/PostgreSQL when configured
-        if: ${{ env.DATABASE_URL != '' }}
-        run: |
-          python - <<'PY'
-          from storage_engine import connect, install_schema
-          with connect() as conn:
-              install_schema(conn)
-              row = conn.execute("SELECT current_database(), version()").fetchone()
-              print("POSTGRES_OK", row[0])
-          PY
+      - name: Run complete Phase 8 storage verification
+        run: python verify_phase8.py
       - name: Require live database verification
         if: ${{ env.DATABASE_URL == '' }}
         run: |
