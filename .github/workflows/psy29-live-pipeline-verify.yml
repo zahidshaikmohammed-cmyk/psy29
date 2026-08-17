@@ -6,6 +6,10 @@ on:
       - "scripts/psy29_live_pipeline_*.py"
       - "scripts/psy29_live_signal_cycle.py"
       - "scripts/psy29_integrated_service.py"
+      - "scripts/psy29_persistent_store.py"
+      - "scripts/psy29_runtime_state.py"
+      - "scripts/psy29_persistence_unit_tests.py"
+      - "requirements-live.txt"
       - "config/psy29_live_universe_contract.json"
       - ".github/workflows/psy29-live-pipeline-verify.yml"
   workflow_dispatch:
@@ -32,14 +36,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-live.txt
 
-      - name: Compile live pipeline modules
+      - name: Compile live pipeline and persistence modules
         run: |
           python -m py_compile \
             scripts/psy29_live_pipeline_fixture.py \
             scripts/psy29_live_pipeline_bridge.py \
             scripts/psy29_live_pipeline_service_cycle.py \
             scripts/psy29_live_signal_cycle.py \
-            scripts/psy29_integrated_service.py
+            scripts/psy29_integrated_service.py \
+            scripts/psy29_persistent_store.py \
+            scripts/psy29_runtime_state.py \
+            scripts/psy29_live_service.py
+
+      - name: Run persistence regression tests
+        run: |
+          python scripts/psy29_persistence_unit_tests.py
 
       - name: Run deterministic off-market pipeline gate
         run: |
@@ -71,5 +82,6 @@ jobs:
           assert required.issubset(s.columns), sorted(required-set(s.columns))
           print('PSY29 LIVE PIPELINE DETERMINISTIC GATE: HARD VERIFY PASS')
           print('29/29 fixture rows: PASS')
+          print('Persistence regression: PASS')
           print('Explicitly non-live: PASS')
           PY
