@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta
-from pathlib import Path
 import sys
 import pandas as pd
 from zoneinfo import ZoneInfo
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0,str(__import__('pathlib').Path(__file__).resolve().parents[1]))
 from scripts.psy29_live_dhan_acquisition import completed_candles, add_indicators_1m, add_indicators_5m, build_execution_row
 IST=ZoneInfo("Asia/Kolkata")
 BASE=datetime(2026,8,17,9,15,tzinfo=IST)
@@ -20,5 +19,12 @@ x=add_indicators_1m(raw_warm,BASE.date(),BASE+timedelta(minutes=15,seconds=1));a
 current_only=frame(BASE,15,1).assign(ema20=lambda d:d.close.ewm(span=20,adjust=False).mean());assert abs(float(x.iloc[-1].ema20)-float(current_only.iloc[-1].ema20))>1e-9
 warm5=frame(BASE-timedelta(days=1),20,5,30);cur5=frame(BASE,4,5,40);all5=pd.concat([warm5,cur5],ignore_index=True)
 x5=add_indicators_5m(all5,BASE.date(),BASE+timedelta(minutes=20,seconds=1));x1=add_indicators_1m(raw_warm,BASE.date(),BASE+timedelta(minutes=15,seconds=1));complete5=completed_candles(all5,5,BASE+timedelta(minutes=20,seconds=1))
-row=build_execution_row("TEST","1",x1,x5,complete5,complete5,"2026-08-17T03:45:00Z");assert row["avg_volume_20_5m"]>0 and row["candle_completion_policy"]=="COMPLETED_CANDLES_ONLY"
-print("PSY29 ACCURACY UNIT TESTS: PASS");print("Partial-candle exclusion: PASS");print("EMA warm-up: PASS");print("20-bar volume warm-up: PASS")
+row=build_execution_row("TEST","1",x1,x5,complete5,complete5,"2026-08-17T03:45:00Z")
+assert row["avg_volume_20_5m"]>0 and row["candle_completion_policy"]=="COMPLETED_CANDLES_ONLY"
+assert row["session_high"]==float(x5.high.max()) and row["session_low"]==float(x5.low.min())
+assert row["session_extreme_policy"]=="CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"
+print("PSY29 ACCURACY UNIT TESTS: PASS")
+print("Partial-candle exclusion: PASS")
+print("EMA warm-up: PASS")
+print("20-bar volume warm-up: PASS")
+print("Session-extreme handoff: PASS")
