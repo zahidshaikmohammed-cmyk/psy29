@@ -71,7 +71,15 @@ jobs:
           assert c['strategy_authority']['stop_loss_owner']=='selected_strategy'
           assert c['strategy_authority']['take_profit_owner']=='selected_strategy'
           assert c['strategy_authority']['generic_rr_fallback_forbidden'] is True
+          m=c['memory_lifecycle']
+          assert m['enabled'] is True
+          assert m['active_states']==['ACTIVE_SIGNAL','TRADED']
+          assert m['terminal_states']==['INVALIDATED','COMPLETED']
+          assert m['manual_reset_required'] is False
+          assert m['permanent_traded_blacklist'] is False
+          assert m['missing_metadata_policy']=='PRESERVE_STATE_FAIL_CLOSED'
           print('STAGE 20 CONTRACT: PASS')
+          print('MEMORY LIFECYCLE CONTRACT: PASS')
           PY
       - name: Create deterministic Stage 20 fixture
         run: |
@@ -105,12 +113,29 @@ jobs:
           python - <<'PY'
           import json
           b=json.load(open('/tmp/psy29_stage20_output/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
-          assert b['signal_count']==2
+          m=json.load(open('/tmp/psy29_stage20_output/PSY29_STAGE20_SIGNAL_MEMORY.json',encoding='utf-8'))
+          assert b['signal_count']==4
           assert b['coverage']=={'expected':29,'actual':29,'unique':29}
           assert b['daily_signal_cap'] is None
+          audit={x['symbol']:x for x in b['audit']}
+          rec={x['symbol']:x for x in m['records']}
+          syms=[x['symbol'] for x in b['signals']]
+          assert audit[syms[0]]['decision']=='SIGNAL'
+          assert audit[syms[1]]['decision']=='SIGNAL'
+          # Two still-live memories remain suppressed.
+          assert audit[syms[2]]['effective_memory_state']=='TRADED'
+          assert audit[syms[3]]['effective_memory_state']=='ACTIVE_SIGNAL'
+          # One completed ACTIVE_SIGNAL and one invalidated TRADED state are released.
+          assert audit[syms[4]]['memory_transition']=='COMPLETED'
+          assert audit[syms[5]]['memory_transition']=='INVALIDATED'
+          assert rec[syms[4]]['state']=='ACTIVE_SIGNAL'
+          assert rec[syms[5]]['state']=='ACTIVE_SIGNAL'
           print('MULTI-SIGNAL: PASS')
-          print('2 new signals from 29-stock universe: PASS')
-          print('2 active/traded duplicates suppressed: PASS')
+          print('4 new signals from 29-stock universe: PASS')
+          print('2 genuinely active/traded duplicates suppressed: PASS')
+          print('ACTIVE_SIGNAL -> COMPLETED -> AVAILABLE: PASS')
+          print('TRADED -> INVALIDATED -> AVAILABLE: PASS')
+          print('No permanent traded blacklist: PASS')
           print('No artificial daily cap: PASS')
           PY
       - name: Verify live pipeline -> Stage 20 compatibility
