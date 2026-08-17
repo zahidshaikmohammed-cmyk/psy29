@@ -29,6 +29,7 @@ class Phase5Tests(unittest.TestCase):
     def test_vwap_formula(self):
         rows=candles(2)
         expected=(((100+99+100.5)/3)*100+((101+100+101.5)/3)*101)/(100+101)
+        self.assertAlmostEqual(vwap(rows)[1],100.66915422885572)
         self.assertAlmostEqual(vwap(rows)[1],expected)
 
     def test_incomplete_candles_are_excluded(self):
