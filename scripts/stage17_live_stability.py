@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""PSY29 Stage 17 — Live Decision Stability & Change-Control Engine v2.0.
+"""PSY29 Stage 17 — Live Decision Stability & Change-Control Engine v1.0.
 
 Stage 17 never creates or authorizes a trade. It validates the evidence chain,
 uses the Stage 6 live market timestamp as the source-of-truth freshness clock,
-and fails closed with explicit diagnostics when evidence is stale/invalid.
+with a validated Stage 6 age fallback for compatibility with older Stage 6
+artifacts, and fails closed with explicit diagnostics when evidence is stale/invalid.
 """
 from __future__ import annotations
 import argparse,csv,json,sys
@@ -12,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 STAGE=17
-VERSION="2.0"
+VERSION="1.0"
 MAX_AGE_SECONDS=900
+STAGE6_HARD_MAX_AGE_SECONDS=180
 MAX_FUTURE_SECONDS=30
 ALLOWED_STATES={"STABLE","CHANGED","DETERIORATING","EMERGING","INVALIDATED","UNSTABLE","DATA_STALE","DATA_INVALID","PROVENANCE_FAIL"}
 BLOCKED_FIELDS={"TRADE_READY","TRADE_SIGNAL","TRADE_AUTHORIZED","CE","PE","ENTRY","ENTRY_PRICE","STOP_LOSS","TAKE_PROFIT","TARGET","POSITION_SIZE","RISK","CAPITAL_ALLOCATION","ORDER","EXECUTION"}
@@ -87,17 +89,37 @@ def freshness(src:dict[int,dict[str,Any]])->dict[str,Any]:
     live=record_ts(src[6],prefer_live=True)
     stage16=record_ts(src[16])
     problems=[]
-    if live is None:problems.append("stage6_live_timestamp_missing_or_invalid")
+    source_mode="stage6_live_timestamp"
+    source_age=None
+    stage6_status=str(val(src[6],"data_status","status") or "").upper()
+    if live is None:
+        raw_age=val(src[6],"data_age_seconds","freshness_age_seconds")
+        try:
+            source_age=float(raw_age)
+        except (TypeError,ValueError):
+            source_age=None
+        if source_age is None:
+            problems.append("stage6_live_timestamp_and_age_missing_or_invalid")
+        elif source_age < 0:
+            problems.append("stage6_live_age_negative")
+        elif source_age > STAGE6_HARD_MAX_AGE_SECONDS:
+            problems.append(f"stage6_live_data_age={int(source_age)}s")
+        elif stage6_status not in {"", "FRESH"}:
+            problems.append(f"stage6_data_status={stage6_status}")
+        else:
+            source_mode="stage6_validated_data_age_fallback"
     else:
         age=(now-live).total_seconds()
+        source_age=max(0.0,age)
         if age< -MAX_FUTURE_SECONDS:problems.append("stage6_live_timestamp_in_future")
         elif age>MAX_AGE_SECONDS:problems.append(f"stage6_live_data_age={int(age)}s")
+        elif stage6_status not in {"", "FRESH"}:problems.append(f"stage6_data_status={stage6_status}")
     if stage16 is None:problems.append("stage16_generated_timestamp_missing_or_invalid")
     else:
         age16=(now-stage16).total_seconds()
         if age16< -MAX_FUTURE_SECONDS:problems.append("stage16_generated_timestamp_in_future")
         elif age16>MAX_AGE_SECONDS:problems.append(f"stage16_generated_age={int(age16)}s")
-    return {"ok":not problems,"source_timestamp":live,"stage16_timestamp":stage16,"problems":problems}
+    return {"ok":not problems,"source_timestamp":live,"stage16_timestamp":stage16,"source_age_seconds":source_age,"source_mode":source_mode,"problems":problems}
 
 def blocked(x:Any,path:str="root")->list[str]:
     out=[]
@@ -145,8 +167,8 @@ def main()->None:
         elif not fr["ok"]:state="DATA_STALE";reason="; ".join(fr["problems"])
         else:state,reason=classify(cur,prev)
         source_ts=fr["source_timestamp"]
-        records.append({"symbol":s,"canonical_rank":rank,"stage17_state":state,"change_reason":reason,"stage6_regime":val(cur[6],"regime","regime_state"),"stage7_edge_state":val(cur[7],"edge_state","edge_status"),"stage8_portfolio_rank":val(cur[8],"portfolio_rank","rank"),"stage9_quality_score":val(cur[9],"quality_score","confidence_score"),"stage10_integrity":val(cur[10],"integrity_status","integrity_state"),"stage11_analysis_state":val(cur[11],"analysis_state"),"stage12_readiness_state":val(cur[12],"readiness_state"),"stage13_state":val(cur[13],"state","scenario_state"),"stage14_dashboard_state":val(cur[14],"dashboard_state"),"stage15_event_class":val(cur[15],"event_class"),"stage16_system_state":val(cur[16],"system_state","state"),"data_status":"FRESH" if fr["ok"] else "STALE","provenance_complete":prov_ok,"freshness_diagnostics":{"source_stage":6,"max_age_seconds":MAX_AGE_SECONDS,"source_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"stage16_timestamp":fr["stage16_timestamp"].isoformat().replace("+00:00","Z") if fr["stage16_timestamp"] else None,"problems":fr["problems"]},"live_data_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"provenance":{f"stage{n}_provenance":val(cur[n],f"stage{n}_provenance","provenance","research_provenance") for n in range(5,17)}})
-    payload={"stage":STAGE,"version":VERSION,"status":"LOCKED","generated_at":datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z"),"freshness_policy":{"source_of_truth":"Stage 6 live_data_timestamp","max_age_seconds":MAX_AGE_SECONDS,"future_clock_tolerance_seconds":MAX_FUTURE_SECONDS},"coverage":{"expected":29,"actual":len(records),"unique":len({r["symbol"] for r in records})},"allowed_states":sorted(ALLOWED_STATES),"records":records}
+        records.append({"symbol":s,"canonical_rank":rank,"stage17_state":state,"change_reason":reason,"stage6_regime":val(cur[6],"regime","regime_state"),"stage7_edge_state":val(cur[7],"edge_state","edge_status"),"stage8_portfolio_rank":val(cur[8],"portfolio_rank","rank"),"stage9_quality_score":val(cur[9],"quality_score","confidence_score"),"stage10_integrity":val(cur[10],"integrity_status","integrity_state"),"stage11_analysis_state":val(cur[11],"analysis_state"),"stage12_readiness_state":val(cur[12],"readiness_state"),"stage13_state":val(cur[13],"state","scenario_state"),"stage14_dashboard_state":val(cur[14],"dashboard_state"),"stage15_event_class":val(cur[15],"event_class"),"stage16_system_state":val(cur[16],"system_state","state"),"data_status":"FRESH" if fr["ok"] else "STALE","provenance_complete":prov_ok,"freshness_diagnostics":{"source_stage":6,"source_mode":fr["source_mode"],"max_age_seconds":MAX_AGE_SECONDS,"source_age_seconds":fr["source_age_seconds"],"source_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"stage16_timestamp":fr["stage16_timestamp"].isoformat().replace("+00:00","Z") if fr["stage16_timestamp"] else None,"problems":fr["problems"]},"live_data_timestamp":source_ts.isoformat().replace("+00:00","Z") if source_ts else None,"provenance":{f"stage{n}_provenance":val(cur[n],f"stage{n}_provenance","provenance","research_provenance") for n in range(5,17)}})
+    payload={"stage":STAGE,"version":VERSION,"status":"LOCKED","generated_at":datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z"),"freshness_policy":{"source_of_truth":"Stage 6 live market timestamp","validated_age_fallback":True,"stage6_hard_max_age_seconds":STAGE6_HARD_MAX_AGE_SECONDS,"max_age_seconds":MAX_AGE_SECONDS,"future_clock_tolerance_seconds":MAX_FUTURE_SECONDS},"coverage":{"expected":29,"actual":len(records),"unique":len({r["symbol"] for r in records})},"allowed_states":sorted(ALLOWED_STATES),"records":records}
     if payload["coverage"]!={"expected":29,"actual":29,"unique":29}:raise ValueError("Stage 17 29/29 coverage failure")
     bad=blocked(payload)
     if bad:raise ValueError("Blocked execution fields detected: "+", ".join(bad))
@@ -156,9 +178,9 @@ def main()->None:
     with (a.output/"PSY29_STAGE17_STABILITY_BOARD.csv").open("w",newline="",encoding="utf-8") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows([{k:r.get(k) for k in fields} for r in records])
     counts={s:sum(r["stage17_state"]==s for r in records) for s in sorted(ALLOWED_STATES)}
-    validation={"stage":STAGE,"version":VERSION,"validation_status":"PASS","coverage":payload["coverage"],"state_counts":counts,"checks":{"canonical_29":True,"29_29_coverage":True,"unique_symbols":True,"allowed_state_enum":True,"provenance_required":True,"freshness_source_stage6":True,"fail_closed":True,"blocked_execution_fields_absent":True,"upstream_modification":False}}
+    validation={"stage":STAGE,"version":VERSION,"validation_status":"PASS","coverage":payload["coverage"],"state_counts":counts,"checks":{"canonical_29":True,"29_29_coverage":True,"unique_symbols":True,"allowed_state_enum":True,"provenance_required":True,"freshness_source_stage6":True,"freshness_age_fallback":True,"fail_closed":True,"blocked_execution_fields_absent":True,"upstream_modification":False}}
     (a.output/"PSY29_STAGE17_VALIDATION.json").write_text(json.dumps(validation,indent=2)+"\n",encoding="utf-8")
-    print("PSY29 STAGE 17 ENGINE: PASS");print("Canonical coverage: 29/29");print("Freshness source: Stage 6 DHAN live timestamp");print("Fail-closed validation: PASS")
+    print("PSY29 STAGE 17 ENGINE: PASS");print("Canonical coverage: 29/29");print("Freshness source: Stage 6 DHAN live timestamp (or validated Stage 6 age fallback)");print("Contract version: 1.0");print("Fail-closed validation: PASS")
 
 if __name__=="__main__":
     try:main()
