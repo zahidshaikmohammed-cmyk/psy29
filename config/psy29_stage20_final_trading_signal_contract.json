@@ -7,26 +7,11 @@
   "purpose": "Terminal PSY29 opportunity engine. Scan all 29 canonical stocks, use verified Stage 5-19 evidence to identify qualifying opportunities, select the applicable deterministic strategy, and emit every new qualifying signal with the strategy-owned exact entry, stop-loss, and take-profit levels.",
   "coverage": 29,
   "signal_policy": {"daily_signal_cap": null,"multiple_signals_allowed": true,"scan_entire_universe": true,"duplicate_active_signal_blocked": true,"previously_traded_stock_not_permanently_blacklisted": true,"new_setup_after_invalidation_allowed": true,"forced_trade_forbidden": true,"fear_based_suppression_forbidden": true},
+  "stage19_startup_policy": {"insufficient_transition_state":"INSUFFICIENT_TRANSITION_EVIDENCE","transition_evidence_status":"UNAVAILABLE","independent_setup_may_proceed":true,"fabrication_forbidden":true,"meaning":"Insufficient Stage 19 history means transition analysis is unavailable. It is not, by itself, evidence that an otherwise independently valid Stage 20 setup is invalid."},
   "strategy_authority": {"entry_owner": "selected_strategy","stop_loss_owner": "selected_strategy","take_profit_owner": "selected_strategy","stage20_may_not_invent_levels": true,"generic_rr_fallback_forbidden": true,"percentage_fallback_forbidden": true,"atr_fallback_forbidden": true},
   "strategies": {
-    "BREAKOUT": {
-      "direction_rule": "LONG when bullish breakout structure; SHORT when bearish breakout structure.",
-      "entry_rule": "Use the breakout boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.",
-      "confirmation_buffer_pct": 0.0,
-      "stop_rule": "Use the breakout invalidation level defined by the strategy: opposite side of the broken structural boundary.",
-      "target_rule": "For a confirmed live breakout, use the Stage 11 current-session structural high for LONG or current-session structural low for SHORT as the observable post-breakout objective. The objective must lie beyond the entry; otherwise the candidate remains NO_SIGNAL.",
-      "target_source": "stage11.session_high_or_session_low",
-      "required_levels": ["entry", "stop_loss", "take_profit"]
-    },
-    "BREAKDOWN": {
-      "direction_rule": "SHORT on verified bearish breakdown structure.",
-      "entry_rule": "Use the breakdown boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.",
-      "confirmation_buffer_pct": 0.0,
-      "stop_rule": "Use the breakdown invalidation level defined by the strategy.",
-      "target_rule": "For a confirmed live breakdown, use the Stage 11 current-session structural low for SHORT or current-session structural high for LONG as the observable post-breakdown objective. The objective must lie beyond the entry; otherwise the candidate remains NO_SIGNAL.",
-      "target_source": "stage11.session_low_or_session_high",
-      "required_levels": ["entry", "stop_loss", "take_profit"]
-    },
+    "BREAKOUT": {"direction_rule": "LONG when bullish breakout structure; SHORT when bearish breakout structure.","entry_rule": "Use the breakout boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.","confirmation_buffer_pct": 0.0,"stop_rule": "Use the breakout invalidation level defined by the strategy: opposite side of the broken structural boundary.","target_rule": "For a confirmed live breakout, use the Stage 11 current-session structural high for LONG or current-session structural low for SHORT as the observable post-breakout objective. The objective must lie beyond the entry; otherwise the candidate remains NO_SIGNAL.","target_source": "stage11.session_high_or_session_low","required_levels": ["entry", "stop_loss", "take_profit"]},
+    "BREAKDOWN": {"direction_rule": "SHORT on verified bearish breakdown structure.","entry_rule": "Use the breakdown boundary plus the configured confirmation buffer from the strategy fixture/live strategy inputs.","confirmation_buffer_pct": 0.0,"stop_rule": "Use the breakdown invalidation level defined by the strategy.","target_rule": "For a confirmed live breakdown, use the Stage 11 current-session structural low for SHORT or current-session structural high for LONG as the observable post-breakdown objective. The objective must lie beyond the entry; otherwise the candidate remains NO_SIGNAL.","target_source": "stage11.session_low_or_session_high","required_levels": ["entry", "stop_loss", "take_profit"]},
     "CONTINUATION": {"direction_rule": "LONG for verified bullish continuation; SHORT for verified bearish continuation.","entry_rule": "Use the strategy-defined continuation trigger level.","stop_rule": "Use the strategy-defined continuation invalidation swing.","target_rule": "Use the strategy-defined continuation objective.","required_levels": ["entry", "stop_loss", "take_profit"]},
     "RETEST": {"direction_rule": "Follow the direction of the validated retest structure.","entry_rule": "Use the retest confirmation level defined by the strategy.","stop_rule": "Use the retest invalidation level defined by the strategy.","target_rule": "Use the next strategy-defined structural objective.","required_levels": ["entry", "stop_loss", "take_profit"]}
   },
@@ -34,7 +19,7 @@
   "required_signal_fields": ["signal_id","symbol","direction","strategy","entry","stop_loss","take_profit","risk_reward","signal_score","signal_status","timestamp","provenance"],
   "memory_states": ["NONE","ACTIVE_SIGNAL","TRADED","INVALIDATED","COMPLETED"],
   "safety_boundaries": {"broker_order": false,"automatic_execution": false,"capital_allocation": false,"position_sizing": false,"forced_signal": false,"level_invention": false},
-  "fail_closed_rules": ["Canonical universe must be exactly 29 unique stocks.","Required upstream evidence must cover all 29 stocks.","A signal requires a valid strategy-owned entry, stop-loss and take-profit.","Missing strategy-owned levels produce NO SIGNAL for that candidate, never invented levels.","Long geometry must be stop_loss < entry < take_profit.","Short geometry must be take_profit < entry < stop_loss.","Duplicate active signals are suppressed.","A traded stock is not permanently suppressed after its prior setup is invalidated/completed.","No daily signal-count limit may suppress a qualifying independent setup.","Any structural or provenance failure is fail-closed."],
+  "fail_closed_rules": ["Canonical universe must be exactly 29 unique stocks.","Required upstream evidence must cover all 29 stocks.","A signal requires a valid strategy-owned entry, stop-loss and take-profit.","Missing strategy-owned levels produce NO SIGNAL for that candidate, never invented levels.","Long geometry must be stop_loss < entry < take_profit.","Short geometry must be take_profit < entry < stop_loss.","Duplicate active signals are suppressed.","A traded stock is not permanently suppressed after its prior setup is invalidated/completed.","No daily signal-count limit may suppress a qualifying independent setup.","Any structural or provenance failure is fail-closed.","INSUFFICIENT_TRANSITION_EVIDENCE means transition evidence is unavailable, not that the independent Stage 20 setup is invalid.","Stage 20 must never fabricate transition evidence to replace insufficient Stage 19 history."],
   "outputs": ["PSY29_STAGE20_FINAL_SIGNAL_BOARD.json","PSY29_STAGE20_FINAL_SIGNALS.csv","PSY29_STAGE20_VALIDATION.json","PSY29_STAGE20_SIGNAL_MEMORY.json"],
   "provenance": "PSY29 Stage 20 Final Trading Signal & Strategy Engine v1.0"
 }
