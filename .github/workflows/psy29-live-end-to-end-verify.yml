@@ -24,6 +24,8 @@ on:
       - "scripts/stage18_historical_continuity.py"
       - "scripts/stage19_forward_transition.py"
       - "scripts/stage19_test_fixture.py"
+      - "scripts/stage20_final_trading_signal_engine.py"
+      - "scripts/stage20_test_fixture.py"
       - "config/psy29_live_universe_contract.json"
       - "config/psy29_live_dhan_data_contract.json"
       - "config/psy29_edge_profiles_v1.json"
@@ -36,6 +38,7 @@ on:
       - "config/psy29_stage13_scenario_adjudication_contract.json"
       - "config/psy29_stage14_live_dashboard_contract.json"
       - "config/psy29_stage19_forward_state_transition_contract.json"
+      - "config/psy29_stage20_final_trading_signal_contract.json"
       - ".github/workflows/psy29-live-end-to-end-verify.yml"
   workflow_dispatch:
     inputs:
@@ -69,7 +72,7 @@ jobs:
           pip install -r requirements.txt
       - name: Compile live pipeline and Stage 5-20 verification modules
         run: |
-          python -m py_compile scripts/psy29_accuracy_unit_tests.py scripts/psy29_live_end_to_end_gate.py scripts/psy29_live_pipeline_service_cycle.py scripts/psy29_live_pipeline_fixture.py scripts/psy29_live_pipeline_bridge.py scripts/psy29_live_dhan_acquisition.py scripts/step9_live_regime_v2.py scripts/stage7_edge_activation.py scripts/stage8_edge_ranking.py scripts/stage9_candidate_quality.py scripts/stage10_integrity_gate.py scripts/stage11_execution_analysis.py scripts/stage12_execution_readiness.py scripts/stage13_scenario_adjudication.py scripts/stage14_live_dashboard.py scripts/stage15_trade_event_journal.py scripts/stage16_live_decision_consolidation.py scripts/stage17_live_stability.py scripts/stage18_historical_continuity.py scripts/stage19_forward_transition.py scripts/stage19_test_fixture.py
+          python -m py_compile scripts/psy29_accuracy_unit_tests.py scripts/psy29_live_end_to_end_gate.py scripts/psy29_live_pipeline_service_cycle.py scripts/psy29_live_pipeline_fixture.py scripts/psy29_live_pipeline_bridge.py scripts/psy29_live_dhan_acquisition.py scripts/step9_live_regime_v2.py scripts/stage7_edge_activation.py scripts/stage8_edge_ranking.py scripts/stage9_candidate_quality.py scripts/stage10_integrity_gate.py scripts/stage11_execution_analysis.py scripts/stage12_execution_readiness.py scripts/stage13_scenario_adjudication.py scripts/stage14_live_dashboard.py scripts/stage15_trade_event_journal.py scripts/stage16_live_decision_consolidation.py scripts/stage17_live_stability.py scripts/stage18_historical_continuity.py scripts/stage19_forward_transition.py scripts/stage19_test_fixture.py scripts/stage20_final_trading_signal_engine.py scripts/stage20_test_fixture.py
           echo "PSY29 LIVE E2E PYTHON SYNTAX: PASS"
       - name: Run pinpoint acquisition accuracy unit tests
         run: python scripts/psy29_accuracy_unit_tests.py
@@ -82,7 +85,36 @@ jobs:
           assert len(rows)==29 and len(set(symbols))==29 and ranks==list(range(1,30))
           c=json.load(open('config/psy29_stage20_final_trading_signal_contract.json',encoding='utf-8'))
           assert c['coverage']==29 and c['signal_policy']['multiple_signals_allowed'] is True and c['signal_policy']['daily_signal_cap'] is None
-          print('CANONICAL 29: PASS'); print('STAGE 20 LOCKED POLICY: PASS')
+          assert c['strategies']['BREAKOUT']['target_source']=='stage11.session_high_or_session_low'
+          assert c['strategies']['BREAKDOWN']['target_source']=='stage11.session_low_or_session_high'
+          print('CANONICAL 29: PASS'); print('STAGE 20 LOCKED POLICY: PASS'); print('BREAKOUT TARGET CONTRACT: PASS'); print('BREAKDOWN TARGET CONTRACT: PASS')
+          PY
+      - name: Run deterministic Stage 20 blocker-1 fixture
+        run: |
+          rm -rf /tmp/psy29-stage20-fixture /tmp/psy29-stage20-out
+          python scripts/stage20_test_fixture.py --universe config/psy29_live_universe_contract.json --output /tmp/psy29-stage20-fixture
+          python scripts/stage20_final_trading_signal_engine.py \
+            --contract config/psy29_stage20_final_trading_signal_contract.json \
+            --universe config/psy29_live_universe_contract.json \
+            --stage11 /tmp/psy29-stage20-fixture/stage11.csv \
+            --stage16 /tmp/psy29-stage20-fixture/stage16.csv \
+            --stage19 /tmp/psy29-stage20-fixture/stage19.csv \
+            --memory /tmp/psy29-stage20-fixture/memory.csv \
+            --output /tmp/psy29-stage20-out
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/psy29-stage20-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29}
+          assert p['signal_count']>=2
+          strategies={x['strategy'] for x in p['signals']}
+          assert 'BREAKOUT' in strategies and 'BREAKDOWN' in strategies
+          for x in p['signals']:
+              if x['strategy']=='BREAKOUT': assert x['stop_loss'] < x['entry'] < x['take_profit']
+              if x['strategy']=='BREAKDOWN': assert x['take_profit'] < x['entry'] < x['stop_loss']
+          print('STAGE 20 BLOCKER 1 FIXTURE: PASS')
+          print('BREAKOUT can emit valid geometry: PASS')
+          print('BREAKDOWN can emit valid geometry: PASS')
+          print('29/29 scan: PASS')
           PY
       - name: Run deterministic live end-to-end gate
         env:
