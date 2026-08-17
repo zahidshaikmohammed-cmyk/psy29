@@ -1,7 +1,5 @@
 import json
 import os
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,10 +10,11 @@ class Phase8StorageTests(unittest.TestCase):
     def test_checksum_and_manifest_verification(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "archive.bin"
-            p.write_bytes(b"PSY29 archive")
+            payload = b"PSY29 archive"
+            p.write_bytes(payload)
             digest = sha256_file(p)
             manifest = Path(d) / "manifest.json"
-            manifest.write_text(json.dumps({"trading_date": "2026-08-17", "sha256": digest, "byte_size": 13}))
+            manifest.write_text(json.dumps({"trading_date": "2026-08-17", "sha256": digest, "byte_size": len(payload)}))
             self.assertTrue(archive_verified(manifest, p, "2026-08-17"))
 
     def test_database_url_required(self):
@@ -50,14 +49,8 @@ class Phase8LivePostgresTests(unittest.TestCase):
             install_schema(conn)
 
     def _cleanup(self, conn, symbol):
-        for table, where in [
-            ("raw_market_snapshots", "symbol = %s"),
-            ("candles", "symbol = %s"),
-            ("indicators", "symbol = %s"),
-            ("session_features", "symbol = %s"),
-            ("derivative_data", "symbol = %s"),
-        ]:
-            conn.execute(f"DELETE FROM {table} WHERE {where}", (symbol,))
+        for table in ("raw_market_snapshots", "candles", "indicators", "session_features", "derivative_data"):
+            conn.execute(f"DELETE FROM {table} WHERE symbol = %s", (symbol,))
         conn.commit()
 
     def test_schema_indexes_and_persistence(self):
@@ -90,7 +83,7 @@ class Phase8LivePostgresTests(unittest.TestCase):
                 """, (symbol,))
                 conn.commit()
 
-                # Duplicate protection: an attempted replacement must not overwrite the original.
+                # Duplicate protection: attempted replacement cannot overwrite the original.
                 conn.execute("""
                     INSERT INTO raw_market_snapshots(symbol, security_id, snapshot_minute, payload, provider)
                     VALUES (%s, 999999, '2026-08-17T09:15:00+05:30', %s::jsonb, 'ATTACK')
@@ -100,19 +93,14 @@ class Phase8LivePostgresTests(unittest.TestCase):
                 value = conn.execute("SELECT payload->>'last_price' FROM raw_market_snapshots WHERE symbol=%s", (symbol,)).fetchone()[0]
                 self.assertEqual(value, "123.45")
 
-            # Persistence/recovery check: close the first connection and open a completely new one.
+            # Persistence/recovery: close the first connection and reopen from a fresh process-equivalent connection.
             with self.connect() as conn2:
-                counts = {}
-                for table in ("raw_market_snapshots", "candles", "indicators", "session_features", "derivative_data"):
-                    counts[table] = conn2.execute(f"SELECT count(*) FROM {table} WHERE symbol=%s", (symbol,)).fetchone()[0]
+                counts = {table: conn2.execute(f"SELECT count(*) FROM {table} WHERE symbol=%s", (symbol,)).fetchone()[0]
+                          for table in ("raw_market_snapshots", "candles", "indicators", "session_features", "derivative_data")}
                 self.assertEqual(counts, {
-                    "raw_market_snapshots": 1,
-                    "candles": 1,
-                    "indicators": 1,
-                    "session_features": 1,
-                    "derivative_data": 1,
+                    "raw_market_snapshots": 1, "candles": 1, "indicators": 1,
+                    "session_features": 1, "derivative_data": 1,
                 })
-
                 indexes = conn2.execute("""
                     SELECT indexname FROM pg_indexes
                     WHERE schemaname='public' AND tablename IN ('raw_market_snapshots','candles','indicators','session_features','derivative_data')
