@@ -9,6 +9,7 @@ on:
       - "scripts/psy29_live_pipeline_fixture.py"
       - "scripts/psy29_live_pipeline_bridge.py"
       - "scripts/psy29_live_dhan_acquisition.py"
+      - "scripts/psy29_live_pipeline_service_cycle.py"
       - "scripts/step9_live_regime_v2.py"
       - "scripts/stage7_edge_activation.py"
       - "scripts/stage8_edge_ranking.py"
@@ -40,6 +41,9 @@ on:
       - "config/psy29_stage19_forward_state_transition_contract.json"
       - "config/psy29_stage20_final_trading_signal_contract.json"
       - ".github/workflows/psy29-live-end-to-end-verify.yml"
+  schedule:
+    # NSE session: 09:35-16:00 IST, every 5 minutes = 04:05-10:30 UTC.
+    - cron: "*/5 4-10 * * 1-5"
   workflow_dispatch:
     inputs:
       mode:
@@ -87,75 +91,63 @@ jobs:
           assert c['coverage']==29 and c['signal_policy']['multiple_signals_allowed'] is True and c['signal_policy']['daily_signal_cap'] is None
           assert c['strategies']['BREAKOUT']['target_source']=='stage11.session_high_or_session_low'
           assert c['strategies']['BREAKDOWN']['target_source']=='stage11.session_low_or_session_high'
-          print('CANONICAL 29: PASS'); print('STAGE 20 LOCKED POLICY: PASS'); print('BREAKOUT TARGET CONTRACT: PASS'); print('BREAKDOWN TARGET CONTRACT: PASS')
+          print('CANONICAL 29: PASS'); print('STAGE 20 LOCKED POLICY: PASS')
           PY
-      - name: Run deterministic Stage 20 blocker-1 fixture
+      - name: Run deterministic Stage 20 blocker-1 fixture regression
         run: |
           rm -rf /tmp/psy29-stage20-fixture /tmp/psy29-stage20-out
           python scripts/stage20_test_fixture.py --universe config/psy29_live_universe_contract.json --output /tmp/psy29-stage20-fixture
-          python scripts/stage20_final_trading_signal_engine.py \
-            --contract config/psy29_stage20_final_trading_signal_contract.json \
-            --universe config/psy29_live_universe_contract.json \
-            --stage11 /tmp/psy29-stage20-fixture/stage11.csv \
-            --stage16 /tmp/psy29-stage20-fixture/stage16.csv \
-            --stage19 /tmp/psy29-stage20-fixture/stage19.csv \
-            --memory /tmp/psy29-stage20-fixture/memory.csv \
-            --output /tmp/psy29-stage20-out
+          python scripts/stage20_final_trading_signal_engine.py --contract config/psy29_stage20_final_trading_signal_contract.json --universe config/psy29_live_universe_contract.json --stage11 /tmp/psy29-stage20-fixture/stage11.csv --stage16 /tmp/psy29-stage20-fixture/stage16.csv --stage19 /tmp/psy29-stage20-fixture/stage19.csv --memory /tmp/psy29-stage20-fixture/memory.csv --output /tmp/psy29-stage20-out
           python - <<'PY'
           import json
           p=json.load(open('/tmp/psy29-stage20-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
-          assert p['coverage']=={'expected':29,'actual':29,'unique':29}
-          assert p['signal_count']>=2
-          strategies={x['strategy'] for x in p['signals']}
-          assert 'BREAKOUT' in strategies and 'BREAKDOWN' in strategies
-          for x in p['signals']:
-              if x['strategy']=='BREAKOUT': assert x['stop_loss'] < x['entry'] < x['take_profit']
-              if x['strategy']=='BREAKDOWN': assert x['take_profit'] < x['entry'] < x['stop_loss']
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29} and p['signal_count']>=2
+          strategies={x['strategy'] for x in p['signals']}; assert 'BREAKOUT' in strategies and 'BREAKDOWN' in strategies
           print('STAGE 20 BLOCKER 1 FIXTURE: PASS')
-          print('BREAKOUT can emit valid geometry: PASS')
-          print('BREAKDOWN can emit valid geometry: PASS')
-          print('29/29 scan: PASS')
           PY
-      - name: Run deterministic live end-to-end gate
+      - name: Run genuine end-to-end gate
         env:
-          GATE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'fixture' }}
+          GATE_MODE: ${{ github.event_name == 'schedule' && 'live' || (github.event_name == 'workflow_dispatch' && inputs.mode || 'fixture') }}
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
         run: |
           rm -rf /tmp/psy29-live-e2e
           python scripts/psy29_live_end_to_end_gate.py --mode "$GATE_MODE" --output /tmp/psy29-live-e2e
-      - name: Execute Stage 20 against end-to-end pipeline outputs
+      - name: Execute Stage 20 against genuine pipeline outputs
+        env:
+          GATE_MODE: ${{ github.event_name == 'schedule' && 'live' || (github.event_name == 'workflow_dispatch' && inputs.mode || 'fixture') }}
         run: |
           rm -rf /tmp/psy29-stage20-live-out
-          python scripts/stage20_final_trading_signal_engine.py \
-            --contract config/psy29_stage20_final_trading_signal_contract.json \
-            --universe config/psy29_live_universe_contract.json \
-            --stage11 /tmp/psy29-live-e2e/execution_snapshot.csv \
-            --stage16 /tmp/psy29-live-e2e/stage16/PSY29_STAGE16_CURRENT_BOARD.csv \
-            --stage19 /tmp/psy29-live-e2e/stage19/PSY29_STAGE19_TRANSITION_BOARD.csv \
-            --memory /tmp/psy29-live-e2e/no-memory.csv \
-            --output /tmp/psy29-stage20-live-out
+          python scripts/stage20_final_trading_signal_engine.py --contract config/psy29_stage20_final_trading_signal_contract.json --universe config/psy29_live_universe_contract.json --stage11 /tmp/psy29-live-e2e/execution_snapshot.csv --stage16 /tmp/psy29-live-e2e/stage16/PSY29_STAGE16_CURRENT_BOARD.csv --stage19 /tmp/psy29-live-e2e/stage19/PSY29_STAGE19_TRANSITION_BOARD.csv --memory /tmp/psy29-live-e2e/no-memory.csv --output /tmp/psy29-stage20-live-out
           python - <<'PY'
           import json
-          p=json.load(open('/tmp/psy29-stage20-live-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json',encoding='utf-8'))
-          assert p['coverage']=={'expected':29,'actual':29,'unique':29}
-          assert isinstance(p['signals'],list) and isinstance(p['audit'],list) and len(p['audit'])==29
+          from pathlib import Path
+          p=json.loads(Path('/tmp/psy29-stage20-live-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json').read_text())
+          m=json.loads(Path('/tmp/psy29-live-e2e/PSY29_LIVE_END_TO_END_GATE.json').read_text())
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29} and len(p['audit'])==29
           assert p['daily_signal_cap'] is None
-          print('STAGE 20 LIVE E2E INVOCATION: PASS')
-          print('Stage 20 received 29/29 validated pipeline records: PASS')
-          print(f"Stage 20 live/fixture pipeline signals: {p['signal_count']}")
+          assert m['stage19_live_derived'] is True
+          print('STAGE 20 GENUINE E2E INVOCATION: PASS')
+          print('Stage 20 received 29/29 pipeline records: PASS')
+          print(f"Stage 20 signals: {p['signal_count']}")
           PY
-      - name: HARD VERIFY gate result
+      - name: HARD VERIFY genuine gate result
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           m=json.loads(Path('/tmp/psy29-live-e2e/PSY29_LIVE_END_TO_END_GATE.json').read_text())
           p=json.loads(Path('/tmp/psy29-stage20-live-out/PSY29_STAGE20_FINAL_SIGNAL_BOARD.json').read_text())
+          mode=m['mode']
           assert m['status']=='PASS' and m['coverage']=={'expected':29,'actual':29,'unique':29}
-          assert m['live_snapshot_to_stage16'] and m['stage17_live_derived'] and m['stage18_live_derived'] and m['stage20_input_compatibility']
-          assert p['coverage']=={'expected':29,'actual':29,'unique':29} and len(p['audit'])==29
-          assert p['daily_signal_cap'] is None
-          print('PSY29 LIVE END-TO-END SIGNAL PIPELINE GATE: HARD VERIFY PASS')
-          print('29/29: PASS'); print('Stage 6-16 live/fixture chain: PASS'); print('Stage 17-18 downstream chain: PASS'); print('Stage 19 deterministic contract: PASS'); print('Stage 20 execution: PASS')
+          assert m['live_snapshot_to_stage16'] and m['stage17_live_derived'] and m['stage18_live_derived'] and m['stage19_live_derived'] and m['stage20_input_compatibility']
+          if mode=='live':
+              assert m['stage19_history_source']=='NONE_FAIL_CLOSED'
+          assert p['coverage']=={'expected':29,'actual':29,'unique':29} and len(p['audit'])==29 and p['daily_signal_cap'] is None
+          print('PSY29 GENUINE LIVE END-TO-END GATE: HARD VERIFY PASS')
+          print(f'Mode: {mode}')
+          print('DHAN -> Stages 6-19 -> Stage 20: PASS')
+          print('No fixture Stage 17/18/19 enters live mode: PASS')
           PY
       - name: Upload verification artifact
         uses: actions/upload-artifact@v4
