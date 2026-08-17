@@ -2,13 +2,15 @@ name: PSY29 Phase 11 Full Market-Day Test
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '45 3 * * 1-5'
     - cron: '10 10 * * 1-5'
 
 jobs:
   engineering:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
