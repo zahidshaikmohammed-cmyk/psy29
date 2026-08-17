@@ -1,0 +1,2512 @@
+{
+  "schema": "PSY29_RAW_MARKET_DATA_V1",
+  "generated_at": "2026-08-17T13:26:38.016667Z",
+  "provider_response_at": "2026-08-17T13:26:38.320478Z",
+  "provider": "DHAN",
+  "endpoint": "https://api.dhan.co/v2/marketfeed/quote",
+  "exchange_segment": "NSE_EQ",
+  "instrument_type": "EQUITY",
+  "universe_size": 29,
+  "acquisition": {
+    "connection": "REST_MARKET_QUOTE",
+    "quote": true,
+    "market_depth": true,
+    "provider_timestamps_preserved": true
+  },
+  "instruments": [
+    {
+      "symbol": "NESTLEIND",
+      "security_id": "17963",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1553,
+        "52_week_low": 1084.7,
+        "average_price": 1479.25,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 2240,
+              "orders": 5,
+              "price": 1470
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1470,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:59:45",
+        "lower_circuit_limit": 1428.6,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1500,
+          "close": 1470,
+          "high": 1503.7,
+          "low": 1468.5
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 2240,
+        "upper_circuit_limit": 1516.8,
+        "volume": 1721057
+      }
+    },
+    {
+      "symbol": "VEDL",
+      "security_id": "3063",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 360,
+        "52_week_low": 157.17,
+        "average_price": 269.27,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 2714,
+              "orders": 10,
+              "price": 269.7
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 269.7,
+        "last_quantity": 33,
+        "last_trade_time": "17/08/2026 15:58:56",
+        "lower_circuit_limit": 261.45,
+        "net_change": 0,
+        "ohlc": {
+          "open": 268,
+          "close": 269.7,
+          "high": 270.65,
+          "low": 267.05
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 2714,
+        "upper_circuit_limit": 277.55,
+        "volume": 6638615
+      }
+    },
+    {
+      "symbol": "ICICIPRULI",
+      "security_id": "18652",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 706.8,
+        "52_week_low": 459.5,
+        "average_price": 506.79,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 275,
+              "orders": 4,
+              "price": 507
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 507,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:28:15",
+        "lower_circuit_limit": 491.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 509.15,
+          "close": 507,
+          "high": 511.4,
+          "low": 503.6
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 275,
+        "upper_circuit_limit": 522.2,
+        "volume": 1522773
+      }
+    },
+    {
+      "symbol": "KALYANKJIL",
+      "security_id": "2955",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 648.95,
+        "52_week_low": 327.05,
+        "average_price": 612.58,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 3282,
+              "orders": 20,
+              "price": 610
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 610,
+        "last_quantity": 2,
+        "last_trade_time": "17/08/2026 15:55:28",
+        "lower_circuit_limit": 591.3,
+        "net_change": 0,
+        "ohlc": {
+          "open": 609,
+          "close": 610,
+          "high": 621.8,
+          "low": 603.25
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 3282,
+        "upper_circuit_limit": 627.8,
+        "volume": 10038788
+      }
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "security_id": "1922",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 453.2,
+        "52_week_low": 345.5,
+        "average_price": 393.51,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 31441,
+              "orders": 12,
+              "price": 392.7
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 392.7,
+        "last_quantity": 20,
+        "last_trade_time": "17/08/2026 15:56:49",
+        "lower_circuit_limit": 383.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 389,
+          "close": 392.7,
+          "high": 396.35,
+          "low": 389
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 31441,
+        "upper_circuit_limit": 407.5,
+        "volume": 5105327
+      }
+    },
+    {
+      "symbol": "BANDHANBNK",
+      "security_id": "2263",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 220.76,
+        "52_week_low": 134.25,
+        "average_price": 172.86,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 3319,
+              "orders": 16,
+              "price": 173.25
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 173.25,
+        "last_quantity": 6,
+        "last_trade_time": "17/08/2026 15:51:10",
+        "lower_circuit_limit": 167.98,
+        "net_change": 0,
+        "ohlc": {
+          "open": 174.2,
+          "close": 173.25,
+          "high": 174.2,
+          "low": 172.15
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 3319,
+        "upper_circuit_limit": 178.36,
+        "volume": 2639964
+      }
+    },
+    {
+      "symbol": "BANKBARODA",
+      "security_id": "4668",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 325.5,
+        "52_week_low": 230.81,
+        "average_price": 245.89,
+        "buy_quantity": 353,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 353,
+              "orders": 10,
+              "price": 246.55
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 246.55,
+        "last_quantity": 16,
+        "last_trade_time": "17/08/2026 15:58:20",
+        "lower_circuit_limit": 240.37,
+        "net_change": 0,
+        "ohlc": {
+          "open": 247.6,
+          "close": 246.55,
+          "high": 248.11,
+          "low": 243.11
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 255.23,
+        "volume": 7061942
+      }
+    },
+    {
+      "symbol": "TITAN",
+      "security_id": "3506",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 5168,
+        "52_week_low": 3303.1,
+        "average_price": 5092.36,
+        "buy_quantity": 348,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 348,
+              "orders": 6,
+              "price": 5068.5
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 5068.5,
+        "last_quantity": 5,
+        "last_trade_time": "17/08/2026 15:51:06",
+        "lower_circuit_limit": 4941,
+        "net_change": 0,
+        "ohlc": {
+          "open": 5056.2,
+          "close": 5068.5,
+          "high": 5111,
+          "low": 5037.2
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 5246.6,
+        "volume": 565258
+      }
+    },
+    {
+      "symbol": "INFY",
+      "security_id": "1594",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1728,
+        "52_week_low": 982.4,
+        "average_price": 1142.87,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 22183,
+              "orders": 58,
+              "price": 1139.9
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1139.9,
+        "last_quantity": 6,
+        "last_trade_time": "17/08/2026 15:59:56",
+        "lower_circuit_limit": 1102.6,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1163.9,
+          "close": 1139.9,
+          "high": 1166.5,
+          "low": 1129.7
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 22183,
+        "upper_circuit_limit": 1170.8,
+        "volume": 5817153
+      }
+    },
+    {
+      "symbol": "DLF",
+      "security_id": "14732",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 794.8,
+        "52_week_low": 489.4,
+        "average_price": 668.96,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 8328,
+              "orders": 9,
+              "price": 671
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 671,
+        "last_quantity": 250,
+        "last_trade_time": "17/08/2026 15:58:46",
+        "lower_circuit_limit": 652.2,
+        "net_change": 0,
+        "ohlc": {
+          "open": 666.7,
+          "close": 671,
+          "high": 674.9,
+          "low": 659.5
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 8328,
+        "upper_circuit_limit": 692.5,
+        "volume": 3046267
+      }
+    },
+    {
+      "symbol": "TCS",
+      "security_id": "11536",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 3350,
+        "52_week_low": 1976.8,
+        "average_price": 2322.54,
+        "buy_quantity": 86,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 86,
+              "orders": 13,
+              "price": 2313.2
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 2313.2,
+        "last_quantity": 6,
+        "last_trade_time": "17/08/2026 15:58:34",
+        "lower_circuit_limit": 2244.9,
+        "net_change": 0,
+        "ohlc": {
+          "open": 2351,
+          "close": 2313.2,
+          "high": 2361.1,
+          "low": 2310.6
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 2383.7,
+        "volume": 2237636
+      }
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "security_id": "22377",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1275,
+        "52_week_low": 903,
+        "average_price": 1002.37,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 1495,
+              "orders": 14,
+              "price": 1003.7
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1003.7,
+        "last_quantity": 5,
+        "last_trade_time": "17/08/2026 15:56:06",
+        "lower_circuit_limit": 965.9,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1009.1,
+          "close": 1003.7,
+          "high": 1022.6,
+          "low": 994.5
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 1495,
+        "upper_circuit_limit": 1025.5,
+        "volume": 2340277
+      }
+    },
+    {
+      "symbol": "KFINTECH",
+      "security_id": "13359",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1215,
+        "52_week_low": 784.95,
+        "average_price": 963.1,
+        "buy_quantity": 192,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 192,
+              "orders": 7,
+              "price": 973
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 973,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:59:47",
+        "lower_circuit_limit": 943.6,
+        "net_change": 0,
+        "ohlc": {
+          "open": 945.2,
+          "close": 973,
+          "high": 981.05,
+          "low": 925.7
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 1001.9,
+        "volume": 2105146
+      }
+    },
+    {
+      "symbol": "PRESTIGE",
+      "security_id": "20302",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1805.2,
+        "52_week_low": 1090,
+        "average_price": 1583.82,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 257,
+              "orders": 7,
+              "price": 1591.9
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1591.9,
+        "last_quantity": 64,
+        "last_trade_time": "17/08/2026 15:59:55",
+        "lower_circuit_limit": 1541.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1594,
+          "close": 1591.9,
+          "high": 1598.2,
+          "low": 1561.3
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 257,
+        "upper_circuit_limit": 1637,
+        "volume": 1050412
+      }
+    },
+    {
+      "symbol": "BHEL",
+      "security_id": "438",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 446.5,
+        "52_week_low": 205.12,
+        "average_price": 430.53,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 58864,
+              "orders": 70,
+              "price": 435.95
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 435.95,
+        "last_quantity": 50,
+        "last_trade_time": "17/08/2026 15:58:14",
+        "lower_circuit_limit": 419.95,
+        "net_change": 0,
+        "ohlc": {
+          "open": 424,
+          "close": 435.95,
+          "high": 435.95,
+          "low": 421.8
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 58864,
+        "upper_circuit_limit": 445.85,
+        "volume": 15351093
+      }
+    },
+    {
+      "symbol": "RBLBANK",
+      "security_id": "18391",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 392.7,
+        "52_week_low": 243.25,
+        "average_price": 383.7,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 503,
+              "orders": 2,
+              "price": 381.5
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 381.5,
+        "last_quantity": 5,
+        "last_trade_time": "17/08/2026 15:59:46",
+        "lower_circuit_limit": 372.15,
+        "net_change": 0,
+        "ohlc": {
+          "open": 384.9,
+          "close": 381.5,
+          "high": 386.05,
+          "low": 381.5
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 503,
+        "upper_circuit_limit": 395.15,
+        "volume": 1376951
+      }
+    },
+    {
+      "symbol": "HCLTECH",
+      "security_id": "7229",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1780.1,
+        "52_week_low": 1030,
+        "average_price": 1334.26,
+        "buy_quantity": 1926,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 1926,
+              "orders": 25,
+              "price": 1325
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1325,
+        "last_quantity": 60,
+        "last_trade_time": "17/08/2026 15:54:19",
+        "lower_circuit_limit": 1288.6,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1355.1,
+          "close": 1325,
+          "high": 1362.8,
+          "low": 1325
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 1368.2,
+        "volume": 970745
+      }
+    },
+    {
+      "symbol": "ICICIGI",
+      "security_id": "21770",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 2064.9,
+        "52_week_low": 1544.6,
+        "average_price": 1628.42,
+        "buy_quantity": 5,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 5,
+              "orders": 1,
+              "price": 1626.3
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1626.3,
+        "last_quantity": 29,
+        "last_trade_time": "17/08/2026 15:55:24",
+        "lower_circuit_limit": 1581.3,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1629.2,
+          "close": 1626.3,
+          "high": 1637.3,
+          "low": 1620
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 1679.1,
+        "volume": 299654
+      }
+    },
+    {
+      "symbol": "HDFCLIFE",
+      "security_id": "467",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 815,
+        "52_week_low": 530.5,
+        "average_price": 541.96,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 2623,
+              "orders": 9,
+              "price": 543
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 543,
+        "last_quantity": 13,
+        "last_trade_time": "17/08/2026 15:58:09",
+        "lower_circuit_limit": 526.95,
+        "net_change": 0,
+        "ohlc": {
+          "open": 536.25,
+          "close": 543,
+          "high": 544.3,
+          "low": 534.9
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 2623,
+        "upper_circuit_limit": 559.45,
+        "volume": 3104159
+      }
+    },
+    {
+      "symbol": "MARICO",
+      "security_id": "4067",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 889.1,
+        "52_week_low": 690.3,
+        "average_price": 859.15,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 854,
+              "orders": 5,
+              "price": 852.05
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 852.05,
+        "last_quantity": 2,
+        "last_trade_time": "17/08/2026 15:58:54",
+        "lower_circuit_limit": 830.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 865.2,
+          "close": 852.05,
+          "high": 867.35,
+          "low": 852.05
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 854,
+        "upper_circuit_limit": 882.1,
+        "volume": 970523
+      }
+    },
+    {
+      "symbol": "LUPIN",
+      "security_id": "10440",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 2529.5,
+        "52_week_low": 1875,
+        "average_price": 2243.82,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 1271,
+              "orders": 9,
+              "price": 2259
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 2259,
+        "last_quantity": 8,
+        "last_trade_time": "17/08/2026 15:59:29",
+        "lower_circuit_limit": 2192.5,
+        "net_change": 0,
+        "ohlc": {
+          "open": 2231.5,
+          "close": 2259,
+          "high": 2266,
+          "low": 2220.3
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 1271,
+        "upper_circuit_limit": 2328.1,
+        "volume": 730234
+      }
+    },
+    {
+      "symbol": "COFORGE",
+      "security_id": "11543",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1989.7,
+        "52_week_low": 1008.1,
+        "average_price": 1807.16,
+        "buy_quantity": 93,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 93,
+              "orders": 2,
+              "price": 1806
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1806,
+        "last_quantity": 2,
+        "last_trade_time": "17/08/2026 15:59:15",
+        "lower_circuit_limit": 1749.4,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1811.5,
+          "close": 1806,
+          "high": 1821,
+          "low": 1799.6
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 1857.6,
+        "volume": 1054940
+      }
+    },
+    {
+      "symbol": "TECHM",
+      "security_id": "13538",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1854,
+        "52_week_low": 1304.1,
+        "average_price": 1609.92,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 292,
+              "orders": 7,
+              "price": 1610
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1610,
+        "last_quantity": 10,
+        "last_trade_time": "17/08/2026 15:57:44",
+        "lower_circuit_limit": 1557.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1621,
+          "close": 1610,
+          "high": 1638.9,
+          "low": 1604.2
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 292,
+        "upper_circuit_limit": 1654,
+        "volume": 1506025
+      }
+    },
+    {
+      "symbol": "SWIGGY",
+      "security_id": "27066",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 474,
+        "52_week_low": 235.75,
+        "average_price": 276.17,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 24808,
+              "orders": 15,
+              "price": 278.8
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 278.8,
+        "last_quantity": 300,
+        "last_trade_time": "17/08/2026 15:54:37",
+        "lower_circuit_limit": 269.45,
+        "net_change": 0,
+        "ohlc": {
+          "open": 277,
+          "close": 278.8,
+          "high": 278.8,
+          "low": 273.65
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 24808,
+        "upper_circuit_limit": 286.05,
+        "volume": 4192680
+      }
+    },
+    {
+      "symbol": "PERSISTENT",
+      "security_id": "18365",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 6599,
+        "52_week_low": 4244.5,
+        "average_price": 5576.68,
+        "buy_quantity": 89,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 89,
+              "orders": 3,
+              "price": 5570
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 5570,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:57:57",
+        "lower_circuit_limit": 5412,
+        "net_change": 0,
+        "ohlc": {
+          "open": 5580.5,
+          "close": 5570,
+          "high": 5613,
+          "low": 5520
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 5746,
+        "volume": 398938
+      }
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "security_id": "20242",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1986.1,
+        "52_week_low": 1391.2,
+        "average_price": 1914.13,
+        "buy_quantity": 111,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 111,
+              "orders": 4,
+              "price": 1931
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1931,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:58:08",
+        "lower_circuit_limit": 1868.2,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1849,
+          "close": 1931,
+          "high": 1946,
+          "low": 1832.9
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 1983.6,
+        "volume": 1781893
+      }
+    },
+    {
+      "symbol": "SUPREMEIND",
+      "security_id": "3363",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 4664.9,
+        "52_week_low": 3140,
+        "average_price": 3614.33,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 6,
+              "orders": 1,
+              "price": 3590
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 3590,
+        "last_quantity": 9,
+        "last_trade_time": "17/08/2026 15:56:00",
+        "lower_circuit_limit": 3494.4,
+        "net_change": 0,
+        "ohlc": {
+          "open": 3590,
+          "close": 3590,
+          "high": 3649,
+          "low": 3565
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 6,
+        "upper_circuit_limit": 3710.4,
+        "volume": 329696
+      }
+    },
+    {
+      "symbol": "LAURUSLABS",
+      "security_id": "19234",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 1870.8,
+        "52_week_low": 823.1,
+        "average_price": 1800.19,
+        "buy_quantity": 0,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 247,
+              "orders": 5,
+              "price": 1809.7
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 1809.7,
+        "last_quantity": 6,
+        "last_trade_time": "17/08/2026 15:56:34",
+        "lower_circuit_limit": 1748.4,
+        "net_change": 0,
+        "ohlc": {
+          "open": 1770,
+          "close": 1809.7,
+          "high": 1824,
+          "low": 1769.4
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 247,
+        "upper_circuit_limit": 1856.4,
+        "volume": 1631767
+      }
+    },
+    {
+      "symbol": "AMBUJACEM",
+      "security_id": "1270",
+      "exchange_segment": "NSE_EQ",
+      "instrument_type": "EQUITY",
+      "provider": "DHAN",
+      "provider_data": {
+        "52_week_high": 605.45,
+        "52_week_low": 394,
+        "average_price": 412.95,
+        "buy_quantity": 595,
+        "depth": {
+          "buy": [
+            {
+              "quantity": 595,
+              "orders": 3,
+              "price": 415.25
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ],
+          "sell": [
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            },
+            {
+              "quantity": 0,
+              "orders": 0,
+              "price": 0
+            }
+          ]
+        },
+        "last_price": 415.25,
+        "last_quantity": 1,
+        "last_trade_time": "17/08/2026 15:58:16",
+        "lower_circuit_limit": 403.8,
+        "net_change": 0,
+        "ohlc": {
+          "open": 417,
+          "close": 415.25,
+          "high": 417.6,
+          "low": 409.5
+        },
+        "oi": 0,
+        "oi_day_high": 0,
+        "oi_day_low": 0,
+        "sell_quantity": 0,
+        "upper_circuit_limit": 428.7,
+        "volume": 3967404
+      }
+    }
+  ]
+}
