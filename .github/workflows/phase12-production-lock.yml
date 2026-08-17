@@ -15,9 +15,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest
       - name: Run production contract tests
         working-directory: 29stock-live-data-vault/phase12
-        run: python -m unittest discover -p 'test_*.py'
+        run: python -m pytest -q test_production_lock.py
       - name: Verify production contract files
         run: |
           test -f 29stock-live-data-vault/phase1/instrument_master.json
