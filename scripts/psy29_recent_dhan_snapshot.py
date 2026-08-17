@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.psy29_live_dhan_acquisition import add_indicators, build_execution_row, load_universe, parse_rows, resolve_security_ids
+from scripts.psy29_live_dhan_acquisition import add_indicators_1m, build_execution_row, load_universe, parse_rows, resolve_security_ids
 from dhan.client import DhanClient
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -55,12 +55,12 @@ def fetch_day(client: DhanClient, security_id: str, session_date):
 
 
 def build_recent_row(symbol: str, security_id: str, df) -> dict:
-    x = add_indicators(df)
+    x = add_indicators_1m(df)
     if x.empty or len(x) < 20:
         raise RuntimeError(f"{symbol}: insufficient historical 1m candles")
     latest = x.iloc[-1]
     ts = datetime.fromtimestamp(int(latest["timestamp"]), tz=timezone.utc).isoformat().replace("+00:00", "Z")
-    row = build_execution_row(symbol, x, ts)
+    row = build_execution_row(symbol, security_id, x, x, ts)
     row.update({
         "security_id": security_id,
         "exchange_segment": "NSE_EQ",
