@@ -3,9 +3,9 @@ name: PSY29 Live Market Verification
 on:
   workflow_dispatch:
   schedule:
-    # Start after enough 1m history exists for EMA20.
-    # 04:05 UTC = 09:35 IST. Continue through the NSE session.
-    - cron: "*/5 4-10 * * 1-5"
+    # 04:05 UTC = 09:35 IST through 09:55 UTC = 15:25 IST, plus 10:00 UTC = 15:30 IST.
+    - cron: "*/5 4-9 * * 1-5"
+    - cron: "0 10 * * 1-5"
 
 permissions:
   contents: read
@@ -47,35 +47,27 @@ jobs:
           set -e
           rm -rf output/live
           mkdir -p output/live
-          python scripts/psy29_live_dhan_acquisition.py \
-            --universe config/psy29_live_universe_contract.json \
-            --output output/live
+          python scripts/psy29_live_dhan_acquisition.py --universe config/psy29_live_universe_contract.json --output output/live
 
       - name: HARD VERIFY live acquisition
         run: |
           python - <<'PY'
           import json
           import pandas as pd
-
           v=json.load(open('output/live/live_acquisition_validation.json',encoding='utf-8'))
           assert v['status']=='PASS', v
           assert v['provider']=='DHAN'
           assert v['coverage']=={'expected':29,'actual':29,'unique':29}, v
-          assert v['fresh_count']==29, v
-          assert v['stale_count']==0, v
-          assert v['invalid_count']==0, v
-          assert v['signal_generation'] is False
-          assert v['order_execution'] is False
-
-          s=pd.read_csv('output/live/live_snapshot.csv')
-          e=pd.read_csv('output/live/execution_snapshot.csv')
+          assert v['fresh_count']==29 and v['stale_count']==0 and v['invalid_count']==0, v
+          assert v['signal_generation'] is False and v['order_execution'] is False
+          s=pd.read_csv('output/live/live_snapshot.csv'); e=pd.read_csv('output/live/execution_snapshot.csv')
           assert len(s)==29 and s['symbol'].nunique()==29
           assert len(e)==29 and e['symbol'].nunique()==29
           required={'symbol','timestamp','last_price','vwap','ema9','ema20','first15_high','first15_low'}
           assert required.issubset(s.columns), sorted(required-set(s.columns))
           print('PSY29 LIVE DHAN ACQUISITION: HARD VERIFY PASS')
-          print('29/29 fresh:', len(s))
-          print('PSY29 repository only: PASS')
+          print('29/29 fresh: PASS')
+          print('DHAN repository acquisition boundary: PASS')
           PY
 
       - name: Upload live validation artifact
