@@ -9,6 +9,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     defaults:
       run:
         working-directory: 29stock-live-data-vault/phase8
@@ -22,9 +24,7 @@ jobs:
       - name: Run local storage integrity tests
         run: python -m unittest test_storage_engine.py
       - name: Verify Neon/PostgreSQL when configured
-        if: ${{ secrets.DATABASE_URL != '' }}
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        if: ${{ env.DATABASE_URL != '' }}
         run: |
           python - <<'PY'
           from storage_engine import connect, install_schema
@@ -34,7 +34,7 @@ jobs:
               print("POSTGRES_OK", row[0])
           PY
       - name: Require live database verification
-        if: ${{ secrets.DATABASE_URL == '' }}
+        if: ${{ env.DATABASE_URL == '' }}
         run: |
           echo "DATABASE_URL is not configured; permanent database deployment cannot be verified."
           exit 1
