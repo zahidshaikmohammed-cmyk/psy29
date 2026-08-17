@@ -9,7 +9,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .universe import STOCKS
+from universe import STOCKS
 
 MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
 OUT = Path(__file__).resolve().parent / "instrument_master.json"
@@ -41,7 +41,7 @@ def resolve(data: bytes) -> list[dict]:
         exchange = _pick(row, "SEM_EXM_EXCH_ID", "EXCH_ID")
         instrument = _pick(row, "SEM_INSTRUMENT_NAME", "INSTRUMENT")
         symbol = _pick(row, "SEM_TRADING_SYMBOL", "SYMBOL_NAME", "SM_SYMBOL_NAME")
-        security_id = _pick(row, "SECURITY_ID", "SEM_SMST_SECURITY_ID")
+        security_id = _pick(row, "SEM_SMST_SECURITY_ID", "SECURITY_ID")
         underlying = _pick(row, "UNDERLYING_SYMBOL")
         if exchange != "NSE" or segment != "E" or instrument != "EQUITY":
             continue
@@ -83,8 +83,6 @@ def verify_credentials() -> dict:
     client_id = os.getenv("DHAN_CLIENT_ID", "").strip()
     if not token or not client_id:
         return {"verified": False, "reason": "DHAN_ACCESS_TOKEN/DHAN_CLIENT_ID not configured"}
-    import urllib.error
-    import urllib.request
     body = json.dumps({"NSE_EQ": [int(x["security_id"]) for x in json.loads(OUT.read_text())["instruments"]]}).encode()
     req = urllib.request.Request(
         "https://api.dhan.co/v2/marketfeed/ltp",
@@ -96,8 +94,6 @@ def verify_credentials() -> dict:
         with urllib.request.urlopen(req, timeout=20) as r:
             response = json.loads(r.read().decode())
         return {"verified": response.get("status") == "success", "response_status": response.get("status")}
-    except urllib.error.HTTPError as e:
-        return {"verified": False, "http_status": e.code}
     except Exception as e:
         return {"verified": False, "error": type(e).__name__}
 
