@@ -76,11 +76,17 @@ def transition(current,history,continuity):
         return "TRANSITION_DETECTED"
     if current!=prev:return "TRANSITION_DETECTED"
     return "NO_CHANGE_POINT"
+def evidence_status(final,provenance_ok):
+    if not provenance_ok or final=="PROVENANCE_FAIL":return "INVALID"
+    if final=="INSUFFICIENT_TRANSITION_EVIDENCE":return "UNAVAILABLE"
+    return "AVAILABLE"
 def main():
     p=argparse.ArgumentParser();p.add_argument("--contract",required=True,type=Path);p.add_argument("--universe",required=True,type=Path);p.add_argument("--stage17",required=True,type=Path);p.add_argument("--stage18",required=True,type=Path);p.add_argument("--history",required=True,type=Path);p.add_argument("--output",required=True,type=Path);a=p.parse_args();c=load(a.contract);syms=universe(a.universe);expected=set(syms)
     if c.get("stage")!=19 or c.get("version")!="1.0" or c.get("status")!="LOCKED":raise ValueError("Stage 19 contract invalid")
     contract_allowed=c.get("allowed_states")
     if not isinstance(contract_allowed,list) or set(contract_allowed)!=ALLOWED or len(contract_allowed)!=len(ALLOWED):raise ValueError("Stage 19 allowed-state contract mismatch")
+    startup=c.get("startup_policy",{})
+    if startup.get("insufficient_history_state")!="INSUFFICIENT_TRANSITION_EVIDENCE" or startup.get("evidence_status")!="UNAVAILABLE" or startup.get("does_not_invalidate_independent_setup") is not True or startup.get("fabricate_transition_evidence") is not False:raise ValueError("Stage 19 startup policy invalid")
     cur17=index(a.stage17,expected,"Stage 17");cur18=index(a.stage18,expected,"Stage 18");files=sorted(a.history.glob("*.csv")) if a.history.exists() else [];snapshots=[];last=None
     for f in files:
         snap=index(f,expected,f"History {f.name}");times=[stamp(r) for r in snap.values()]
@@ -101,16 +107,17 @@ def main():
         if not ok:final="PROVENANCE_FAIL"
         elif continuity in {"HISTORY_UNAVAILABLE","HISTORY_INVALID"} or len(hs)<2:final="INSUFFICIENT_TRANSITION_EVIDENCE"
         else:final=transition(state,hs,continuity)
-        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"current_stage17_state":state,"stage18_continuity_state":continuity,"history_depth":len(snapshots),"previous_state":(hs[-1] if hs else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
-    payload={"stage":19,"version":"1.0","status":"PASS","records":rec,"coverage":{"expected":29,"actual":len(rec),"unique":len({r['symbol'] for r in rec})},"safety":{"trading_decision_forbidden":True,"execution_forbidden":True},"provenance_required":True};bad=scan(payload)
+        evidence=evidence_status(final,ok)
+        rec.append({"symbol":s,"canonical_rank":i,"stage19_state":final,"transition_evidence_status":evidence,"current_stage17_state":state,"stage18_continuity_state":continuity,"history_depth":len(snapshots),"previous_state":(hs[-1] if hs else None),"provenance_complete":ok,"timestamp":val(r17,"timestamp","generated_at","data_timestamp","as_of")})
+    payload={"stage":19,"version":"1.0","status":"PASS","records":rec,"coverage":{"expected":29,"actual":len(rec),"unique":len({r['symbol'] for r in rec})},"startup_policy":{"insufficient_transition_evidence_means":"TRANSITION_ANALYSIS_UNAVAILABLE","independent_setup_validity":"NOT_REJECTED_BY_STAGE19_ALONE","transition_evidence_fabricated":False},"safety":{"trading_decision_forbidden":True,"execution_forbidden":True},"provenance_required":True};bad=scan(payload)
     if bad:raise ValueError("blocked fields detected: "+str(bad))
     if payload["coverage"]!={"expected":29,"actual":29,"unique":29}:raise ValueError("29/29 coverage failure")
     observed={r["stage19_state"] for r in rec}
     if not observed or not observed.issubset(ALLOWED):raise ValueError(f"Invalid Stage 19 states observed: {sorted(observed-ALLOWED)}")
     a.output.mkdir(parents=True,exist_ok=True);(a.output/"PSY29_STAGE19_TRANSITION_BOARD.json").write_text(json.dumps(payload,indent=2),encoding="utf-8")
     with (a.output/"PSY29_STAGE19_TRANSITION_BOARD.csv").open("w",encoding="utf-8",newline="") as f:w=csv.DictWriter(f,fieldnames=list(rec[0]));w.writeheader();w.writerows(rec)
-    validation={"stage":19,"version":"1.0","validation_status":"PASS","coverage":payload["coverage"],"output_states_observed":sorted(observed),"provenance_complete":all(r["provenance_complete"] for r in rec),"blocked_fields":[],"fail_closed":True};(a.output/"PSY29_STAGE19_VALIDATION.json").write_text(json.dumps(validation,indent=2),encoding="utf-8")
-    print("PSY29 STAGE 19: PASS");print("29/29 coverage: PASS");print(f"Observed states: {len(observed)}/10 allowed");print("Provenance: PASS");print("Safety boundary scan: PASS")
+    validation={"stage":19,"version":"1.0","validation_status":"PASS","coverage":payload["coverage"],"output_states_observed":sorted(observed),"transition_evidence_statuses":sorted({r["transition_evidence_status"] for r in rec}),"provenance_complete":all(r["provenance_complete"] for r in rec),"blocked_fields":[],"fail_closed":True};(a.output/"PSY29_STAGE19_VALIDATION.json").write_text(json.dumps(validation,indent=2),encoding="utf-8")
+    print("PSY29 STAGE 19: PASS");print("29/29 coverage: PASS");print(f"Observed states: {len(observed)}/10 allowed");print("Transition evidence semantics: PASS");print("Provenance: PASS");print("Safety boundary scan: PASS")
 if __name__=="__main__":
     try:main()
     except Exception as e:print(f"PSY29 STAGE 19 FAIL-CLOSED: {e}",file=sys.stderr);raise
