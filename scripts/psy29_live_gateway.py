@@ -31,6 +31,15 @@ class GatewayHandler(svc.Handler):
         parsed = urlparse(self.path)
         path = parsed.path
 
+        if path == "/live-data":
+            try:
+                return self._send(
+                    (svc.ROOT / "web" / "psy29_live_data.html").read_bytes(),
+                    "text/html; charset=utf-8",
+                )
+            except Exception as exc:
+                return self._json({"status": "FAIL", "error": str(exc)})
+
         if path in {"/", "/api/live", "/api/live-data"}:
             payload = svc.signal_data()
             try:
