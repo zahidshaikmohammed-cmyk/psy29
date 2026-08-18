@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: psy29-live-market
+    runtime: python
+    region: singapore
+    plan: free
+    autoDeploy: true
+    buildCommand: pip install -r requirements-live.txt
+    startCommand: python scripts/psy29_live_gateway.py
+    healthCheckPath: /healthz
