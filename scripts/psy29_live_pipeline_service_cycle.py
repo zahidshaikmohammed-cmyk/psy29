@@ -37,7 +37,9 @@ def main():
         now=datetime.now(IST)
         if now.time()<OPENING_RANGE_END:
             run([ROOT/"scripts/psy29_live_preopen_capture.py","--universe",UNIVERSE,"--output",OUT],timeout=600)
-            print("PSY29 LIVE PIPELINE INTEGRATION: PASS (live pre-opening-range collection)",flush=True)
+            # Archive genuine completed 1m DHAN rows from 09:15 onward too.
+            run([ROOT/"scripts/psy29_live_archive.py","--execution",OUT/"live_snapshot.csv","--validation",OUT/"live_acquisition_validation.json"],timeout=120)
+            print("PSY29 LIVE PIPELINE INTEGRATION: PASS (live pre-opening-range collection + durable archive)",flush=True)
             return
         run([ROOT/"scripts/psy29_live_dhan_acquisition.py","--universe",UNIVERSE,"--output",OUT])
     else:run([ROOT/"scripts/psy29_live_pipeline_fixture.py","--universe",UNIVERSE,"--output",OUT])
