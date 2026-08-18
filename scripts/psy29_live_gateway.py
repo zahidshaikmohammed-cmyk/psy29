@@ -1,153 +1,86 @@
 #!/usr/bin/env python3
-"""PSY29 public live-data gateway.
-
-The gateway preserves the existing PSY29 acquisition worker and exposes the
-current DHAN live-data service through a readable root dashboard. Durable
-archive support is optional: if the archive module is not deployed, the live
-service still starts and reports archive unavailability honestly.
-"""
+"""PSY29 public live-data gateway with minute-by-minute durable storage."""
 from __future__ import annotations
-
-import json
-import os
-import threading
+import json, os, threading, time
+from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
-
+from zoneinfo import ZoneInfo
 import psy29_integrated_service as svc
-
 try:
     from psy29_live_archive import history as durable_history
-    from psy29_live_archive import latest_snapshot as durable_latest
-    ARCHIVE_AVAILABLE = True
-except ModuleNotFoundError:
-    ARCHIVE_AVAILABLE = False
+    from psy29_live_archive import latest as durable_latest
+    from psy29_live_archive import stats as durable_stats
+    from psy29_live_archive import store_rows
+    ARCHIVE_AVAILABLE=True
+except (ModuleNotFoundError, ImportError):
+    ARCHIVE_AVAILABLE=False
+    def durable_history(*a,**k): raise RuntimeError("Durable archive module is unavailable")
+    def durable_latest(*a,**k): raise RuntimeError("Durable archive module is unavailable")
+    def durable_stats(*a,**k): raise RuntimeError("Durable archive module is unavailable")
+    def store_rows(*a,**k): raise RuntimeError("Durable archive module is unavailable")
+IST=ZoneInfo("Asia/Kolkata")
 
-    def durable_history(session_date, symbol=None):
-        raise RuntimeError("Durable archive module is not deployed")
+def _archive_live_pipeline():
+    last_key=None
+    while True:
+        try:
+            now=datetime.now(IST); mins=now.hour*60+now.minute
+            if now.weekday()<5 and 555<=mins<=930 and ARCHIVE_AVAILABLE:
+                payload=svc.signal_data()
+                if payload.get("live_data") is True:
+                    rows=[]
+                    for item in payload.get("instruments") or []:
+                        data=item.get("data") or {}; ts=data.get("timestamp"); symbol=str(item.get("symbol") or "").upper()
+                        if not ts or not symbol or str(data.get("freshness_status","")).upper()!="FRESH": continue
+                        try: parsed=datetime.fromisoformat(str(ts).replace("Z","+00:00"))
+                        except Exception: continue
+                        if parsed.tzinfo is None: parsed=parsed.replace(tzinfo=timezone.utc)
+                        rows.append({"session_date":str(parsed.astimezone(IST).date()),"minute_ts":parsed.astimezone(timezone.utc).isoformat().replace("+00:00","Z"),"symbol":symbol,"provider":"DHAN","market_data_kind":"LIVE_DHAN_MINUTE_ARCHIVE","timestamp":str(ts),**data})
+                    if len(rows)==29:
+                        key=rows[0]["minute_ts"]
+                        if key!=last_key and len({r["minute_ts"] for r in rows})==1:
+                            n=store_rows(rows); last_key=key; print(f"PSY29 MINUTE ARCHIVE STORED {n}/29 @ {key}",flush=True)
+        except Exception as exc: print(f"PSY29 MINUTE ARCHIVE: {exc}",flush=True)
+        time.sleep(5)
 
-    def durable_latest(limit=29):
-        raise RuntimeError("Durable archive module is not deployed")
-
+def _preopen_worker():
+    try:
+        from scripts.psy29_preopen_minute_archive import main as run_preopen; run_preopen()
+    except Exception as exc: print(f"PSY29 PREOPEN ARCHIVE: {exc}",flush=True)
 
 class GatewayHandler(svc.Handler):
-    """Expose the existing service plus live-data gateway endpoints."""
-
-    def _json(self, payload):
-        return self._send(
-            json.dumps(payload, separators=(",", ":")).encode(),
-            "application/json; charset=utf-8",
-        )
-
+    def _json(self,payload): return self._send(json.dumps(payload,separators=(",",":")).encode(),"application/json; charset=utf-8")
     def do_GET(self):
-        parsed = urlparse(self.path)
-        path = parsed.path
-
-        # Public root: readable live-data dashboard.
-        if path in {"/", "/live-data"}:
-            try:
-                return self._send(
-                    (svc.ROOT / "web" / "psy29_live_data.html").read_bytes(),
-                    "text/html; charset=utf-8",
-                )
-            except Exception as exc:
-                return self._json({"status": "FAIL", "error": str(exc)})
-
-        # Existing raw/current API remains available.
-        if path in {"/api/live", "/api/live-data"}:
-            payload = svc.signal_data()
-            archive_status = {
-                "available": ARCHIVE_AVAILABLE,
-                "storage": "NEON_POSTGRES" if ARCHIVE_AVAILABLE else None,
-            }
+        parsed=urlparse(self.path); path=parsed.path
+        if path in {"/","/live-data"}:
+            try:return self._send((svc.ROOT/"web"/"psy29_live_data.html").read_bytes(),"text/html; charset=utf-8")
+            except Exception as exc:return self._json({"status":"FAIL","error":str(exc)})
+        if path in {"/api/live","/api/live-data"}:
+            payload=svc.signal_data(); payload["gateway"]="PSY29_DHAN_LIVE_DATA_GATEWAY"; payload["durable_archive"]={"available":ARCHIVE_AVAILABLE}
             if ARCHIVE_AVAILABLE:
-                try:
-                    latest = durable_latest(29)
-                    archive_status.update({"rows_latest": len(latest), "latest": latest})
-                except Exception as exc:
-                    archive_status.update({"rows_latest": 0, "error": str(exc)})
-            else:
-                archive_status["note"] = "Live DHAN feed is available; durable archive module is not deployed yet."
-
-            payload["gateway"] = "PSY29_DHAN_LIVE_DATA_GATEWAY"
-            payload["access_contract"] = {
-                "provider": "DHAN",
-                "market_hours_source": "/api/instrument/{SYMBOL}",
-                "all_stocks_source": "/api/signals",
-                "universe_source": "/api/universe",
-                "durable_current_source": "/api/live-latest",
-                "durable_history_source": "/api/live-history?date=YYYY-MM-DD&symbol=SYMBOL",
-                "freshness_required": "FRESH",
-                "coverage_required": 29,
-                "archive_frequency": "ONE_SUCCESSFUL_CYCLE_PER_MINUTE",
-                "archive_until": "NSE_SESSION_CLOSE_15:30_IST",
-                "cache_control": "no-store",
-            }
-            payload["durable_archive"] = archive_status
+                try:payload["durable_archive"].update(durable_stats(str(datetime.now(IST).date())))
+                except Exception as exc:payload["durable_archive"]["error"]=str(exc)
             return self._json(payload)
-
-        if path == "/api/live-latest":
+        if path=="/api/live-latest":
             try:
-                return self._json({"status": "PASS", "provider": "DHAN", "coverage": 29, "rows": durable_latest(29)})
-            except Exception as exc:
-                return self._json({
-                    "status": "UNAVAILABLE",
-                    "provider": "DHAN",
-                    "coverage": 0,
-                    "archive_available": ARCHIVE_AVAILABLE,
-                    "error": str(exc),
-                })
-
-        if path == "/api/live-history":
-            params = parse_qs(parsed.query)
-            session_date = (params.get("date") or [""])[0].strip()
-            symbol = (params.get("symbol") or [""])[0].strip().upper() or None
-            if not session_date:
-                return self._json({"status": "ERROR", "error": "date=YYYY-MM-DD is required"})
+                rows=durable_latest(str(datetime.now(IST).date())); return self._json({"status":"PASS","provider":"DHAN","coverage":len({r.get('symbol') for r in rows}),"rows":rows})
+            except Exception as exc:return self._json({"status":"UNAVAILABLE","provider":"DHAN","error":str(exc)})
+        if path=="/api/live-stats":
+            try:return self._json({"status":"PASS","provider":"DHAN","session_date":str(datetime.now(IST).date()),"stats":durable_stats(str(datetime.now(IST).date()))})
+            except Exception as exc:return self._json({"status":"UNAVAILABLE","provider":"DHAN","error":str(exc)})
+        if path=="/api/live-history":
+            params=parse_qs(parsed.query); session_date=(params.get("date") or [str(datetime.now(IST).date())])[0].strip(); symbol=(params.get("symbol") or [""])[0].strip().upper() or None; limit=int((params.get("limit") or ["10000"])[0])
             try:
-                rows = durable_history(session_date, symbol=symbol)
-                return self._json({
-                    "status": "PASS",
-                    "provider": "DHAN",
-                    "session_date": session_date,
-                    "symbol": symbol,
-                    "row_count": len(rows),
-                    "rows": rows,
-                })
-            except Exception as exc:
-                return self._json({
-                    "status": "UNAVAILABLE" if not ARCHIVE_AVAILABLE else "FAIL",
-                    "provider": "DHAN",
-                    "session_date": session_date,
-                    "symbol": symbol,
-                    "error": str(exc),
-                })
-
+                rows=durable_history(session_date,symbol=symbol,limit=min(max(limit,1),20000)); return self._json({"status":"PASS","provider":"DHAN","session_date":session_date,"symbol":symbol,"row_count":len(rows),"rows":rows})
+            except Exception as exc:return self._json({"status":"UNAVAILABLE","provider":"DHAN","session_date":session_date,"symbol":symbol,"error":str(exc)})
         if path.startswith("/api/live/"):
-            symbol = unquote(path.rsplit("/", 1)[-1]).strip().upper()
-            payload = svc.instrument(symbol)
-            payload["gateway"] = "PSY29_DHAN_LIVE_DATA_GATEWAY"
-            if ARCHIVE_AVAILABLE:
-                try:
-                    payload["durable_history_today"] = durable_history(
-                        str(svc.datetime.now(svc.IST).date()), symbol=symbol
-                    )
-                except Exception as exc:
-                    payload["durable_history_error"] = str(exc)
-            return self._json(payload)
-
+            return self._json(svc.instrument(unquote(path.rsplit("/",1)[-1]).strip().upper()))
         return super().do_GET()
 
-
-if __name__ == "__main__":
-    svc.save_runtime_state(
-        svc.RUNTIME_STATE,
-        {
-            "status": svc.STATE.get("status", "STARTING"),
-            "error": svc.STATE.get("error"),
-            "last_cycle": svc.STATE.get("last_cycle"),
-        },
-    )
-    threading.Thread(target=svc.worker, daemon=True).start()
-    port = int(os.environ.get("PORT", "10000"))
-    ThreadingHTTPServer(("0.0.0.0", port), GatewayHandler).serve_forever()
+if __name__=="__main__":
+    svc.save_runtime_state(svc.RUNTIME_STATE,{"status":svc.STATE.get("status","STARTING"),"error":svc.STATE.get("error"),"last_cycle":svc.STATE.get("last_cycle")})
+    threading.Thread(target=svc.worker,daemon=True,name="psy29-signal-worker").start()
+    threading.Thread(target=_archive_live_pipeline,daemon=True,name="psy29-minute-archive").start()
+    threading.Thread(target=_preopen_worker,daemon=True,name="psy29-preopen-archive").start()
+    port=int(os.environ.get("PORT","10000")); ThreadingHTTPServer(("0.0.0.0",port),GatewayHandler).serve_forever()
