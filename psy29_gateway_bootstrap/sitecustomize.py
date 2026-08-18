@@ -79,12 +79,7 @@ def _totp_generate(client):
 
 
 def _recover(client, force=False):
-    """Return True only when the client has a usable token.
-
-    Forced recovery is used after DHAN rejects a request. In that case we must
-    not claim success merely because the old token exists; otherwise the worker
-    would retry the same invalid credential forever.
-    """
+    """Return True only when the client has a usable token."""
     with _auth_lock:
         token = _read_token() or client.access_token
         exp = _jwt_exp(token) if token else None
@@ -178,6 +173,22 @@ def _patch_service(module):
     _patched_service = True
 
 
+def _patch_main_when_ready():
+    """Patch the existing Render entrypoint even when it is executed as __main__."""
+    global _patched_service
+    for _ in range(200):
+        try:
+            import __main__
+            filename = str(getattr(__main__, "__file__", ""))
+            if filename.endswith("scripts/psy29_integrated_service.py") and hasattr(__main__, "Handler") and hasattr(__main__, "signal_data"):
+                _patch_service(__main__)
+                print("PSY29 live gateway patch applied to executed integrated service.", flush=True)
+                return
+        except Exception as exc:
+            print(f"PSY29 main-service patch retry: {exc}", flush=True)
+        time.sleep(0.05)
+
+
 def _import(name, globals=None, locals=None, fromlist=(), level=0):
     module = _original_import(name, globals, locals, fromlist, level)
     if name == "dhan.client":
@@ -194,3 +205,4 @@ def _import(name, globals=None, locals=None, fromlist=(), level=0):
 
 
 builtins.__import__ = _import
+threading.Thread(target=_patch_main_when_ready, daemon=True, name="psy29-main-gateway-patch").start()
