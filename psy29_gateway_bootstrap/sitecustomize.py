@@ -79,6 +79,12 @@ def _totp_generate(client):
 
 
 def _recover(client, force=False):
+    """Return True only when the client has a usable token.
+
+    Forced recovery is used after DHAN rejects a request. In that case we must
+    not claim success merely because the old token exists; otherwise the worker
+    would retry the same invalid credential forever.
+    """
     with _auth_lock:
         token = _read_token() or client.access_token
         exp = _jwt_exp(token) if token else None
@@ -97,9 +103,9 @@ def _recover(client, force=False):
             if new_token:
                 client.access_token = new_token
                 return True
-        except Exception:
-            pass
-        if token:
+        except Exception as exc:
+            print(f"PSY29 DHAN TOTP recovery failed: {exc}", flush=True)
+        if token and not force:
             client.access_token = token
             return True
         return False
@@ -119,9 +125,17 @@ def _patch_dhan(module):
     def patched_post(self, path, payload, timeout=15, retries=2, backoff_seconds=1.0):
         try:
             return original_post(self, path, payload, timeout, retries, backoff_seconds)
+        except RuntimeError as exc:
+            message = str(exc)
+            token_error = any(marker in message for marker in ("DH-906", "Invalid Token", "DHAN_HTTP_401", "DHAN_HTTP_403"))
+            if token_error and _recover(self, force=True):
+                print("PSY29 DHAN authentication recovered; retrying failed request once.", flush=True)
+                return original_post(self, path, payload, timeout, retries, backoff_seconds)
+            raise
         except requests.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status in (400, 401, 403) and _recover(self, force=True):
+                print("PSY29 DHAN authentication recovered; retrying failed request once.", flush=True)
                 return original_post(self, path, payload, timeout, retries, backoff_seconds)
             raise
 
@@ -169,8 +183,8 @@ def _import(name, globals=None, locals=None, fromlist=(), level=0):
     if name == "dhan.client":
         try:
             _patch_dhan(module)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"PSY29 DHAN patch failed: {exc}", flush=True)
     elif name == "psy29_integrated_service":
         try:
             _patch_service(module)
