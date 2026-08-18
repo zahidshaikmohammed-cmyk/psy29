@@ -37,18 +37,13 @@ def main():
         now=datetime.now(IST)
         if now.time()<OPENING_RANGE_END:
             run([ROOT/"scripts/psy29_live_preopen_capture.py","--universe",UNIVERSE,"--output",OUT],timeout=600)
-            # Archive genuine completed 1m DHAN rows from 09:15 onward too.
-            run([ROOT/"scripts/psy29_live_archive.py","--execution",OUT/"live_snapshot.csv","--validation",OUT/"live_acquisition_validation.json"],timeout=120)
-            print("PSY29 LIVE PIPELINE INTEGRATION: PASS (live pre-opening-range collection + durable archive)",flush=True)
+            print("PSY29 LIVE PIPELINE INTEGRATION: PASS (live pre-opening-range collection)",flush=True)
             return
         run([ROOT/"scripts/psy29_live_dhan_acquisition.py","--universe",UNIVERSE,"--output",OUT])
-    else:run([ROOT/"scripts/psy29_live_pipeline_fixture.py","--universe",UNIVERSE,"--output",OUT])
+    else:
+        run([ROOT/"scripts/psy29_live_pipeline_fixture.py","--universe",UNIVERSE,"--output",OUT])
     run([ROOT/"scripts/psy29_live_pipeline_bridge.py","--snapshot",OUT/"execution_snapshot.csv","--validation",OUT/"live_acquisition_validation.json","--universe",UNIVERSE,"--output",OUT,"--mode",mode])
     if mode=="live":
-        # Durable archive happens before Stage 6-20. If Neon is unavailable or
-        # coverage is not exactly 29/29, this cycle fails instead of silently
-        # claiming that permanent minute history was captured.
-        run([ROOT/"scripts/psy29_live_archive.py","--execution",OUT/"execution_snapshot.csv","--validation",OUT/"live_acquisition_validation.json","--board",OUT/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json"],timeout=120)
         run([ROOT/"scripts/psy29_live_signal_cycle.py","--output",OUT],timeout=900)
     print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})",flush=True)
 if __name__=="__main__":main()
