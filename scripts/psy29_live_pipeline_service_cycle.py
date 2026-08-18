@@ -42,6 +42,11 @@ def main():
         run([ROOT/"scripts/psy29_live_dhan_acquisition.py","--universe",UNIVERSE,"--output",OUT])
     else:run([ROOT/"scripts/psy29_live_pipeline_fixture.py","--universe",UNIVERSE,"--output",OUT])
     run([ROOT/"scripts/psy29_live_pipeline_bridge.py","--snapshot",OUT/"execution_snapshot.csv","--validation",OUT/"live_acquisition_validation.json","--universe",UNIVERSE,"--output",OUT,"--mode",mode])
-    if mode=="live":run([ROOT/"scripts/psy29_live_signal_cycle.py","--output",OUT],timeout=900)
+    if mode=="live":
+        # Durable archive happens before Stage 6-20. If Neon is unavailable or
+        # coverage is not exactly 29/29, this cycle fails instead of silently
+        # claiming that permanent minute history was captured.
+        run([ROOT/"scripts/psy29_live_archive.py","--execution",OUT/"execution_snapshot.csv","--validation",OUT/"live_acquisition_validation.json","--board",OUT/"PSY29_STAGE20_FINAL_SIGNAL_BOARD.json"],timeout=120)
+        run([ROOT/"scripts/psy29_live_signal_cycle.py","--output",OUT],timeout=900)
     print(f"PSY29 LIVE PIPELINE INTEGRATION: PASS ({mode})",flush=True)
 if __name__=="__main__":main()
