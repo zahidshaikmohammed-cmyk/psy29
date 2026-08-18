@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """PSY29 public live-data gateway.
 
-The gateway preserves the existing PSY29 acquisition worker and exposes both the
-current pipeline state and the durable per-minute Neon archive. It is intended
-as the Render web-service entrypoint.
+The gateway preserves the existing PSY29 acquisition worker and exposes the
+current DHAN live-data service through a readable root dashboard. Durable
+archive support is optional: if the archive module is not deployed, the live
+service still starts and reports archive unavailability honestly.
 """
 from __future__ import annotations
 
@@ -14,12 +15,23 @@ from http.server import ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 import psy29_integrated_service as svc
-from psy29_live_archive import history as durable_history
-from psy29_live_archive import latest_snapshot as durable_latest
+
+try:
+    from psy29_live_archive import history as durable_history
+    from psy29_live_archive import latest_snapshot as durable_latest
+    ARCHIVE_AVAILABLE = True
+except ModuleNotFoundError:
+    ARCHIVE_AVAILABLE = False
+
+    def durable_history(session_date, symbol=None):
+        raise RuntimeError("Durable archive module is not deployed")
+
+    def durable_latest(limit=29):
+        raise RuntimeError("Durable archive module is not deployed")
 
 
 class GatewayHandler(svc.Handler):
-    """Expose the existing service plus durable DHAN live-data endpoints."""
+    """Expose the existing service plus live-data gateway endpoints."""
 
     def _json(self, payload):
         return self._send(
@@ -31,8 +43,7 @@ class GatewayHandler(svc.Handler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        # The public root is now the readable live-data dashboard.
-        # API consumers keep using /api/live and the other /api/* endpoints.
+        # Public root: readable live-data dashboard.
         if path in {"/", "/live-data"}:
             try:
                 return self._send(
@@ -42,21 +53,22 @@ class GatewayHandler(svc.Handler):
             except Exception as exc:
                 return self._json({"status": "FAIL", "error": str(exc)})
 
+        # Existing raw/current API remains available.
         if path in {"/api/live", "/api/live-data"}:
             payload = svc.signal_data()
-            try:
-                latest = durable_latest(29)
-                archive_status = {
-                    "storage": "NEON_POSTGRES",
-                    "rows_latest": len(latest),
-                    "latest": latest,
-                }
-            except Exception as exc:
-                archive_status = {
-                    "storage": "NEON_POSTGRES",
-                    "rows_latest": 0,
-                    "error": str(exc),
-                }
+            archive_status = {
+                "available": ARCHIVE_AVAILABLE,
+                "storage": "NEON_POSTGRES" if ARCHIVE_AVAILABLE else None,
+            }
+            if ARCHIVE_AVAILABLE:
+                try:
+                    latest = durable_latest(29)
+                    archive_status.update({"rows_latest": len(latest), "latest": latest})
+                except Exception as exc:
+                    archive_status.update({"rows_latest": 0, "error": str(exc)})
+            else:
+                archive_status["note"] = "Live DHAN feed is available; durable archive module is not deployed yet."
+
             payload["gateway"] = "PSY29_DHAN_LIVE_DATA_GATEWAY"
             payload["access_contract"] = {
                 "provider": "DHAN",
@@ -78,7 +90,13 @@ class GatewayHandler(svc.Handler):
             try:
                 return self._json({"status": "PASS", "provider": "DHAN", "coverage": 29, "rows": durable_latest(29)})
             except Exception as exc:
-                return self._json({"status": "FAIL", "provider": "DHAN", "coverage": 0, "error": str(exc)})
+                return self._json({
+                    "status": "UNAVAILABLE",
+                    "provider": "DHAN",
+                    "coverage": 0,
+                    "archive_available": ARCHIVE_AVAILABLE,
+                    "error": str(exc),
+                })
 
         if path == "/api/live-history":
             params = parse_qs(parsed.query)
@@ -97,18 +115,25 @@ class GatewayHandler(svc.Handler):
                     "rows": rows,
                 })
             except Exception as exc:
-                return self._json({"status": "FAIL", "provider": "DHAN", "session_date": session_date, "error": str(exc)})
+                return self._json({
+                    "status": "UNAVAILABLE" if not ARCHIVE_AVAILABLE else "FAIL",
+                    "provider": "DHAN",
+                    "session_date": session_date,
+                    "symbol": symbol,
+                    "error": str(exc),
+                })
 
         if path.startswith("/api/live/"):
             symbol = unquote(path.rsplit("/", 1)[-1]).strip().upper()
             payload = svc.instrument(symbol)
             payload["gateway"] = "PSY29_DHAN_LIVE_DATA_GATEWAY"
-            try:
-                payload["durable_history_today"] = durable_history(
-                    str(svc.datetime.now(svc.IST).date()), symbol=symbol
-                )
-            except Exception as exc:
-                payload["durable_history_error"] = str(exc)
+            if ARCHIVE_AVAILABLE:
+                try:
+                    payload["durable_history_today"] = durable_history(
+                        str(svc.datetime.now(svc.IST).date()), symbol=symbol
+                    )
+                except Exception as exc:
+                    payload["durable_history_error"] = str(exc)
             return self._json(payload)
 
         return super().do_GET()
