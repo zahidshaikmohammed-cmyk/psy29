@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSY29 — 29 Stock Live DHAN Data</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#edf2f6;background:#070a0e}*{box-sizing:border-box}body{margin:0;background:#070a0e}.wrap{max-width:1500px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.brand{font-size:25px;font-weight:900}.sub{color:#7d8994;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px}.pill{padding:8px 12px;border:1px solid #293541;border-radius:999px;font-size:11px;font-weight:800}.live{color:#35d07f}.wait{color:#7cc7ff}.bad{color:#ff6975}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:16px 0}.card,.panel{background:#0e1319;border:1px solid #202a34;border-radius:14px;padding:14px}.label{font-size:9px;color:#77838e;text-transform:uppercase;letter-spacing:.13em}.value{font-size:22px;font-weight:900;margin-top:5px}.small{color:#7d8994;font-size:10px}.notice{margin:10px 0;padding:11px 13px;border:1px solid #202a34;border-radius:10px;background:#0d1319;color:#c2cbd2}.toolbar{display:flex;gap:8px;margin:12px 0}.search{flex:1;min-width:180px;background:#0a0f14;border:1px solid #2a3642;color:#fff;border-radius:10px;padding:11px}.btn{background:#141b22;color:#dbe2e7;border:1px solid #2a3642;border-radius:10px;padding:10px 14px}.tablewrap{overflow:auto;border:1px solid #202a34;border-radius:14px;background:#0b1015}.table{width:100%;border-collapse:separate;border-spacing:0;min-width:1450px}.table th{position:sticky;top:0;background:#111820;color:#8e9aa5;font-size:9px;text-transform:uppercase;letter-spacing:.08em;text-align:right;padding:10px 9px;border-bottom:1px solid #293541;white-space:nowrap}.table th:first-child,.table td:first-child{text-align:left;position:sticky;left:0}.table th:first-child{z-index:4;background:#111820}.table td{padding:10px 9px;border-bottom:1px solid #19232c;text-align:right;font-size:11px;white-space:nowrap}.table td:first-child{background:#0b1015;font-weight:900;color:#fff;z-index:2}.table tr:last-child td{border-bottom:0}.fresh{color:#35d07f;font-weight:800}.stale{color:#e5bd57;font-weight:800}.missing{color:#ff6975}.up{color:#35d07f}.down{color:#ff6975}.section{font-size:11px;font-weight:900;color:#cdd5db;margin:18px 0 8px}.footer{color:#687681;font-size:10px;text-align:center;margin-top:14px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.brand{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="brand">PSY29 · 29-Stock Live Data</div><div class="sub">Raw/current DHAN-derived market data · readable view · no order execution</div></div>
+    <div id="mode" class="pill">CONNECTING</div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="label">DHAN Status</div><div id="status" class="value">—</div><div id="timestamp" class="small">—</div></div>
+    <div class="card"><div class="label">Coverage</div><div id="coverage" class="value">0/29</div><div class="small">Expected canonical universe</div></div>
+    <div class="card"><div class="label">Fresh Records</div><div id="fresh" class="value">0</div><div class="small">Current cycle</div></div>
+    <div class="card"><div class="label">1M Records</div><div id="records1" class="value">0</div><div class="small">OHLCV snapshot</div></div>
+    <div class="card"><div class="label">5M Records</div><div id="records5" class="value">0</div><div class="small">OHLCV + indicators</div></div>
+  </div>
+  <div id="notice" class="notice">Reading DHAN live data…</div>
+  <div class="toolbar"><input id="search" class="search" placeholder="Search stock…"><button id="refresh" class="btn">↻ Refresh</button><button id="raw" class="btn">Raw JSON</button></div>
+  <div class="section">29 STOCK LIVE DATA</div>
+  <div class="tablewrap"><table class="table"><thead><tr>
+    <th>Symbol</th><th>1M Open</th><th>1M High</th><th>1M Low</th><th>1M Close</th><th>1M Volume</th>
+    <th>5M Open</th><th>5M High</th><th>5M Low</th><th>5M Close</th><th>5M Volume</th>
+    <th>VWAP 5M</th><th>EMA 9</th><th>EMA 20</th><th>First 15H</th><th>First 15L</th><th>Swing H</th><th>Swing L</th><th>Freshness</th><th>Timestamp</th>
+  </tr></thead><tbody id="body"></tbody></table></div>
+  <div class="footer">Auto-refresh: 10 seconds · acquisition/archive cadence remains one successful cycle per minute · source: DHAN</div>
+</div>
+<script>
+let DATA=null;
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=x=>{if(x===null||x===undefined||x==='')return '—';const n=Number(x);return Number.isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:2}):String(x)};
+function cell(x,cls=''){return `<td class="${cls}">${fmt(x)}</td>`}
+function render(){
+ if(!DATA)return;
+ const live=DATA.live_data===true; const pending=DATA.status==='LIVE_AWAITING_DATA'; const rows=DATA.instruments||[];
+ $('mode').textContent=live?'● LIVE · DHAN':pending?'● WAITING':'● OFF MARKET'; $('mode').className='pill '+(live?'live':pending?'wait':'');
+ $('status').textContent=live?'LIVE':pending?'WAITING':'OFF MARKET'; $('timestamp').textContent=DATA.timestamp||DATA.recent_session_date||'—';
+ $('coverage').textContent=`${DATA.coverage?.actual||0}/29`; $('fresh').textContent=rows.filter(x=>x.data?.freshness_status==='FRESH').length; $('records1').textContent=rows.filter(x=>x.data?.close_1m!==null&&x.data?.close_1m!==undefined).length; $('records5').textContent=rows.filter(x=>x.data?.close_5m!==null&&x.data?.close_5m!==undefined).length;
+ $('notice').textContent=live?`Genuine DHAN live cycle · ${DATA.coverage?.actual||0}/29 instruments · snapshot timestamp ${DATA.timestamp||'—'} · dashboard refreshes every 10s.`:pending?'Market is open; waiting for the next fresh DHAN acquisition cycle.':'Market is closed; displaying the latest available state.';
+ const q=$('search').value.trim().toUpperCase(); const filtered=rows.filter(x=>!q||String(x.symbol||'').toUpperCase().includes(q));
+ $('body').innerHTML=filtered.map(x=>{const d=x.data||{};const freshness=d.freshness_status==='FRESH'?'fresh':d.freshness_status?'stale':'missing';return `<tr><td>${esc(x.symbol)}</td>${cell(d.open_1m)}${cell(d.high_1m)}${cell(d.low_1m)}${cell(d.close_1m)}${cell(d.volume_1m)}${cell(d.open_5m)}${cell(d.high_5m)}${cell(d.low_5m)}${cell(d.close_5m)}${cell(d.volume_5m)}${cell(d.vwap_5m)}${cell(d.ema9_5m)}${cell(d.ema20_5m)}${cell(d.first15_high)}${cell(d.first15_low)}${cell(d.swing_high)}${cell(d.swing_low,freshness)}<td>${esc(d.timestamp||'—')}</td></tr>`}).join('')||'<tr><td colspan="20" class="missing">No records returned.</td></tr>';
+}
+async function load(){try{const r=await fetch('/api/signals?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('API '+r.status);DATA=await r.json();render()}catch(e){$('mode').textContent='API ERROR';$('mode').className='pill bad';$('notice').textContent='Unable to read DHAN data: '+e.message}}
+$('refresh').onclick=load; $('search').oninput=render; $('raw').onclick=()=>{if(DATA)window.open('data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DATA,null,2)),'_blank')}; load(); setInterval(load,10000);
+</script>
+</body>
+</html>
