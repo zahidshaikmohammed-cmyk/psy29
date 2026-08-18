@@ -64,15 +64,8 @@ def add_indicators_5m(df,session_date,now):
 def build_execution_row(symbol,security_id,x1,x5,all1,all5,timestamp):
  if x1.empty or x5.empty:raise RuntimeError(f"{symbol}: no completed current-session candles")
  if not bool(x1.iloc[-1]["opening_range_complete"]):raise RuntimeError(f"{symbol}: opening range incomplete before 09:30 IST")
- latest=x1.iloc[-1];latest5=x5.iloc[-1]
- # Structural levels are deliberately sourced from PRIOR COMPLETED SESSIONS.
- # The current session is reserved for today's opening range/session extremes.
- # This prevents the first few morning candles from masquerading as a 20-bar
- # historical swing window and removes the hidden warm-up offset.
- latest_date=latest5["dt"].date()
- prior5=all5[all5["dt"].map(lambda d:d.date()) < latest_date].sort_values("timestamp").tail(STRUCTURAL_SWING_BARS)
- if len(prior5)<STRUCTURAL_SWING_BARS:
-  raise RuntimeError(f"{symbol}: insufficient historical 5m warm-up for structural swing window ({len(prior5)}/{STRUCTURAL_SWING_BARS})")
+ latest=x1.iloc[-1];latest5=x5.iloc[-1];latest_date=latest5["dt"].date();prior5=all5[all5["dt"].map(lambda d:d.date()) < latest_date].sort_values("timestamp").tail(STRUCTURAL_SWING_BARS)
+ if len(prior5)<STRUCTURAL_SWING_BARS:raise RuntimeError(f"{symbol}: insufficient historical 5m warm-up for structural swing window ({len(prior5)}/{STRUCTURAL_SWING_BARS})")
  avg1=all1.volume.tail(20).mean();avg5=all5.volume.tail(20).mean()
  if not math.isfinite(float(avg1)) or not math.isfinite(float(avg5)) or float(avg1)<=0 or float(avg5)<=0:raise RuntimeError(f"{symbol}: insufficient warm-up volume history")
  session_high=float(x5.high.max());session_low=float(x5.low.min())
@@ -89,15 +82,14 @@ def main():
    if age< -5:raise RuntimeError("provider returned a future timestamp")
    if age>FRESH_MAX_AGE_SECONDS:raise RuntimeError(f"live data freshness is STALE: {age:.1f}s")
    ts=datetime.fromtimestamp(candle_end_ts,tz=timezone.utc).isoformat().replace("+00:00","Z")
-   session_high=float(x5.high.max());session_low=float(x5.low.min())
-   snap.append({"symbol":s,"candle_start_timestamp":datetime.fromtimestamp(latest_ts,tz=timezone.utc).isoformat().replace("+00:00","Z"),"timestamp":ts,"last_price":float(x1.iloc[-1].close),"vwap":float(x1.iloc[-1].vwap),"ema9":float(x1.iloc[-1].ema9),"ema20":float(x1.iloc[-1].ema20),"first15_high":float(x1.iloc[-1].first15_high),"first15_low":float(x1.iloc[-1].first15_low),"session_high":session_high,"session_low":session_low,"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":"FRESH","provider":"DHAN","security_id":mapping[s],"exchange_segment":"NSE_EQ","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","opening_range_complete":True,"session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"})
+   snap.append({"symbol":s,"candle_start_timestamp":datetime.fromtimestamp(latest_ts,tz=timezone.utc).isoformat().replace("+00:00","Z"),"timestamp":ts,"last_price":float(x1.iloc[-1].close),"vwap":float(x1.iloc[-1].vwap),"ema9":float(x1.iloc[-1].ema9),"ema20":float(x1.iloc[-1].ema20),"first15_high":float(x1.iloc[-1].first15_high),"first15_low":float(x1.iloc[-1].first15_low),"session_high":float(x5.high.max()),"session_low":float(x5.low.min()),"freshness_age_seconds":round(max(0.0,age),3),"freshness_status":"FRESH","provider":"DHAN","security_id":mapping[s],"exchange_segment":"NSE_EQ","indicator_warmup":"10_CALENDAR_DAYS","candle_completion_policy":"COMPLETED_CANDLES_ONLY","opening_range_complete":True,"session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES"})
    exe.append(build_execution_row(s,mapping[s],x1,x5,completed_candles(raw1,1,now),completed_candles(raw5,5,now),ts))
   except Exception as exc:errors.append({"symbol":s,"error":str(exc)})
  snapshot=pd.DataFrame(snap);execution=pd.DataFrame(exe)
  if not snapshot.empty:snapshot.to_csv(out/"live_snapshot.csv",index=False)
  if not execution.empty:execution.to_csv(out/"execution_snapshot.csv",index=False)
  stale=sum("STALE" in e["error"].upper() for e in errors);invalid=len(errors)-stale;status="PASS" if len(snap)==29 and len(exe)==29 and not errors and set(snapshot.columns)>=REQUIRED_SNAPSHOT and (snapshot.freshness_status=="FRESH").all() and (snapshot.opening_range_complete==True).all() else "FAIL"
- validation={"contract":"PSY29_LIVE_DHAN_ACQUISITION_VALIDATION","status":status,"provider":"DHAN","coverage":{"expected":29,"actual":len(snap),"unique":int(snapshot.symbol.nunique()) if not snapshot.empty else 0},"fresh_count":int((snapshot.freshness_status=="FRESH").sum()) if not snapshot.empty else 0,"stale_count":stale,"invalid_count":invalid,"errors":errors,"timestamp":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"source":"PSY29/dhan/client.py + DHAN v2 intraday historical data","indicator_warmup":"10_CALENDAR_DAYS","structural_swing_warmup":"PRIOR_COMPLETED_SESSIONS","structural_swing_window_bars":STRUCTURAL_SWING_BARS,"structural_swing_policy":"PREVIOUS_SESSIONS_ONLY_EXCLUDE_CURRENT_SESSION","candle_completion_policy":"COMPLETED_CANDLES_ONLY","freshness_timestamp_policy":"CANDLE_END_TIMESTAMP","opening_range_policy":"09:15-09:29 IST, complete before pipeline acceptance","session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES","signal_generation":False,"order_execution":False}
+ validation={"contract":"PSY29_LIVE_DHAN_ACQUISITION_VALIDATION","status":status,"provider":"DHAN","live_data":status=="PASS","market_data_kind":"LIVE_INTRADAY_COMPLETED_CANDLES","coverage":{"expected":29,"actual":len(snap),"unique":int(snapshot.symbol.nunique()) if not snapshot.empty else 0},"fresh_count":int((snapshot.freshness_status=="FRESH").sum()) if not snapshot.empty else 0,"stale_count":stale,"invalid_count":invalid,"errors":errors,"timestamp":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"source":"PSY29/dhan/client.py + DHAN v2 intraday historical data","indicator_warmup":"10_CALENDAR_DAYS","structural_swing_warmup":"PRIOR_COMPLETED_SESSIONS","structural_swing_window_bars":STRUCTURAL_SWING_BARS,"structural_swing_policy":"PREVIOUS_SESSIONS_ONLY_EXCLUDE_CURRENT_SESSION","candle_completion_policy":"COMPLETED_CANDLES_ONLY","freshness_timestamp_policy":"CANDLE_END_TIMESTAMP","opening_range_policy":"09:15-09:29 IST, complete before pipeline acceptance","session_extreme_policy":"CURRENT_SESSION_COMPLETED_5M_RUNNING_EXTREMES","signal_generation":False,"order_execution":False}
  (out/"live_acquisition_validation.json").write_text(json.dumps(validation,indent=2),encoding="utf-8");(out/"security_map.json").write_text(json.dumps({"status":"PASS","canonical_count":29,"resolved_count":29,"unique_security_id_count":29,"mappings":[{"symbol":s,"security_id":mapping[s],"exchange":"NSE","segment":"E","exchange_segment":"NSE_EQ"} for s in symbols]},indent=2),encoding="utf-8");print(json.dumps(validation,indent=2))
  if status!="PASS":raise SystemExit(1)
 if __name__=="__main__":main()
