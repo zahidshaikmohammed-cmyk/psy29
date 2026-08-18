@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-"""Crash-safe PSY29 runtime state with optional Neon durability.
-
-Local atomic JSON is the hot cache. When PSY29_DATABASE_URL is configured,
-Neon/PostgreSQL is the cross-restart/deploy authoritative copy.
-"""
+"""Crash-safe PSY29 runtime state stored only on the Render instance."""
 from __future__ import annotations
 
-import json, os, tempfile
+import json, tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,7 +15,7 @@ DEFAULT = {
     "last_cycle_id": None,
     "last_signal_count": 0,
     "last_history_depth": 0,
-    "persistence": "LOCAL_ONLY",
+    "persistence": "RENDER_LOCAL",
     "updated_at": None,
 }
 
@@ -28,16 +24,8 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _db():
-    try:
-        from psy29_persistent_store import get_runtime_state, put_runtime_state
-        return get_runtime_state, put_runtime_state
-    except Exception:
-        return None, None
-
-
 def load(path: Path) -> dict:
-    """Load DB state first, then local cache; never fail startup on DB outage."""
+    """Load runtime state from Render-local storage only."""
     local = dict(DEFAULT)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -45,42 +33,27 @@ def load(path: Path) -> dict:
             local.update(data)
     except Exception:
         pass
-
-    get_db, _ = _db()
-    if os.environ.get("PSY29_DATABASE_URL") and get_db:
-        try:
-            durable = get_db()
-            if isinstance(durable, dict):
-                merged = dict(DEFAULT); merged.update(durable)
-                merged["persistence"] = "NEON_POSTGRES"
-                return merged
-        except Exception:
-            # Local cache remains a safe operational fallback.
-            local["persistence"] = "LOCAL_FALLBACK_DB_UNAVAILABLE"
+    local["persistence"] = "RENDER_LOCAL"
     return local
 
 
 def save(path: Path, state: dict) -> dict:
+    """Atomically save runtime state to Render-local storage."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    out = dict(DEFAULT); out.update(state); out["updated_at"] = utc_now()
-    get_db, put_db = _db()
-    db_ok = False
-    if os.environ.get("PSY29_DATABASE_URL") and put_db:
-        try:
-            db_ok = bool(put_db(out))
-        except Exception:
-            db_ok = False
-    out["persistence"] = "NEON_POSTGRES" if db_ok else (
-        "LOCAL_FALLBACK_DB_ERROR" if os.environ.get("PSY29_DATABASE_URL") else "LOCAL_ONLY"
-    )
+    out = dict(DEFAULT)
+    out.update(state)
+    out["persistence"] = "RENDER_LOCAL"
+    out["updated_at"] = utc_now()
 
     fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        with open(fd, "w", encoding="utf-8", closefd=True) as handle:
             json.dump(out, handle, indent=2, sort_keys=True)
-            handle.flush(); os.fsync(handle.fileno())
-        os.replace(tmp, path)
+            handle.flush()
+        Path(tmp).replace(path)
         return out
     finally:
-        try: os.unlink(tmp)
-        except FileNotFoundError: pass
+        try:
+            Path(tmp).unlink()
+        except FileNotFoundError:
+            pass
