@@ -1,5 +1,9 @@
-"""Minimal DhanHQ v2 HTTP client for PSY29 research."""
+"""Minimal DhanHQ v2 HTTP client for PSY29 research/production.
 
+The client deliberately preserves Dhan's complete error payload. A bare HTTP 400
+is not actionable for a live-data service because Dhan returns the real cause in
+JSON (for example invalid input, subscription/account, or data errors).
+"""
 from __future__ import annotations
 
 import os
@@ -17,7 +21,6 @@ MAX_RETRY_AFTER_SECONDS = 30.0
 
 
 def _retry_after_seconds(response: requests.Response | None) -> float | None:
-    """Return a bounded Retry-After delay when the provider supplies one."""
     if response is None:
         return None
     value = response.headers.get("Retry-After")
@@ -37,8 +40,16 @@ def _retry_after_seconds(response: requests.Response | None) -> float | None:
 
 
 def _backoff(attempt: int, base: float) -> float:
-    """Bounded exponential backoff with small jitter to avoid retry synchronization."""
     return base * (2**attempt) + random.uniform(0.0, min(0.25, base))
+
+
+def _response_error(response: requests.Response) -> str:
+    """Return Dhan's structured error plus HTTP status without leaking tokens."""
+    try:
+        body = response.json()
+    except ValueError:
+        body = response.text.strip()
+    return f"DHAN_HTTP_{response.status_code}: {body}"
 
 
 class DhanClient:
@@ -67,14 +78,7 @@ class DhanClient:
         retries: int = 2,
         backoff_seconds: float = 1.0,
     ) -> dict[str, Any]:
-        """POST to Dhan with bounded retry/backoff for transient failures.
-
-        429 rate limits honor the provider's Retry-After header when present.
-        Network failures, 429s, 5xx responses, and Dhan transient server/network
-        codes are retried only a bounded number of times. Non-transient 4xx
-        responses fail immediately. A retry never turns partial data into a valid
-        response: the caller must still enforce its own completeness contract.
-        """
+        """POST to Dhan with bounded retries and provider-aware diagnostics."""
         last_error: Exception | None = None
 
         for attempt in range(retries + 1):
@@ -86,28 +90,47 @@ class DhanClient:
                     timeout=timeout,
                 )
 
-                if response.status_code == 429 or response.status_code >= 500:
-                    response.raise_for_status()
+                # Always parse the body before raising. Dhan's HTTP 4xx response
+                # contains the actionable error code/message.
+                if response.status_code >= 400:
+                    if response.status_code == 429 or response.status_code >= 500:
+                        response.raise_for_status()
+                    try:
+                        data = response.json()
+                    except ValueError:
+                        data = None
+                    if isinstance(data, dict) and data.get("status") == "failure":
+                        text = str(data)
+                        transient = any(code in text for code in ("805", "904", "908", "909"))
+                        if transient and attempt < retries:
+                            delay = _retry_after_seconds(response) or _backoff(attempt, backoff_seconds)
+                            print(
+                                f"Dhan transient failure; retrying in {delay:.2f}s "
+                                f"(attempt {attempt + 1}/{retries}): {_response_error(response)}",
+                                flush=True,
+                            )
+                            time.sleep(delay)
+                            continue
+                        raise RuntimeError(_response_error(response))
+                    raise RuntimeError(_response_error(response))
 
-                response.raise_for_status()
                 data = response.json()
-
                 if isinstance(data, dict) and data.get("status") == "failure":
                     text = str(data)
-                    transient = any(code in text for code in ("805", "908", "909"))
+                    transient = any(code in text for code in ("805", "904", "908", "909"))
                     if transient and attempt < retries:
-                        delay = _retry_after_seconds(response)
-                        if delay is None:
-                            delay = _backoff(attempt, backoff_seconds)
+                        delay = _retry_after_seconds(response) or _backoff(attempt, backoff_seconds)
                         print(
                             f"Dhan transient failure; retrying in {delay:.2f}s "
-                            f"(attempt {attempt + 1}/{retries})",
+                            f"(attempt {attempt + 1}/{retries}): {data}",
                             flush=True,
                         )
                         time.sleep(delay)
                         continue
-                    raise RuntimeError(data)
+                    raise RuntimeError(f"DHAN_RESPONSE_FAILURE: {data}")
 
+                if not isinstance(data, dict):
+                    raise RuntimeError(f"DHAN_INVALID_RESPONSE: expected object, got {type(data).__name__}")
                 return data
 
             except (requests.Timeout, requests.ConnectionError) as exc:
@@ -116,8 +139,8 @@ class DhanClient:
                     raise
                 delay = _backoff(attempt, backoff_seconds)
                 print(
-                    f"Dhan network timeout/connection error; retrying in {delay:.2f}s "
-                    f"(attempt {attempt + 1}/{retries})",
+                    f"Dhan network error; retrying in {delay:.2f}s "
+                    f"(attempt {attempt + 1}/{retries}): {exc}",
                     flush=True,
                 )
                 time.sleep(delay)
@@ -127,10 +150,8 @@ class DhanClient:
                 status = exc.response.status_code if exc.response is not None else None
                 if status == 429 or (status is not None and status >= 500):
                     if attempt >= retries:
-                        raise
-                    delay = _retry_after_seconds(exc.response)
-                    if delay is None:
-                        delay = _backoff(attempt, backoff_seconds)
+                        raise RuntimeError(_response_error(exc.response)) from exc
+                    delay = _retry_after_seconds(exc.response) or _backoff(attempt, backoff_seconds)
                     print(
                         f"Dhan HTTP {status}; retrying in {delay:.2f}s "
                         f"(attempt {attempt + 1}/{retries})",
@@ -138,7 +159,7 @@ class DhanClient:
                     )
                     time.sleep(delay)
                     continue
-                raise
+                raise RuntimeError(_response_error(exc.response)) from exc
 
         if last_error:
             raise last_error
